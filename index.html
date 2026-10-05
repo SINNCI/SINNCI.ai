@@ -1,842 +1,356 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>SINNCI AI — XAUUSD Intelligence</title>
-
-<style>
-*{
-  box-sizing:border-box;
-  margin:0;
-  padding:0;
-}
-
-body{
-  background:#050505;
-  color:#f5f5f5;
-  font-family:Arial,Helvetica,sans-serif;
-  min-height:100vh;
-}
-
-body:before{
-  content:"";
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  background:
-    radial-gradient(circle at 15% 10%,rgba(212,175,55,.08),transparent 28%),
-    radial-gradient(circle at 90% 30%,rgba(255,255,255,.04),transparent 25%);
-}
-
-.app{
-  max-width:900px;
-  margin:auto;
-  padding:20px 15px 45px;
-}
-
-/* HEADER */
-
-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:10px 2px 28px;
-}
-
-.logo{
-  font-size:27px;
-  font-weight:900;
-  letter-spacing:-1px;
-}
-
-.logo span{
-  color:#c9a227;
-}
-
-.premium{
-  border:1px solid #4b3b13;
-  background:#151108;
-  color:#d6b64b;
-  padding:8px 12px;
-  border-radius:30px;
-  font-size:9px;
-  letter-spacing:1.5px;
-  font-weight:bold;
-}
-
-/* HERO */
-
-.eyebrow{
-  color:#a88a31;
-  font-size:10px;
-  letter-spacing:3px;
-  margin-bottom:12px;
-}
-
-h1{
-  font-size:42px;
-  letter-spacing:-2px;
-  margin-bottom:8px;
-}
-
-.subtitle{
-  color:#777;
-  font-size:13px;
-  line-height:1.6;
-}
-
-/* PRICE */
-
-.price-card{
-  margin-top:25px;
-  padding:24px;
-  border:1px solid #292929;
-  border-radius:20px;
-  background:linear-gradient(135deg,#121212,#0b0b0b);
-  box-shadow:0 15px 40px rgba(0,0,0,.3);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.price-label{
-  color:#777;
-  font-size:10px;
-  letter-spacing:2px;
-}
-
-.price{
-  font-size:34px;
-  font-weight:900;
-  margin-top:7px;
-}
-
-.change{
-  color:#777;
-  font-size:11px;
-  margin-top:5px;
-}
-
-.bias{
-  text-align:center;
-  padding:15px 18px;
-  border-radius:15px;
-  background:#281315;
-  border:1px solid #552124;
-}
-
-.bias-title{
-  color:#ff6b73;
-  font-size:9px;
-  letter-spacing:2px;
-}
-
-.bias-value{
-  color:#ff6b73;
-  font-size:19px;
-  font-weight:900;
-  margin-top:5px;
-}
-
-/* TIMEFRAMES */
-
-.tf-title{
-  color:#777;
-  font-size:10px;
-  letter-spacing:2px;
-  margin:25px 0 10px;
-}
-
-.timeframes{
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:8px;
-}
-
-.tf{
-  background:#101010;
-  border:1px solid #252525;
-  border-radius:14px;
-  padding:15px 5px;
-  text-align:center;
-}
-
-.tf-name{
-  color:#666;
-  font-size:9px;
-  margin-bottom:9px;
-}
-
-.tf-value{
-  color:#ff626a;
-  font-size:10px;
-  font-weight:bold;
-}
-
-.tf.waiting .tf-value{
-  color:#c7a944;
-}
-
-/* CHART */
-
-.panel{
-  margin-top:15px;
-  background:#0d0d0d;
-  border:1px solid #242424;
-  border-radius:20px;
-  padding:20px;
-}
-
-.panel-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:18px;
-}
-
-.panel-title{
-  font-size:11px;
-  letter-spacing:2px;
-  color:#999;
-}
-
-.panel-sub{
-  font-size:9px;
-  color:#555;
-}
-
-.chart{
-  height:280px;
-  position:relative;
-  overflow:hidden;
-  border-radius:14px;
-  background:
-    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
-  background-size:40px 40px;
-  border:1px solid #1c1c1c;
-}
-
-.chart:after{
-  content:"";
-  position:absolute;
-  left:0;
-  right:0;
-  top:50%;
-  border-top:1px dashed #333;
-}
-
-.candle{
-  position:absolute;
-  width:6px;
-  background:#d94b54;
-  border-radius:2px;
-}
-
-.candle:before{
-  content:"";
-  position:absolute;
-  left:2px;
-  width:2px;
-  background:#d94b54;
-  top:-12px;
-  height:calc(100% + 24px);
-}
-
-.c1{left:8%;top:25%;height:30%}
-.c2{left:14%;top:35%;height:25%}
-.c3{left:20%;top:28%;height:20%}
-.c4{left:26%;top:40%;height:28%}
-.c5{left:32%;top:32%;height:30%}
-.c6{left:38%;top:45%;height:25%}
-.c7{left:44%;top:38%;height:34%}
-.c8{left:50%;top:50%;height:25%}
-.c9{left:56%;top:45%;height:35%}
-.c10{left:62%;top:57%;height:28%}
-.c11{left:68%;top:52%;height:35%}
-.c12{left:74%;top:62%;height:25%}
-.c13{left:80%;top:58%;height:30%}
-.c14{left:86%;top:67%;height:23%}
-
-.zone{
-  position:absolute;
-  left:55%;
-  right:8%;
-  top:23%;
-  height:45px;
-  border:1px solid #7b6321;
-  background:rgba(179,145,35,.08);
-  border-radius:5px;
-}
-
-.zone-label{
-  position:absolute;
-  right:10px;
-  top:7px;
-  color:#c5a743;
-  font-size:9px;
-  letter-spacing:1px;
-}
-
-.entry-line{
-  position:absolute;
-  left:8%;
-  right:8%;
-  top:55%;
-  border-top:1px solid #aaa;
-}
-
-.entry-label{
-  position:absolute;
-  left:9%;
-  top:57%;
-  color:#aaa;
-  font-size:9px;
-}
-
-.tp1{
-  position:absolute;
-  left:8%;
-  right:8%;
-  top:70%;
-  border-top:1px dashed #777;
-}
-
-.tp2{
-  position:absolute;
-  left:8%;
-  right:8%;
-  top:82%;
-  border-top:1px dashed #555;
-}
-
-.tp-label{
-  position:absolute;
-  right:9%;
-  color:#888;
-  font-size:9px;
-}
-
-.tp1-label{top:67%}
-.tp2-label{top:79%}
-
-/* SIGNAL */
-
-.signal-box{
-  border:1px solid #482023;
-  background:linear-gradient(135deg,#160d0e,#0d0d0d);
-  border-radius:18px;
-  padding:20px;
-}
-
-.signal-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.sell{
-  color:#ff626a;
-  font-size:20px;
-  font-weight:900;
-}
-
-.live{
-  color:#777;
-  font-size:9px;
-  letter-spacing:1px;
-}
-
-.signal-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:8px;
-  margin-top:18px;
-}
-
-.signal-item{
-  background:#151515;
-  border:1px solid #242424;
-  border-radius:10px;
-  padding:12px;
-}
-
-.signal-item span{
-  display:block;
-  color:#666;
-  font-size:8px;
-  letter-spacing:1px;
-  margin-bottom:6px;
-}
-
-.signal-item strong{
-  font-size:13px;
-}
-
-/* CONFIDENCE */
-
-.confidence{
-  margin-top:18px;
-}
-
-.conf-head{
-  display:flex;
-  justify-content:space-between;
-  font-size:10px;
-  color:#777;
-}
-
-.conf-head strong{
-  color:#d2b348;
-}
-
-.bar{
-  height:6px;
-  background:#222;
-  border-radius:20px;
-  overflow:hidden;
-  margin-top:8px;
-}
-
-.bar span{
-  display:block;
-  width:87%;
-  height:100%;
-  background:#c5a438;
-}
-
-/* ANALYSIS */
-
-.reason{
-  margin-top:18px;
-  padding-top:16px;
-  border-top:1px solid #242424;
-  color:#999;
-  font-size:12px;
-  line-height:1.7;
-}
-
-/* BUTTON */
-
-button{
-  width:100%;
-  margin-top:18px;
-  padding:16px;
-  border:0;
-  border-radius:12px;
-  background:linear-gradient(135deg,#d7b94e,#a98218);
-  color:#080808;
-  font-weight:900;
-  letter-spacing:.5px;
-  cursor:pointer;
-}
-
-button:hover{
-  opacity:.9;
-}
-
-/* HISTORY */
-
-.history{
-  color:#666;
-  font-size:12px;
-  line-height:1.7;
-}
-
-.history-row{
-  display:flex;
-  justify-content:space-between;
-  border-bottom:1px solid #1f1f1f;
-  padding:13px 0;
-}
-
-.history-row strong{
-  color:#ddd;
-}
-
-.history-win{
-  color:#6ed394;
-}
-
-footer{
-  text-align:center;
-  margin-top:30px;
-  color:#444;
-  font-size:9px;
-  letter-spacing:1px;
-}
-
-/* MOBILE */
-
-@media(max-width:600px){
-
-  .app{
-    padding:18px 12px 40px;
-  }
-
-  h1{
-    font-size:34px;
-  }
-
-  .price{
-    font-size:28px;
-  }
-
-  .timeframes{
-    grid-template-columns:repeat(3,1fr);
-  }
-
-  .signal-grid{
-    grid-template-columns:repeat(2,1fr);
-  }
-
-  .chart{
-    height:240px;
-  }
-
-}
-
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SINNCI AI</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #050505;
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+    }
+
+    .header {
+      text-align: center;
+      margin: 30px 0;
+    }
+
+    .header h1 {
+      font-size: 38px;
+      letter-spacing: 3px;
+    }
+
+    .header p {
+      color: #888;
+      margin-top: 8px;
+    }
+
+    .card {
+      background: #111;
+      border: 1px solid #292929;
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    .live-box {
+      text-align: center;
+      padding: 25px;
+    }
+
+    .live-label {
+      color: #aaa;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .price {
+      font-size: 42px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .status {
+      color: #00ff88;
+      font-size: 13px;
+    }
+
+    label {
+      display: block;
+      color: #aaa;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    select,
+    input {
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 16px;
+      background: #1b1b1b;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      background: white;
+      color: black;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
+
+    .result {
+      margin-top: 20px;
+      display: none;
+    }
+
+    .signal {
+      text-align: center;
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+
+    .levels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .level {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .level span {
+      display: block;
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .level strong {
+      font-size: 18px;
+    }
+
+    .footer {
+      text-align: center;
+      color: #555;
+      font-size: 12px;
+      margin-top: 30px;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="app">
+  <div class="container">
 
-<header>
+    <div class="header">
+      <h1>SINNCI AI</h1>
+      <p>AI Trading Analysis System</p>
+    </div>
 
-<div class="logo">
-SINNCI<span>AI</span>
-</div>
+    <!-- LIVE PRICE -->
+    <div class="card live-box">
+      <div class="live-label">XAUUSD LIVE PRICE</div>
 
-<div class="premium">
-✦ PREMIUM
-</div>
+      <div class="price" id="livePrice">
+        Loading...
+      </div>
 
-</header>
+      <div class="status" id="status">
+        Connecting...
+      </div>
+    </div>
 
+    <!-- ANALYSIS -->
+    <div class="card">
 
-<div class="eyebrow">
-AI TRADING INTELLIGENCE
-</div>
+      <label>Trading Pair</label>
 
-<h1>
-Gold Intelligence
-</h1>
+      <select id="pair">
+        <option value="XAUUSD">XAUUSD</option>
+      </select>
 
-<div class="subtitle">
-Advanced multi-timeframe analysis built for
-XAUUSD traders.
-</div>
+      <label>Timeframe</label>
 
+      <select id="timeframe">
+        <option value="M5">M5</option>
+        <option value="M15">M15</option>
+        <option value="M30">M30</option>
+        <option value="H1">H1</option>
+        <option value="H4">H4</option>
+      </select>
 
-<!-- PRICE -->
+      <label>Current Price</label>
 
-<div class="price-card">
+      <input
+        type="number"
+        id="currentPrice"
+        placeholder="Current XAUUSD price"
+        step="0.01"
+      >
 
-<div>
+      <button onclick="analyzeMarket()">
+        ANALYZE MARKET
+      </button>
 
-<div class="price-label">
-XAUUSD • GOLD
-</div>
+      <div class="result" id="result">
 
-<div class="price">
-4,139.20
-</div>
+        <div class="signal" id="signal"></div>
 
-<div class="change">
-Market data • Demo
-</div>
+        <div class="levels">
 
-</div>
+          <div class="level">
+            <span>ENTRY</span>
+            <strong id="entry"></strong>
+          </div>
 
-<div class="bias">
+          <div class="level">
+            <span>STOP LOSS</span>
+            <strong id="sl"></strong>
+          </div>
 
-<div class="bias-title">
-MARKET BIAS
-</div>
+          <div class="level">
+            <span>TP 1</span>
+            <strong id="tp1"></strong>
+          </div>
 
-<div class="bias-value">
-BEARISH
-</div>
+          <div class="level">
+            <span>TP 2</span>
+            <strong id="tp2"></strong>
+          </div>
 
-</div>
+        </div>
 
-</div>
+      </div>
 
+    </div>
 
-<!-- TIMEFRAMES -->
+    <div class="footer">
+      SINNCI.BigMovement © 2026
+    </div>
 
-<div class="tf-title">
-MULTI-TIMEFRAME DIRECTION
-</div>
+  </div>
 
-<div class="timeframes">
+  <script>
 
-<div class="tf">
-<div class="tf-name">H4</div>
-<div class="tf-value">BEARISH</div>
-</div>
+    // GET LIVE XAUUSD PRICE
+    async function getLivePrice() {
 
-<div class="tf">
-<div class="tf-name">H1</div>
-<div class="tf-value">BEARISH</div>
-</div>
+      try {
 
-<div class="tf">
-<div class="tf-name">M30</div>
-<div class="tf-value">BEARISH</div>
-</div>
+        const response = await fetch("/api/price");
 
-<div class="tf">
-<div class="tf-name">M15</div>
-<div class="tf-value">BEARISH</div>
-</div>
+        const data = await response.json();
 
-<div class="tf waiting">
-<div class="tf-name">M5</div>
-<div class="tf-value">CONFIRM</div>
-</div>
+        if (data.error) {
+          throw new Error(data.error);
+        }
 
-</div>
+        const price = Number(data.price);
 
+        document.getElementById("livePrice").textContent =
+          price.toFixed(2);
 
-<!-- CHART -->
+        document.getElementById("currentPrice").value =
+          price.toFixed(2);
 
-<div class="panel">
+        document.getElementById("status").textContent =
+          "● LIVE • Updated just now";
 
-<div class="panel-head">
+      } catch (error) {
 
-<div class="panel-title">
-XAUUSD CHART
-</div>
+        document.getElementById("livePrice").textContent =
+          "Unavailable";
 
-<div class="panel-sub">
-M15 • DEMO
-</div>
+        document.getElementById("status").textContent =
+          "Connection error";
 
-</div>
+      }
 
-<div class="chart">
+    }
 
-<div class="zone">
-<div class="zone-label">
-SELL ZONE
-</div>
-</div>
 
-<div class="entry-line"></div>
+    // ANALYSIS DEMO
+    function analyzeMarket() {
 
-<div class="entry-label">
-ENTRY
-</div>
+      const price =
+        Number(document.getElementById("currentPrice").value);
 
-<div class="tp1"></div>
-<div class="tp1-label tp-label">TP1</div>
+      if (!price) {
+        alert("Please enter XAUUSD price.");
+        return;
+      }
 
-<div class="tp2"></div>
-<div class="tp2-label tp-label">TP2</div>
+      const signal =
+        Math.random() > 0.5 ? "BUY" : "SELL";
 
-<div class="candle c1"></div>
-<div class="candle c2"></div>
-<div class="candle c3"></div>
-<div class="candle c4"></div>
-<div class="candle c5"></div>
-<div class="candle c6"></div>
-<div class="candle c7"></div>
-<div class="candle c8"></div>
-<div class="candle c9"></div>
-<div class="candle c10"></div>
-<div class="candle c11"></div>
-<div class="candle c12"></div>
-<div class="candle c13"></div>
-<div class="candle c14"></div>
+      let entry;
+      let sl;
+      let tp1;
+      let tp2;
 
-</div>
+      if (signal === "BUY") {
 
-</div>
+        entry = price;
 
+        sl = price - 3;
 
-<!-- SIGNAL -->
+        tp1 = price + 6;
 
-<div class="panel">
+        tp2 = price + 12;
 
-<div class="panel-head">
+      } else {
 
-<div class="panel-title">
-AI SIGNAL
-</div>
+        entry = price;
 
-<div class="live">
-● ANALYSIS READY
-</div>
+        sl = price + 3;
 
-</div>
+        tp1 = price - 6;
 
+        tp2 = price - 12;
 
-<div class="signal-box">
+      }
 
-<div class="signal-head">
+      document.getElementById("signal").textContent =
+        signal;
 
-<div class="sell">
-🔴 SELL XAUUSD
-</div>
+      document.getElementById("entry").textContent =
+        entry.toFixed(2);
 
-<div class="live">
-M5 CONFIRMATION
-</div>
+      document.getElementById("sl").textContent =
+        sl.toFixed(2);
 
-</div>
+      document.getElementById("tp1").textContent =
+        tp1.toFixed(2);
 
+      document.getElementById("tp2").textContent =
+        tp2.toFixed(2);
 
-<div class="signal-grid">
+      document.getElementById("result").style.display =
+        "block";
 
-<div class="signal-item">
-<span>ENTRY</span>
-<strong>4,139.00</strong>
-</div>
+    }
 
-<div class="signal-item">
-<span>STOP LOSS</span>
-<strong>4,146.00</strong>
-</div>
 
-<div class="signal-item">
-<span>TP1</span>
-<strong>4,133.00</strong>
-</div>
+    // LOAD PRICE
+    getLivePrice();
 
-<div class="signal-item">
-<span>TP2</span>
-<strong>4,127.00</strong>
-</div>
 
-</div>
+    // UPDATE EVERY 5 SECONDS
+    setInterval(getLivePrice, 5000);
 
-
-<div class="confidence">
-
-<div class="conf-head">
-<span>AI CONFIDENCE</span>
-<strong>87%</strong>
-</div>
-
-<div class="bar">
-<span></span>
-</div>
-
-</div>
-
-
-<div class="reason">
-
-<b style="color:#ddd;">AI REASONING</b><br>
-
-H4 and H1 remain bearish. Price is approaching
-a resistance area after a downside structure.
-M15 shows bearish continuation while M5 is
-waiting for confirmation before entry.
-
-</div>
-
-</div>
-
-
-<button onclick="analyze()">
-✦ ANALYZE XAUUSD
-</button>
-
-</div>
-
-
-<!-- HISTORY -->
-
-<div class="panel">
-
-<div class="panel-head">
-
-<div class="panel-title">
-SIGNAL HISTORY
-</div>
-
-<div class="panel-sub">
-RECENT
-</div>
-
-</div>
-
-<div class="history">
-
-<div class="history-row">
-<div>
-<strong>SELL XAUUSD</strong><br>
-<small>4,139.00</small>
-</div>
-
-<div class="history-win">
-TP1 HIT
-</div>
-</div>
-
-
-<div class="history-row">
-<div>
-<strong>SELL XAUUSD</strong><br>
-<small>4,151.00</small>
-</div>
-
-<div class="history-win">
-TP2 HIT
-</div>
-</div>
-
-
-<div class="history-row">
-<div>
-<strong>BUY XAUUSD</strong><br>
-<small>4,126.00</small>
-</div>
-
-<div style="color:#ff626a;">
-SL
-</div>
-</div>
-
-</div>
-
-</div>
-
-
-<footer>
-SINNCI AI • V1 PROTOTYPE • NOT FINANCIAL ADVICE
-</footer>
-
-</div>
-
-
-<script>
-
-function analyze(){
-
-  const button = document.querySelector("button");
-
-  button.innerText = "ANALYZING XAUUSD...";
-
-  setTimeout(function(){
-
-    button.innerText = "✓ ANALYSIS COMPLETE";
-
-    setTimeout(function(){
-      button.innerText = "✦ ANALYZE XAUUSD";
-    },1500);
-
-  },1000);
-
-}
-
-</script>
+  </script>
 
 </body>
-  </html>
+</html>

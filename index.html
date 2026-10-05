@@ -101,10 +101,6 @@
       cursor: pointer;
     }
 
-    button:hover {
-      opacity: 0.85;
-    }
-
     .result {
       margin-top: 20px;
       display: none;
@@ -115,6 +111,31 @@
       font-size: 32px;
       font-weight: bold;
       margin-bottom: 20px;
+    }
+
+    .directions {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .tf {
+      background: #1a1a1a;
+      padding: 12px 5px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .tf span {
+      display: block;
+      color: #777;
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+
+    .tf strong {
+      font-size: 11px;
     }
 
     .levels {
@@ -141,11 +162,24 @@
       font-size: 18px;
     }
 
+    .message {
+      text-align: center;
+      color: #aaa;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
     .footer {
       text-align: center;
       color: #555;
       font-size: 12px;
       margin-top: 30px;
+    }
+
+    @media (max-width: 500px) {
+      .directions {
+        grid-template-columns: repeat(3, 1fr);
+      }
     }
   </style>
 </head>
@@ -160,8 +194,12 @@
     </div>
 
     <!-- LIVE PRICE -->
+
     <div class="card live-box">
-      <div class="live-label">XAUUSD LIVE PRICE</div>
+
+      <div class="live-label">
+        XAUUSD LIVE PRICE
+      </div>
 
       <div class="price" id="livePrice">
         Loading...
@@ -170,9 +208,12 @@
       <div class="status" id="status">
         Connecting...
       </div>
+
     </div>
 
-    <!-- ANALYSIS -->
+
+    <!-- MARKET ANALYSIS -->
+
     <div class="card">
 
       <label>Trading Pair</label>
@@ -180,6 +221,7 @@
       <select id="pair">
         <option value="XAUUSD">XAUUSD</option>
       </select>
+
 
       <label>Timeframe</label>
 
@@ -191,6 +233,7 @@
         <option value="H4">H4</option>
       </select>
 
+
       <label>Current Price</label>
 
       <input
@@ -200,41 +243,86 @@
         step="0.01"
       >
 
+
       <button onclick="analyzeMarket()">
         ANALYZE MARKET
       </button>
 
+
       <div class="result" id="result">
 
-        <div class="signal" id="signal"></div>
+        <div class="signal" id="signal">
+          WAIT
+        </div>
+
+
+        <!-- TIMEFRAME DIRECTION -->
+
+        <div class="directions">
+
+          <div class="tf">
+            <span>H4</span>
+            <strong id="h4">-</strong>
+          </div>
+
+          <div class="tf">
+            <span>H1</span>
+            <strong id="h1">-</strong>
+          </div>
+
+          <div class="tf">
+            <span>M30</span>
+            <strong id="m30">-</strong>
+          </div>
+
+          <div class="tf">
+            <span>M15</span>
+            <strong id="m15">-</strong>
+          </div>
+
+          <div class="tf">
+            <span>M5</span>
+            <strong id="m5">-</strong>
+          </div>
+
+        </div>
+
+
+        <!-- ENTRY / SL / TP -->
 
         <div class="levels">
 
           <div class="level">
             <span>ENTRY</span>
-            <strong id="entry"></strong>
+            <strong id="entry">-</strong>
           </div>
 
           <div class="level">
             <span>STOP LOSS</span>
-            <strong id="sl"></strong>
+            <strong id="sl">-</strong>
           </div>
 
           <div class="level">
             <span>TP 1</span>
-            <strong id="tp1"></strong>
+            <strong id="tp1">-</strong>
           </div>
 
           <div class="level">
             <span>TP 2</span>
-            <strong id="tp2"></strong>
+            <strong id="tp2">-</strong>
           </div>
 
+        </div>
+
+
+        <div class="message" id="message">
+          SINNCI AI Technical Analysis
         </div>
 
       </div>
 
     </div>
+
 
     <div class="footer">
       SINNCI.BigMovement © 2026
@@ -242,9 +330,13 @@
 
   </div>
 
+
   <script>
 
-    // GET LIVE XAUUSD PRICE
+    // =========================
+    // LIVE XAUUSD PRICE
+    // =========================
+
     async function getLivePrice() {
 
       try {
@@ -281,73 +373,114 @@
     }
 
 
-    // ANALYSIS DEMO
-    function analyzeMarket() {
+    // =========================
+    // SINNCI AI ANALYSIS
+    // =========================
 
-      const price =
-        Number(document.getElementById("currentPrice").value);
+    async function analyzeMarket() {
 
-      if (!price) {
-        alert("Please enter XAUUSD price.");
-        return;
+      const button =
+        document.querySelector("button");
+
+      button.textContent = "ANALYZING...";
+
+      button.disabled = true;
+
+      try {
+
+        const response =
+          await fetch("/api/analyze");
+
+        const data =
+          await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+
+        // SIGNAL
+
+        document.getElementById("signal").textContent =
+          data.signal;
+
+
+        // TIMEFRAME DIRECTION
+
+        document.getElementById("h4").textContent =
+          data.direction.H4;
+
+        document.getElementById("h1").textContent =
+          data.direction.H1;
+
+        document.getElementById("m30").textContent =
+          data.direction.M30;
+
+        document.getElementById("m15").textContent =
+          data.direction.M15;
+
+        document.getElementById("m5").textContent =
+          data.direction.M5;
+
+
+        // LEVELS
+
+        document.getElementById("entry").textContent =
+          data.entry
+            ? Number(data.entry).toFixed(2)
+            : "-";
+
+        document.getElementById("sl").textContent =
+          data.sl
+            ? Number(data.sl).toFixed(2)
+            : "-";
+
+        document.getElementById("tp1").textContent =
+          data.tp1
+            ? Number(data.tp1).toFixed(2)
+            : "-";
+
+        document.getElementById("tp2").textContent =
+          data.tp2
+            ? Number(data.tp2).toFixed(2)
+            : "-";
+
+
+        document.getElementById("message").textContent =
+          "SINNCI AI Technical Analysis";
+
+
+        document.getElementById("result").style.display =
+          "block";
+
+
+      } catch (error) {
+
+        document.getElementById("message").textContent =
+          "Analysis error: " + error.message;
+
+        document.getElementById("result").style.display =
+          "block";
+
       }
 
-      const signal =
-        Math.random() > 0.5 ? "BUY" : "SELL";
 
-      let entry;
-      let sl;
-      let tp1;
-      let tp2;
+      button.textContent =
+        "ANALYZE MARKET";
 
-      if (signal === "BUY") {
-
-        entry = price;
-
-        sl = price - 3;
-
-        tp1 = price + 6;
-
-        tp2 = price + 12;
-
-      } else {
-
-        entry = price;
-
-        sl = price + 3;
-
-        tp1 = price - 6;
-
-        tp2 = price - 12;
-
-      }
-
-      document.getElementById("signal").textContent =
-        signal;
-
-      document.getElementById("entry").textContent =
-        entry.toFixed(2);
-
-      document.getElementById("sl").textContent =
-        sl.toFixed(2);
-
-      document.getElementById("tp1").textContent =
-        tp1.toFixed(2);
-
-      document.getElementById("tp2").textContent =
-        tp2.toFixed(2);
-
-      document.getElementById("result").style.display =
-        "block";
+      button.disabled =
+        false;
 
     }
 
 
-    // LOAD PRICE
+    // LOAD LIVE PRICE
+
     getLivePrice();
 
 
     // UPDATE EVERY 5 SECONDS
+
     setInterval(getLivePrice, 5000);
 
   </script>

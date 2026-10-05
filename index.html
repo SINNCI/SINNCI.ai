@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>SINNCI AI — XAUUSD Intelligence</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+body{
+  background:#050505;
+  color:#f5f5f5;
+  font-family:Arial,Helvetica,sans-serif;
+  min-height:100vh;
+}
+
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(212,175,55,.08),transparent 28%),
+    radial-gradient(circle at 90% 30%,rgba(255,255,255,.04),transparent 25%);
+}
+
+.app{
+  max-width:900px;
+  margin:auto;
+  padding:20px 15px 45px;
+}
+
+/* HEADER */
+
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 2px 28px;
+}
+
+.logo{
+  font-size:27px;
+  font-weight:900;
+  letter-spacing:-1px;
+}
+
+.logo span{
+  color:#c9a227;
+}
+
+.premium{
+  border:1px solid #4b3b13;
+  background:#151108;
+  color:#d6b64b;
+  padding:8px 12px;
+  border-radius:30px;
+  font-size:9px;
+  letter-spacing:1.5px;
+  font-weight:bold;
+}
+
+/* HERO */
+
+.eyebrow{
+  color:#a88a31;
+  font-size:10px;
+  letter-spacing:3px;
+  margin-bottom:12px;
+}
+
+h1{
+  font-size:42px;
+  letter-spacing:-2px;
+  margin-bottom:8px;
+}
+
+.subtitle{
+  color:#777;
+  font-size:13px;
+  line-height:1.6;
+}
+
+/* PRICE */
+
+.price-card{
+  margin-top:25px;
+  padding:24px;
+  border:1px solid #292929;
+  border-radius:20px;
+  background:linear-gradient(135deg,#121212,#0b0b0b);
+  box-shadow:0 15px 40px rgba(0,0,0,.3);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.price-label{
+  color:#777;
+  font-size:10px;
+  letter-spacing:2px;
+}
+
+.price{
+  font-size:34px;
+  font-weight:900;
+  margin-top:7px;
+}
+
+.change{
+  color:#777;
+  font-size:11px;
+  margin-top:5px;
+}
+
+.bias{
+  text-align:center;
+  padding:15px 18px;
+  border-radius:15px;
+  background:#281315;
+  border:1px solid #552124;
+}
+
+.bias-title{
+  color:#ff6b73;
+  font-size:9px;
+  letter-spacing:2px;
+}
+
+.bias-value{
+  color:#ff6b73;
+  font-size:19px;
+  font-weight:900;
+  margin-top:5px;
+}
+
+/* TIMEFRAMES */
+
+.tf-title{
+  color:#777;
+  font-size:10px;
+  letter-spacing:2px;
+  margin:25px 0 10px;
+}
+
+.timeframes{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:8px;
+}
+
+.tf{
+  background:#101010;
+  border:1px solid #252525;
+  border-radius:14px;
+  padding:15px 5px;
+  text-align:center;
+}
+
+.tf-name{
+  color:#666;
+  font-size:9px;
+  margin-bottom:9px;
+}
+
+.tf-value{
+  color:#ff626a;
+  font-size:10px;
+  font-weight:bold;
+}
+
+.tf.waiting .tf-value{
+  color:#c7a944;
+}
+
+/* CHART */
+
+.panel{
+  margin-top:15px;
+  background:#0d0d0d;
+  border:1px solid #242424;
+  border-radius:20px;
+  padding:20px;
+}
+
+.panel-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px;
+}
+
+.panel-title{
+  font-size:11px;
+  letter-spacing:2px;
+  color:#999;
+}
+
+.panel-sub{
+  font-size:9px;
+  color:#555;
+}
+
+.chart{
+  height:280px;
+  position:relative;
+  overflow:hidden;
+  border-radius:14px;
+  background:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:40px 40px;
+  border:1px solid #1c1c1c;
+}
+
+.chart:after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:50%;
+  border-top:1px dashed #333;
+}
+
+.candle{
+  position:absolute;
+  width:6px;
+  background:#d94b54;
+  border-radius:2px;
+}
+
+.candle:before{
+  content:"";
+  position:absolute;
+  left:2px;
+  width:2px;
+  background:#d94b54;
+  top:-12px;
+  height:calc(100% + 24px);
+}
+
+.c1{left:8%;top:25%;height:30%}
+.c2{left:14%;top:35%;height:25%}
+.c3{left:20%;top:28%;height:20%}
+.c4{left:26%;top:40%;height:28%}
+.c5{left:32%;top:32%;height:30%}
+.c6{left:38%;top:45%;height:25%}
+.c7{left:44%;top:38%;height:34%}
+.c8{left:50%;top:50%;height:25%}
+.c9{left:56%;top:45%;height:35%}
+.c10{left:62%;top:57%;height:28%}
+.c11{left:68%;top:52%;height:35%}
+.c12{left:74%;top:62%;height:25%}
+.c13{left:80%;top:58%;height:30%}
+.c14{left:86%;top:67%;height:23%}
+
+.zone{
+  position:absolute;
+  left:55%;
+  right:8%;
+  top:23%;
+  height:45px;
+  border:1px solid #7b6321;
+  background:rgba(179,145,35,.08);
+  border-radius:5px;
+}
+
+.zone-label{
+  position:absolute;
+  right:10px;
+  top:7px;
+  color:#c5a743;
+  font-size:9px;
+  letter-spacing:1px;
+}
+
+.entry-line{
+  position:absolute;
+  left:8%;
+  right:8%;
+  top:55%;
+  border-top:1px solid #aaa;
+}
+
+.entry-label{
+  position:absolute;
+  left:9%;
+  top:57%;
+  color:#aaa;
+  font-size:9px;
+}
+
+.tp1{
+  position:absolute;
+  left:8%;
+  right:8%;
+  top:70%;
+  border-top:1px dashed #777;
+}
+
+.tp2{
+  position:absolute;
+  left:8%;
+  right:8%;
+  top:82%;
+  border-top:1px dashed #555;
+}
+
+.tp-label{
+  position:absolute;
+  right:9%;
+  color:#888;
+  font-size:9px;
+}
+
+.tp1-label{top:67%}
+.tp2-label{top:79%}
+
+/* SIGNAL */
+
+.signal-box{
+  border:1px solid #482023;
+  background:linear-gradient(135deg,#160d0e,#0d0d0d);
+  border-radius:18px;
+  padding:20px;
+}
+
+.signal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.sell{
+  color:#ff626a;
+  font-size:20px;
+  font-weight:900;
+}
+
+.live{
+  color:#777;
+  font-size:9px;
+  letter-spacing:1px;
+}
+
+.signal-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-top:18px;
+}
+
+.signal-item{
+  background:#151515;
+  border:1px solid #242424;
+  border-radius:10px;
+  padding:12px;
+}
+
+.signal-item span{
+  display:block;
+  color:#666;
+  font-size:8px;
+  letter-spacing:1px;
+  margin-bottom:6px;
+}
+
+.signal-item strong{
+  font-size:13px;
+}
+
+/* CONFIDENCE */
+
+.confidence{
+  margin-top:18px;
+}
+
+.conf-head{
+  display:flex;
+  justify-content:space-between;
+  font-size:10px;
+  color:#777;
+}
+
+.conf-head strong{
+  color:#d2b348;
+}
+
+.bar{
+  height:6px;
+  background:#222;
+  border-radius:20px;
+  overflow:hidden;
+  margin-top:8px;
+}
+
+.bar span{
+  display:block;
+  width:87%;
+  height:100%;
+  background:#c5a438;
+}
+
+/* ANALYSIS */
+
+.reason{
+  margin-top:18px;
+  padding-top:16px;
+  border-top:1px solid #242424;
+  color:#999;
+  font-size:12px;
+  line-height:1.7;
+}
+
+/* BUTTON */
+
+button{
+  width:100%;
+  margin-top:18px;
+  padding:16px;
+  border:0;
+  border-radius:12px;
+  background:linear-gradient(135deg,#d7b94e,#a98218);
+  color:#080808;
+  font-weight:900;
+  letter-spacing:.5px;
+  cursor:pointer;
+}
+
+button:hover{
+  opacity:.9;
+}
+
+/* HISTORY */
+
+.history{
+  color:#666;
+  font-size:12px;
+  line-height:1.7;
+}
+
+.history-row{
+  display:flex;
+  justify-content:space-between;
+  border-bottom:1px solid #1f1f1f;
+  padding:13px 0;
+}
+
+.history-row strong{
+  color:#ddd;
+}
+
+.history-win{
+  color:#6ed394;
+}
+
+footer{
+  text-align:center;
+  margin-top:30px;
+  color:#444;
+  font-size:9px;
+  letter-spacing:1px;
+}
+
+/* MOBILE */
+
+@media(max-width:600px){
+
+  .app{
+    padding:18px 12px 40px;
+  }
+
+  h1{
+    font-size:34px;
+  }
+
+  .price{
+    font-size:28px;
+  }
+
+  .timeframes{
+    grid-template-columns:repeat(3,1fr);
+  }
+
+  .signal-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .chart{
+    height:240px;
+  }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<header>
+
+<div class="logo">
+SINNCI<span>AI</span>
+</div>
+
+<div class="premium">
+✦ PREMIUM
+</div>
+
+</header>
+
+
+<div class="eyebrow">
+AI TRADING INTELLIGENCE
+</div>
+
+<h1>
+Gold Intelligence
+</h1>
+
+<div class="subtitle">
+Advanced multi-timeframe analysis built for
+XAUUSD traders.
+</div>
+
+
+<!-- PRICE -->
+
+<div class="price-card">
+
+<div>
+
+<div class="price-label">
+XAUUSD • GOLD
+</div>
+
+<div class="price">
+4,139.20
+</div>
+
+<div class="change">
+Market data • Demo
+</div>
+
+</div>
+
+<div class="bias">
+
+<div class="bias-title">
+MARKET BIAS
+</div>
+
+<div class="bias-value">
+BEARISH
+</div>
+
+</div>
+
+</div>
+
+
+<!-- TIMEFRAMES -->
+
+<div class="tf-title">
+MULTI-TIMEFRAME DIRECTION
+</div>
+
+<div class="timeframes">
+
+<div class="tf">
+<div class="tf-name">H4</div>
+<div class="tf-value">BEARISH</div>
+</div>
+
+<div class="tf">
+<div class="tf-name">H1</div>
+<div class="tf-value">BEARISH</div>
+</div>
+
+<div class="tf">
+<div class="tf-name">M30</div>
+<div class="tf-value">BEARISH</div>
+</div>
+
+<div class="tf">
+<div class="tf-name">M15</div>
+<div class="tf-value">BEARISH</div>
+</div>
+
+<div class="tf waiting">
+<div class="tf-name">M5</div>
+<div class="tf-value">CONFIRM</div>
+</div>
+
+</div>
+
+
+<!-- CHART -->
+
+<div class="panel">
+
+<div class="panel-head">
+
+<div class="panel-title">
+XAUUSD CHART
+</div>
+
+<div class="panel-sub">
+M15 • DEMO
+</div>
+
+</div>
+
+<div class="chart">
+
+<div class="zone">
+<div class="zone-label">
+SELL ZONE
+</div>
+</div>
+
+<div class="entry-line"></div>
+
+<div class="entry-label">
+ENTRY
+</div>
+
+<div class="tp1"></div>
+<div class="tp1-label tp-label">TP1</div>
+
+<div class="tp2"></div>
+<div class="tp2-label tp-label">TP2</div>
+
+<div class="candle c1"></div>
+<div class="candle c2"></div>
+<div class="candle c3"></div>
+<div class="candle c4"></div>
+<div class="candle c5"></div>
+<div class="candle c6"></div>
+<div class="candle c7"></div>
+<div class="candle c8"></div>
+<div class="candle c9"></div>
+<div class="candle c10"></div>
+<div class="candle c11"></div>
+<div class="candle c12"></div>
+<div class="candle c13"></div>
+<div class="candle c14"></div>
+
+</div>
+
+</div>
+
+
+<!-- SIGNAL -->
+
+<div class="panel">
+
+<div class="panel-head">
+
+<div class="panel-title">
+AI SIGNAL
+</div>
+
+<div class="live">
+● ANALYSIS READY
+</div>
+
+</div>
+
+
+<div class="signal-box">
+
+<div class="signal-head">
+
+<div class="sell">
+🔴 SELL XAUUSD
+</div>
+
+<div class="live">
+M5 CONFIRMATION
+</div>
+
+</div>
+
+
+<div class="signal-grid">
+
+<div class="signal-item">
+<span>ENTRY</span>
+<strong>4,139.00</strong>
+</div>
+
+<div class="signal-item">
+<span>STOP LOSS</span>
+<strong>4,146.00</strong>
+</div>
+
+<div class="signal-item">
+<span>TP1</span>
+<strong>4,133.00</strong>
+</div>
+
+<div class="signal-item">
+<span>TP2</span>
+<strong>4,127.00</strong>
+</div>
+
+</div>
+
+
+<div class="confidence">
+
+<div class="conf-head">
+<span>AI CONFIDENCE</span>
+<strong>87%</strong>
+</div>
+
+<div class="bar">
+<span></span>
+</div>
+
+</div>
+
+
+<div class="reason">
+
+<b style="color:#ddd;">AI REASONING</b><br>
+
+H4 and H1 remain bearish. Price is approaching
+a resistance area after a downside structure.
+M15 shows bearish continuation while M5 is
+waiting for confirmation before entry.
+
+</div>
+
+</div>
+
+
+<button onclick="analyze()">
+✦ ANALYZE XAUUSD
+</button>
+
+</div>
+
+
+<!-- HISTORY -->
+
+<div class="panel">
+
+<div class="panel-head">
+
+<div class="panel-title">
+SIGNAL HISTORY
+</div>
+
+<div class="panel-sub">
+RECENT
+</div>
+
+</div>
+
+<div class="history">
+
+<div class="history-row">
+<div>
+<strong>SELL XAUUSD</strong><br>
+<small>4,139.00</small>
+</div>
+
+<div class="history-win">
+TP1 HIT
+</div>
+</div>
+
+
+<div class="history-row">
+<div>
+<strong>SELL XAUUSD</strong><br>
+<small>4,151.00</small>
+</div>
+
+<div class="history-win">
+TP2 HIT
+</div>
+</div>
+
+
+<div class="history-row">
+<div>
+<strong>BUY XAUUSD</strong><br>
+<small>4,126.00</small>
+</div>
+
+<div style="color:#ff626a;">
+SL
+</div>
+</div>
+
+</div>
+
+</div>
+
+
+<footer>
+SINNCI AI • V1 PROTOTYPE • NOT FINANCIAL ADVICE
+</footer>
+
+</div>
+
+
+<script>
+
+function analyze(){
+
+  const button = document.querySelector("button");
+
+  button.innerText = "ANALYZING XAUUSD...";
+
+  setTimeout(function(){
+
+    button.innerText = "✓ ANALYSIS COMPLETE";
+
+    setTimeout(function(){
+      button.innerText = "✦ ANALYZE XAUUSD";
+    },1500);
+
+  },1000);
+
+}
+
+</script>
+
+</body>
+  </html>

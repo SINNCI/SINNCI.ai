@@ -4,7 +4,7 @@ export default async function handler(req, res) {
 
     if (!API_KEY) {
       return res.status(500).json({
-        error: "Twelve Data API key not configured"
+        error: "API key not configured"
       });
     }
 
@@ -19,19 +19,30 @@ export default async function handler(req, res) {
     const market = {};
 
     for (const [name, interval] of Object.entries(timeframes)) {
+
       const url =
-        `https://api.twelvedata.com/time_series` +
-        `?symbol=XAU/USD` +
-        `&interval=${interval}` +
-        `&outputsize=50` +
-        `&apikey=${API_KEY}`;
+        "https://api.twelvedata.com/time_series" +
+        "?symbol=XAU/USD" +
+        "&interval=" + interval +
+        "&outputsize=50" +
+        "&apikey=" + API_KEY;
 
       const response = await fetch(url);
-      const data = await response.json();
+      const text = await response.text();
 
-      if (data.status === "error") {
-        return res.status(500).json({
-          error: data.message
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        return res.status(502).json({
+          error: "Market data service returned an invalid response"
+        });
+      }
+
+      if (data.status === "error" || !data.values) {
+        return res.status(503).json({
+          error: data.message || "Market data unavailable"
         });
       }
 
@@ -39,18 +50,26 @@ export default async function handler(req, res) {
     }
 
     function direction(candles) {
-      const recent = candles.slice(0, 10);
 
-      const newest = Number(recent[0].close);
-      const oldest = Number(recent[9].close);
+      if (!candles || candles.length < 10) {
+        return "WAIT";
+      }
 
-      if (newest > oldest) return "BULLISH";
-      if (newest < oldest) return "BEARISH";
+      const newest = Number(candles[0].close);
+      const oldest = Number(candles[9].close);
+
+      if (newest > oldest) {
+        return "BULLISH";
+      }
+
+      if (newest < oldest) {
+        return "BEARISH";
+      }
 
       return "SIDEWAYS";
     }
 
-    const directionResult = {
+    const directions = {
       H4: direction(market.H4),
       H1: direction(market.H1),
       M30: direction(market.M30),
@@ -61,53 +80,69 @@ export default async function handler(req, res) {
     let bullish = 0;
     let bearish = 0;
 
-    Object.values(directionResult).forEach(dir => {
-      if (dir === "BULLISH") bullish++;
-      if (dir === "BEARISH") bearish++;
+    Object.values(directions).forEach(dir => {
+
+      if (dir === "BULLISH") {
+        bullish++;
+      }
+
+      if (dir === "BEARISH") {
+        bearish++;
+      }
+
     });
 
     let signal = "WAIT";
 
     if (bullish >= 4) {
       signal = "BUY";
-    } else if (bearish >= 4) {
+    }
+
+    if (bearish >= 4) {
       signal = "SELL";
     }
 
     const price = Number(market.M5[0].close);
 
     let entry = price;
-    let sl;
-    let tp1;
-    let tp2;
+    let sl = null;
+    let tp1 = null;
+    let tp2 = null;
 
     if (signal === "BUY") {
+
       sl = price - 3;
       tp1 = price + 6;
       tp2 = price + 12;
+
     }
 
     if (signal === "SELL") {
+
       sl = price + 3;
       tp1 = price - 6;
       tp2 = price - 12;
+
     }
 
     return res.status(200).json({
       symbol: "XAUUSD",
-      price,
-      signal,
-      direction: directionResult,
-      entry,
-      sl,
-      tp1,
-      tp2,
-      note: "SINNCI AI technical analysis"
+      price: price,
+      signal: signal,
+      direction: directions,
+      entry: entry,
+      sl: sl,
+      tp1: tp1,
+      tp2: tp2,
+      market_status: "Using latest available candle",
+      note: "SINNCI AI Technical Analysis"
     });
 
   } catch (error) {
+
     return res.status(500).json({
-      error: "Analysis server error"
+      error: "SINNCI AI analysis temporarily unavailable"
     });
+
   }
-}
+  }

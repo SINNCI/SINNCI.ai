@@ -116,7 +116,9 @@ export default async function handler(req, res) {
         return averageRange(candles, period);
       }
 
-      const recent = candles.slice(-(period + 1));
+      const recent =
+        candles.slice(-(period + 1));
+
       const trueRanges = [];
 
       for (let i = 1; i < recent.length; i++) {
@@ -125,8 +127,12 @@ export default async function handler(req, res) {
 
         const tr = Math.max(
           current.high - current.low,
-          Math.abs(current.high - previous.close),
-          Math.abs(current.low - previous.close)
+          Math.abs(
+            current.high - previous.close
+          ),
+          Math.abs(
+            current.low - previous.close
+          )
         );
 
         trueRanges.push(tr);
@@ -147,8 +153,11 @@ export default async function handler(req, res) {
     // =========================
 
     function getDirection(candles) {
-      const last = candles[candles.length - 1];
-      const lookback = candles.slice(-12);
+      const last =
+        candles[candles.length - 1];
+
+      const lookback =
+        candles.slice(-12);
 
       const highest = Math.max(
         ...lookback.map(c => c.high)
@@ -173,14 +182,23 @@ export default async function handler(req, res) {
     }
 
     // =========================
-    // MARKET DIRECTION
+    // DIRECTIONS
     // =========================
 
-    const directionH4 = getDirection(h4);
-    const directionH1 = getDirection(h1);
-    const directionM30 = getDirection(m30);
-    const directionM15 = getDirection(m15);
-    const directionM5 = getDirection(m5);
+    const directionH4 =
+      getDirection(h4);
+
+    const directionH1 =
+      getDirection(h1);
+
+    const directionM30 =
+      getDirection(m30);
+
+    const directionM15 =
+      getDirection(m15);
+
+    const directionM5 =
+      getDirection(m5);
 
     // =========================
     // CURRENT PRICE
@@ -190,17 +208,26 @@ export default async function handler(req, res) {
       m5[m5.length - 1].close;
 
     // =========================
-    // ATR EACH TF
+    // ATR
     // =========================
 
-    const atrH4 = calculateATR(h4);
-    const atrH1 = calculateATR(h1);
-    const atrM30 = calculateATR(m30);
-    const atrM15 = calculateATR(m15);
-    const atrM5 = calculateATR(m5);
+    const atrH4 =
+      calculateATR(h4);
+
+    const atrH1 =
+      calculateATR(h1);
+
+    const atrM30 =
+      calculateATR(m30);
+
+    const atrM15 =
+      calculateATR(m15);
+
+    const atrM5 =
+      calculateATR(m5);
 
     // =========================
-    // FIND HISTORICAL LEVELS
+    // HISTORICAL LEVELS
     // =========================
 
     function findHistoricalLevels(candles) {
@@ -228,23 +255,26 @@ export default async function handler(req, res) {
           i + 4
         );
 
-        const leftHigh = Math.max(
-          ...left.map(x => x.high)
-        );
+        const leftHigh =
+          Math.max(
+            ...left.map(x => x.high)
+          );
 
-        const rightHigh = Math.max(
-          ...right.map(x => x.high)
-        );
+        const rightHigh =
+          Math.max(
+            ...right.map(x => x.high)
+          );
 
-        const leftLow = Math.min(
-          ...left.map(x => x.low)
-        );
+        const leftLow =
+          Math.min(
+            ...left.map(x => x.low)
+          );
 
-        const rightLow = Math.min(
-          ...right.map(x => x.low)
-        );
+        const rightLow =
+          Math.min(
+            ...right.map(x => x.low)
+          );
 
-        // RESISTANCE
         if (
           c.high >= leftHigh &&
           c.high >= rightHigh
@@ -256,7 +286,6 @@ export default async function handler(req, res) {
           });
         }
 
-        // SUPPORT
         if (
           c.low <= leftLow &&
           c.low <= rightLow
@@ -273,7 +302,7 @@ export default async function handler(req, res) {
     }
 
     // =========================
-    // BREAKOUT / ROLE REVERSAL
+    // BREAKOUT
     // =========================
 
     function findBreakouts(candles) {
@@ -284,23 +313,26 @@ export default async function handler(req, res) {
         i < candles.length - 2;
         i++
       ) {
-        const previous = candles.slice(
-          i - 8,
-          i
-        );
+        const previous =
+          candles.slice(i - 8, i);
 
-        const resistance = Math.max(
-          ...previous.map(c => c.high)
-        );
+        const resistance =
+          Math.max(
+            ...previous.map(c => c.high)
+          );
 
-        const support = Math.min(
-          ...previous.map(c => c.low)
-        );
+        const support =
+          Math.min(
+            ...previous.map(c => c.low)
+          );
 
-        const candle = candles[i];
+        const candle =
+          candles[i];
 
-        // BULLISH BREAKOUT
-        if (candle.close > resistance) {
+        if (
+          candle.close >
+          resistance
+        ) {
           levels.push({
             type: "BUY",
             price: resistance,
@@ -309,8 +341,10 @@ export default async function handler(req, res) {
           });
         }
 
-        // BEARISH BREAKOUT
-        if (candle.close < support) {
+        if (
+          candle.close <
+          support
+        ) {
           levels.push({
             type: "SELL",
             price: support,
@@ -330,18 +364,34 @@ export default async function handler(req, res) {
     let levels = [];
 
     const timeframeData = [
-      { candles: h4, tf: "H4" },
-      { candles: h1, tf: "H1" },
-      { candles: m30, tf: "M30" },
-      { candles: m15, tf: "M15" }
+      {
+        candles: h4,
+        tf: "H4"
+      },
+      {
+        candles: h1,
+        tf: "H1"
+      },
+      {
+        candles: m30,
+        tf: "M30"
+      },
+      {
+        candles: m15,
+        tf: "M15"
+      }
     ];
 
     for (const item of timeframeData) {
       const historical =
-        findHistoricalLevels(item.candles);
+        findHistoricalLevels(
+          item.candles
+        );
 
       const breakouts =
-        findBreakouts(item.candles);
+        findBreakouts(
+          item.candles
+        );
 
       historical.forEach(level => {
         levels.push({
@@ -359,25 +409,28 @@ export default async function handler(req, res) {
     }
 
     // =========================
-    // MERGE NEARBY LEVELS
+    // MERGE LEVELS
     // =========================
 
     function mergeLevels(levels) {
       const merged = [];
 
       for (const level of levels) {
-        const existing = merged.find(x =>
-          x.type === level.type &&
-          Math.abs(
-            x.price - level.price
-          ) < 2.5
-        );
+        const existing =
+          merged.find(x =>
+            x.type === level.type &&
+            Math.abs(
+              x.price - level.price
+            ) < 2.5
+          );
 
         if (existing) {
           existing.price =
-            (existing.price + level.price) / 2;
+            (existing.price +
+              level.price) / 2;
 
-          existing.strength += level.strength;
+          existing.strength +=
+            level.strength;
         } else {
           merged.push({
             ...level
@@ -388,42 +441,45 @@ export default async function handler(req, res) {
       return merged;
     }
 
-    levels = mergeLevels(levels);
+    levels =
+      mergeLevels(levels);
 
     // =========================
-    // FIND BEST PUNCA
+    // FIND PUNCA
     // =========================
 
     function findBestPunca(type) {
-      const candidates = levels
-        .filter(level =>
-          level.type === type
-        )
-        .map(level => {
-          const distance =
-            Math.abs(
-              currentPrice - level.price
-            );
+      const candidates =
+        levels
+          .filter(level =>
+            level.type === type
+          )
+          .map(level => {
+            const distance =
+              Math.abs(
+                currentPrice -
+                level.price
+              );
 
-          return {
-            ...level,
-            distance
-          };
-        })
-        .filter(level => {
-          return level.distance <= 80;
-        })
-        .sort((a, b) => {
-          const scoreA =
-            a.strength * 20 -
-            a.distance;
+            return {
+              ...level,
+              distance
+            };
+          })
+          .filter(level =>
+            level.distance <= 80
+          )
+          .sort((a, b) => {
+            const scoreA =
+              a.strength * 20 -
+              a.distance;
 
-          const scoreB =
-            b.strength * 20 -
-            b.distance;
+            const scoreB =
+              b.strength * 20 -
+              b.distance;
 
-          return scoreB - scoreA;
-        });
+            return scoreB - scoreA;
+          });
 
       return candidates[0] || null;
     }
@@ -469,34 +525,48 @@ export default async function handler(req, res) {
       m5Last.low;
 
     const bullishEngulfing =
-      m5Last.close > m5Last.open &&
-      m5Previous.close < m5Previous.open &&
-      m5Last.close >= m5Previous.open &&
-      m5Last.open <= m5Previous.close;
+      m5Last.close >
+        m5Last.open &&
+      m5Previous.close <
+        m5Previous.open &&
+      m5Last.close >=
+        m5Previous.open &&
+      m5Last.open <=
+        m5Previous.close;
 
     const bearishEngulfing =
-      m5Last.close < m5Last.open &&
-      m5Previous.close > m5Previous.open &&
-      m5Last.close <= m5Previous.open &&
-      m5Last.open >= m5Previous.close;
+      m5Last.close <
+        m5Last.open &&
+      m5Previous.close >
+        m5Previous.open &&
+      m5Last.close <=
+        m5Previous.open &&
+      m5Last.open >=
+        m5Previous.close;
 
     const bullishRejection =
-      lowerWick > body * 1.3 &&
-      m5Last.close > m5Last.open;
+      lowerWick >
+        body * 1.3 &&
+      m5Last.close >
+        m5Last.open;
 
     const bearishRejection =
-      upperWick > body * 1.3 &&
-      m5Last.close < m5Last.open;
+      upperWick >
+        body * 1.3 &&
+      m5Last.close <
+        m5Last.open;
 
     const strongBullish =
       range > 0 &&
       body / range >= 0.6 &&
-      m5Last.close > m5Last.open;
+      m5Last.close >
+        m5Last.open;
 
     const strongBearish =
       range > 0 &&
       body / range >= 0.6 &&
-      m5Last.close < m5Last.open;
+      m5Last.close <
+        m5Last.open;
 
     const buyConfirmation =
       bullishEngulfing ||
@@ -515,65 +585,91 @@ export default async function handler(req, res) {
     let buyScore = 0;
     let sellScore = 0;
 
-    if (directionH4 === "BULLISH")
+    if (
+      directionH4 === "BULLISH"
+    ) {
       buyScore += 25;
+    }
 
-    if (directionH4 === "BEARISH")
+    if (
+      directionH4 === "BEARISH"
+    ) {
       sellScore += 25;
+    }
 
-    if (directionH1 === "BULLISH")
+    if (
+      directionH1 === "BULLISH"
+    ) {
       buyScore += 25;
+    }
 
-    if (directionH1 === "BEARISH")
+    if (
+      directionH1 === "BEARISH"
+    ) {
       sellScore += 25;
+    }
 
-    if (directionM30 === "BULLISH")
+    if (
+      directionM30 === "BULLISH"
+    ) {
       buyScore += 10;
+    }
 
-    if (directionM30 === "BEARISH")
+    if (
+      directionM30 === "BEARISH"
+    ) {
       sellScore += 10;
+    }
 
-    if (directionM15 === "BULLISH")
+    if (
+      directionM15 === "BULLISH"
+    ) {
       buyScore += 10;
+    }
 
-    if (directionM15 === "BEARISH")
+    if (
+      directionM15 === "BEARISH"
+    ) {
       sellScore += 10;
+    }
 
-    if (buyPunca)
+    if (buyPunca) {
       buyScore += 15;
+    }
 
-    if (sellPunca)
+    if (sellPunca) {
       sellScore += 15;
+    }
 
-    if (buyConfirmation)
+    if (buyConfirmation) {
       buyScore += 15;
+    }
 
-    if (sellConfirmation)
+    if (sellConfirmation) {
       sellScore += 15;
+    }
 
     // =========================
     // PUNCA DISTANCE
     // =========================
 
-    let buyNearPunca = false;
-    let sellNearPunca = false;
+    const buyNearPunca =
+      buyPunca &&
+      buyPunca.distance <= 25;
 
-    if (buyPunca) {
-      buyNearPunca =
-        buyPunca.distance <= 25;
-    }
-
-    if (sellPunca) {
-      sellNearPunca =
-        sellPunca.distance <= 25;
-    }
+    const sellNearPunca =
+      sellPunca &&
+      sellPunca.distance <= 25;
 
     // =========================
-    // PRELIMINARY SIGNAL
+    // INITIAL SIGNAL
     // =========================
 
     let signal = "WAIT";
     let punca = null;
+
+    let waitReason =
+      "NO_HIGH_QUALITY_SETUP";
 
     if (
       buyScore >= 70 &&
@@ -584,6 +680,7 @@ export default async function handler(req, res) {
     ) {
       signal = "BUY";
       punca = buyPunca;
+      waitReason = null;
     }
 
     if (
@@ -591,16 +688,16 @@ export default async function handler(req, res) {
       sellNearPunca &&
       sellConfirmation &&
       directionH4 !== "BULLISH" &&
-      directionH1 !== "BULLISH"
+      directionH1 !== "BULLISH" &&
+      sellScore > buyScore
     ) {
-      if (sellScore > buyScore) {
-        signal = "SELL";
-        punca = sellPunca;
-      }
+      signal = "SELL";
+      punca = sellPunca;
+      waitReason = null;
     }
 
     // =========================
-    // STRUCTURE-BASED SL
+    // STRUCTURE SL
     // =========================
 
     let entry = null;
@@ -612,31 +709,86 @@ export default async function handler(req, res) {
     let maxAllowedRisk = null;
     let riskValid = false;
 
-    if (signal === "BUY" && punca) {
+    // =========================
+    // RISK LIMIT
+    // =========================
+
+    function getMaxRisk(source) {
+      let atr = atrM15;
+
+      if (source === "H4") {
+        atr = atrH4;
+      }
+
+      if (source === "H1") {
+        atr = atrH1;
+      }
+
+      if (source === "M30") {
+        atr = atrM30;
+      }
+
+      if (source === "M15") {
+        atr = atrM15;
+      }
+
+      // Dynamic risk ceiling.
+      // Bukan fixed pip.
+      const volatilityLimit =
+        atr * 1.35;
+
+      const minimumRisk =
+        3.0;
+
+      const absoluteCeiling =
+        8.0;
+
+      return Math.min(
+        Math.max(
+          volatilityLimit,
+          minimumRisk
+        ),
+        absoluteCeiling
+      );
+    }
+
+    // =========================
+    // BUY
+    // =========================
+
+    if (
+      signal === "BUY" &&
+      punca
+    ) {
       entry = currentPrice;
 
-      let structureATR = atrM15;
+      let structureATR =
+        atrM15;
 
-      if (punca.source === "H4")
+      if (punca.source === "H4") {
         structureATR = atrH4;
+      }
 
-      if (punca.source === "H1")
+      if (punca.source === "H1") {
         structureATR = atrH1;
+      }
 
-      if (punca.source === "M30")
+      if (punca.source === "M30") {
         structureATR = atrM30;
+      }
 
-      if (punca.source === "M15")
+      if (punca.source === "M15") {
         structureATR = atrM15;
+      }
 
-      // Buffer hanya untuk letakkan SL
-      // di luar structure.
+      // Buffer kecil di luar structure.
       const structureBuffer =
         Math.max(
           structureATR * 0.15,
           0.50
         );
 
+      // BUY SL mesti bawah punca.
       sl =
         punca.price -
         structureBuffer;
@@ -644,27 +796,19 @@ export default async function handler(req, res) {
       risk =
         entry - sl;
 
-      // Maximum risk dinamik
-      // berdasarkan volatility M5.
       maxAllowedRisk =
-        Math.max(
-          atrM5 * 1.5,
-          2.0
+        getMaxRisk(
+          punca.source
         );
 
       riskValid =
         risk > 0 &&
         risk <= maxAllowedRisk;
 
-      if (riskValid) {
-        // TP berdasarkan risk sebenar
-        tp1 =
-          entry + risk;
-
-        tp2 =
-          entry + risk * 2;
-      } else {
+      if (!riskValid) {
         signal = "WAIT";
+        waitReason =
+          "SL_TOO_FAR";
         entry = null;
         sl = null;
         tp1 = null;
@@ -672,31 +816,43 @@ export default async function handler(req, res) {
       }
     }
 
-    if (signal === "SELL" && punca) {
+    // =========================
+    // SELL
+    // =========================
+
+    if (
+      signal === "SELL" &&
+      punca
+    ) {
       entry = currentPrice;
 
-      let structureATR = atrM15;
+      let structureATR =
+        atrM15;
 
-      if (punca.source === "H4")
+      if (punca.source === "H4") {
         structureATR = atrH4;
+      }
 
-      if (punca.source === "H1")
+      if (punca.source === "H1") {
         structureATR = atrH1;
+      }
 
-      if (punca.source === "M30")
+      if (punca.source === "M30") {
         structureATR = atrM30;
+      }
 
-      if (punca.source === "M15")
+      if (punca.source === "M15") {
         structureATR = atrM15;
+      }
 
-      // Buffer hanya untuk letakkan SL
-      // di luar structure.
+      // Buffer kecil di luar structure.
       const structureBuffer =
         Math.max(
           structureATR * 0.15,
           0.50
         );
 
+      // SELL SL mesti atas punca.
       sl =
         punca.price +
         structureBuffer;
@@ -705,24 +861,18 @@ export default async function handler(req, res) {
         sl - entry;
 
       maxAllowedRisk =
-        Math.max(
-          atrM5 * 1.5,
-          2.0
+        getMaxRisk(
+          punca.source
         );
 
       riskValid =
         risk > 0 &&
         risk <= maxAllowedRisk;
 
-      if (riskValid) {
-        // TP berdasarkan risk sebenar
-        tp1 =
-          entry - risk;
-
-        tp2 =
-          entry - risk * 2;
-      } else {
+      if (!riskValid) {
         signal = "WAIT";
+        waitReason =
+          "SL_TOO_FAR";
         entry = null;
         sl = null;
         tp1 = null;
@@ -731,16 +881,80 @@ export default async function handler(req, res) {
     }
 
     // =========================
+    // TP
+    // =========================
+
+    if (
+      signal === "BUY" &&
+      riskValid
+    ) {
+      tp1 =
+        entry + risk;
+
+      tp2 =
+        entry + risk * 2;
+    }
+
+    if (
+      signal === "SELL" &&
+      riskValid
+    ) {
+      tp1 =
+        entry - risk;
+
+      tp2 =
+        entry - risk * 2;
+    }
+
+    // =========================
+    // MORE WAIT REASONS
+    // =========================
+
+    if (
+      signal === "WAIT" &&
+      waitReason ===
+        "NO_HIGH_QUALITY_SETUP"
+    ) {
+      if (
+        buyScore < 70 &&
+        sellScore < 70
+      ) {
+        waitReason =
+          "SCORE_TOO_LOW";
+      } else if (
+        !buyPunca &&
+        !sellPunca
+      ) {
+        waitReason =
+          "NO_PUNCA";
+      } else if (
+        buyPunca &&
+        !buyNearPunca &&
+        sellPunca &&
+        !sellNearPunca
+      ) {
+        waitReason =
+          "PUNCA_TOO_FAR";
+      } else if (
+        !buyConfirmation &&
+        !sellConfirmation
+      ) {
+        waitReason =
+          "NO_M5_CONFIRMATION";
+      } else {
+        waitReason =
+          "DIRECTION_CONFLICT";
+      }
+    }
+
+    // =========================
     // STATUS
     // =========================
 
-    let status =
-      "NO HIGH-QUALITY SETUP";
-
-    if (signal !== "WAIT") {
-      status =
-        "HIGH-QUALITY SETUP";
-    }
+    const status =
+      signal === "WAIT"
+        ? "WAIT"
+        : "HIGH-QUALITY SETUP";
 
     // =========================
     // RESPONSE
@@ -781,9 +995,16 @@ export default async function handler(req, res) {
         ? {
             type: punca.type,
             source: punca.source,
-            price: roundPrice(punca.price),
-            distance: roundPrice(punca.distance),
-            strength: punca.strength
+            price:
+              roundPrice(
+                punca.price
+              ),
+            distance:
+              roundPrice(
+                punca.distance
+              ),
+            strength:
+              punca.strength
           }
         : null,
 
@@ -794,10 +1015,14 @@ export default async function handler(req, res) {
 
       maxAllowedRisk:
         maxAllowedRisk !== null
-          ? roundPrice(maxAllowedRisk)
+          ? roundPrice(
+              maxAllowedRisk
+            )
           : null,
 
       riskValid,
+
+      waitReason,
 
       atr: {
         H4: roundPrice(atrH4),
@@ -824,7 +1049,9 @@ export default async function handler(req, res) {
       },
 
       currentPrice:
-        roundPrice(currentPrice),
+        roundPrice(
+          currentPrice
+        ),
 
       status
     });
@@ -841,4 +1068,4 @@ export default async function handler(req, res) {
         "Analysis failed"
     });
   }
-      }
+          }

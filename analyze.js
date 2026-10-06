@@ -73,7 +73,7 @@ export default async function handler(req, res) {
     ]);
 
     // =========================
-    // BASIC VALIDATION
+    // VALIDATION
     // =========================
 
     if (
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
       h1.length < 30 ||
       m30.length < 30 ||
       m15.length < 30 ||
-      m5.length < 10
+      m5.length < 20
     ) {
       throw new Error("Not enough market data");
     }
@@ -107,6 +107,45 @@ export default async function handler(req, res) {
       );
     }
 
+    // =========================
+    // ATR
+    // =========================
+
+    function calculateATR(candles, period = 14) {
+      if (candles.length < period + 1) {
+        return averageRange(candles, period);
+      }
+
+      const recent = candles.slice(-(period + 1));
+      const trueRanges = [];
+
+      for (let i = 1; i < recent.length; i++) {
+        const current = recent[i];
+        const previous = recent[i - 1];
+
+        const tr = Math.max(
+          current.high - current.low,
+          Math.abs(current.high - previous.close),
+          Math.abs(current.low - previous.close)
+        );
+
+        trueRanges.push(tr);
+      }
+
+      if (!trueRanges.length) return 0;
+
+      return (
+        trueRanges.reduce(
+          (sum, value) => sum + value,
+          0
+        ) / trueRanges.length
+      );
+    }
+
+    // =========================
+    // DIRECTION
+    // =========================
+
     function getDirection(candles) {
       const last = candles[candles.length - 1];
       const lookback = candles.slice(-12);
@@ -119,7 +158,8 @@ export default async function handler(req, res) {
         ...lookback.map(c => c.low)
       );
 
-      const middle = (highest + lowest) / 2;
+      const middle =
+        (highest + lowest) / 2;
 
       if (last.close > middle) {
         return "BULLISH";
@@ -133,7 +173,7 @@ export default async function handler(req, res) {
     }
 
     // =========================
-    // MARKET DIRECTIONS
+    // MARKET DIRECTION
     // =========================
 
     const directionH4 = getDirection(h4);
@@ -150,6 +190,16 @@ export default async function handler(req, res) {
       m5[m5.length - 1].close;
 
     // =========================
+    // ATR EACH TF
+    // =========================
+
+    const atrH4 = calculateATR(h4);
+    const atrH1 = calculateATR(h1);
+    const atrM30 = calculateATR(m30);
+    const atrM15 = calculateATR(m15);
+    const atrM5 = calculateATR(m5);
+
+    // =========================
     // FIND HISTORICAL LEVELS
     // =========================
 
@@ -161,7 +211,11 @@ export default async function handler(req, res) {
         candles.length - 120
       );
 
-      for (let i = start; i < candles.length - 3; i++) {
+      for (
+        let i = start;
+        i < candles.length - 3;
+        i++
+      ) {
         const c = candles[i];
 
         const left = candles.slice(
@@ -219,7 +273,7 @@ export default async function handler(req, res) {
     }
 
     // =========================
-    // FIND BREAKOUT / ROLE REVERSAL
+    // BREAKOUT / ROLE REVERSAL
     // =========================
 
     function findBreakouts(candles) {
@@ -314,7 +368,9 @@ export default async function handler(req, res) {
       for (const level of levels) {
         const existing = merged.find(x =>
           x.type === level.type &&
-          Math.abs(x.price - level.price) < 2.5
+          Math.abs(
+            x.price - level.price
+          ) < 2.5
         );
 
         if (existing) {
@@ -340,7 +396,9 @@ export default async function handler(req, res) {
 
     function findBestPunca(type) {
       const candidates = levels
-        .filter(level => level.type === type)
+        .filter(level =>
+          level.type === type
+        )
         .map(level => {
           const distance =
             Math.abs(
@@ -353,7 +411,6 @@ export default async function handler(req, res) {
           };
         })
         .filter(level => {
-          // Jangan ambil level terlalu jauh
           return level.distance <= 80;
         })
         .sort((a, b) => {
@@ -389,11 +446,13 @@ export default async function handler(req, res) {
 
     const body =
       Math.abs(
-        m5Last.close - m5Last.open
+        m5Last.close -
+        m5Last.open
       );
 
     const range =
-      m5Last.high - m5Last.low;
+      m5Last.high -
+      m5Last.low;
 
     const upperWick =
       m5Last.high -
@@ -456,42 +515,36 @@ export default async function handler(req, res) {
     let buyScore = 0;
     let sellScore = 0;
 
-    // H4
     if (directionH4 === "BULLISH")
       buyScore += 25;
 
     if (directionH4 === "BEARISH")
       sellScore += 25;
 
-    // H1
     if (directionH1 === "BULLISH")
       buyScore += 25;
 
     if (directionH1 === "BEARISH")
       sellScore += 25;
 
-    // M30
     if (directionM30 === "BULLISH")
       buyScore += 10;
 
     if (directionM30 === "BEARISH")
       sellScore += 10;
 
-    // M15
     if (directionM15 === "BULLISH")
       buyScore += 10;
 
     if (directionM15 === "BEARISH")
       sellScore += 10;
 
-    // PUNCA
     if (buyPunca)
       buyScore += 15;
 
     if (sellPunca)
       sellScore += 15;
 
-    // M5
     if (buyConfirmation)
       buyScore += 15;
 
@@ -499,7 +552,7 @@ export default async function handler(req, res) {
       sellScore += 15;
 
     // =========================
-    // PUNCA DISTANCE FILTER
+    // PUNCA DISTANCE
     // =========================
 
     let buyNearPunca = false;
@@ -516,7 +569,7 @@ export default async function handler(req, res) {
     }
 
     // =========================
-    // FINAL SIGNAL
+    // PRELIMINARY SIGNAL
     // =========================
 
     let signal = "WAIT";
@@ -540,16 +593,14 @@ export default async function handler(req, res) {
       directionH4 !== "BULLISH" &&
       directionH1 !== "BULLISH"
     ) {
-      if (
-        sellScore > buyScore
-      ) {
+      if (sellScore > buyScore) {
         signal = "SELL";
         punca = sellPunca;
       }
     }
 
     // =========================
-    // ENTRY / SL / TP
+    // STRUCTURE-BASED SL
     // =========================
 
     let entry = null;
@@ -557,36 +608,138 @@ export default async function handler(req, res) {
     let tp1 = null;
     let tp2 = null;
 
+    let risk = null;
+    let maxAllowedRisk = null;
+    let riskValid = false;
+
     if (signal === "BUY" && punca) {
       entry = currentPrice;
 
-      sl =
-        Math.min(
-          punca.price - 2,
-          m5Last.low - 1
+      let structureATR = atrM15;
+
+      if (punca.source === "H4")
+        structureATR = atrH4;
+
+      if (punca.source === "H1")
+        structureATR = atrH1;
+
+      if (punca.source === "M30")
+        structureATR = atrM30;
+
+      if (punca.source === "M15")
+        structureATR = atrM15;
+
+      // Buffer hanya untuk letakkan SL
+      // di luar structure.
+      const structureBuffer =
+        Math.max(
+          structureATR * 0.15,
+          0.50
         );
 
-      tp1 =
-        entry + 6;
+      sl =
+        punca.price -
+        structureBuffer;
 
-      tp2 =
-        entry + 12;
+      risk =
+        entry - sl;
+
+      // Maximum risk dinamik
+      // berdasarkan volatility M5.
+      maxAllowedRisk =
+        Math.max(
+          atrM5 * 1.5,
+          2.0
+        );
+
+      riskValid =
+        risk > 0 &&
+        risk <= maxAllowedRisk;
+
+      if (riskValid) {
+        // TP berdasarkan risk sebenar
+        tp1 =
+          entry + risk;
+
+        tp2 =
+          entry + risk * 2;
+      } else {
+        signal = "WAIT";
+        entry = null;
+        sl = null;
+        tp1 = null;
+        tp2 = null;
+      }
     }
 
     if (signal === "SELL" && punca) {
       entry = currentPrice;
 
-      sl =
+      let structureATR = atrM15;
+
+      if (punca.source === "H4")
+        structureATR = atrH4;
+
+      if (punca.source === "H1")
+        structureATR = atrH1;
+
+      if (punca.source === "M30")
+        structureATR = atrM30;
+
+      if (punca.source === "M15")
+        structureATR = atrM15;
+
+      // Buffer hanya untuk letakkan SL
+      // di luar structure.
+      const structureBuffer =
         Math.max(
-          punca.price + 2,
-          m5Last.high + 1
+          structureATR * 0.15,
+          0.50
         );
 
-      tp1 =
-        entry - 6;
+      sl =
+        punca.price +
+        structureBuffer;
 
-      tp2 =
-        entry - 12;
+      risk =
+        sl - entry;
+
+      maxAllowedRisk =
+        Math.max(
+          atrM5 * 1.5,
+          2.0
+        );
+
+      riskValid =
+        risk > 0 &&
+        risk <= maxAllowedRisk;
+
+      if (riskValid) {
+        // TP berdasarkan risk sebenar
+        tp1 =
+          entry - risk;
+
+        tp2 =
+          entry - risk * 2;
+      } else {
+        signal = "WAIT";
+        entry = null;
+        sl = null;
+        tp1 = null;
+        tp2 = null;
+      }
+    }
+
+    // =========================
+    // STATUS
+    // =========================
+
+    let status =
+      "NO HIGH-QUALITY SETUP";
+
+    if (signal !== "WAIT") {
+      status =
+        "HIGH-QUALITY SETUP";
     }
 
     // =========================
@@ -634,6 +787,26 @@ export default async function handler(req, res) {
           }
         : null,
 
+      risk:
+        risk !== null
+          ? roundPrice(risk)
+          : null,
+
+      maxAllowedRisk:
+        maxAllowedRisk !== null
+          ? roundPrice(maxAllowedRisk)
+          : null,
+
+      riskValid,
+
+      atr: {
+        H4: roundPrice(atrH4),
+        H1: roundPrice(atrH1),
+        M30: roundPrice(atrM30),
+        M15: roundPrice(atrM15),
+        M5: roundPrice(atrM5)
+      },
+
       scores: {
         buy: buyScore,
         sell: sellScore
@@ -653,15 +826,14 @@ export default async function handler(req, res) {
       currentPrice:
         roundPrice(currentPrice),
 
-      status:
-        signal === "WAIT"
-          ? "NO HIGH-QUALITY SETUP"
-          : "HIGH-QUALITY SETUP"
+      status
     });
 
   } catch (error) {
-
-    console.error("SINNCI AI ERROR:", error);
+    console.error(
+      "SINNCI AI ERROR:",
+      error
+    );
 
     return res.status(500).json({
       error:

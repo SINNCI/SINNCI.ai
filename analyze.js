@@ -530,6 +530,147 @@ export default async function handler(req, res) {
       }
 
       // =========================
+      // FOREX SESSION ENGINE
+      // =========================
+      function getLocalTime(timeZone) {
+        return new Intl.DateTimeFormat("en-GB", {
+          timeZone,
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).format(new Date());
+      }
+
+      function getLocalMinutes(timeZone) {
+        const parts = new Intl.DateTimeFormat("en-GB", {
+          timeZone,
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).formatToParts(new Date());
+
+        const hour = Number(
+          parts.find(p => p.type === "hour")?.value
+        );
+
+        const minute = Number(
+          parts.find(p => p.type === "minute")?.value
+        );
+
+        return hour * 60 + minute;
+      }
+
+      function isWithinSession(
+        timeZone,
+        startHour,
+        endHour
+      ) {
+        const minutes =
+          getLocalMinutes(timeZone);
+
+        const start = startHour * 60;
+        const end = endHour * 60;
+
+        if (start < end) {
+          return minutes >= start && minutes < end;
+        }
+
+        return (
+          minutes >= start ||
+          minutes < end
+        );
+      }
+
+      function getForexSessions() {
+        const now = new Date();
+
+        // Tokyo: 09:00 - 18:00 Tokyo time
+        const asiaOpen = isWithinSession(
+          "Asia/Tokyo",
+          9,
+          18
+        );
+
+        // London: 08:00 - 17:00 London local time
+        const londonOpen = isWithinSession(
+          "Europe/London",
+          8,
+          17
+        );
+
+        // New York: 08:00 - 17:00 New York local time
+        const newYorkOpen = isWithinSession(
+          "America/New_York",
+          8,
+          17
+        );
+
+        const londonNYOverlap =
+          londonOpen && newYorkOpen;
+
+        const malaysiaTime =
+          new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Asia/Kuala_Lumpur",
+            dateStyle: "short",
+            timeStyle: "medium",
+            hour12: false
+          }).format(now);
+
+        let activity = "LOW";
+        let activeSession = "NONE";
+
+        if (londonNYOverlap) {
+          activity = "VERY_HIGH";
+          activeSession = "LONDON + NEW YORK";
+        } else if (londonOpen) {
+          activity = "HIGH";
+          activeSession = "LONDON";
+        } else if (newYorkOpen) {
+          activity = "HIGH";
+          activeSession = "NEW YORK";
+        } else if (asiaOpen) {
+          activity = "MODERATE";
+          activeSession = "ASIA / TOKYO";
+        }
+
+        return {
+          timezone: "Asia/Kuala_Lumpur",
+          malaysiaTime,
+
+          Asia: {
+            status: asiaOpen ? "OPEN" : "CLOSED",
+            localTime:
+              getLocalTime("Asia/Tokyo")
+          },
+
+          London: {
+            status: londonOpen ? "OPEN" : "CLOSED",
+            localTime:
+              getLocalTime("Europe/London")
+          },
+
+          NewYork: {
+            status: newYorkOpen ? "OPEN" : "CLOSED",
+            localTime:
+              getLocalTime("America/New_York")
+          },
+
+          LondonNewYorkOverlap: {
+            status:
+              londonNYOverlap
+                ? "ACTIVE"
+                : "INACTIVE"
+          },
+
+          activeSession,
+          activity
+        };
+      }
+
+      const session =
+        getForexSessions();
+
+      // =========================
       // CURRENT PRICE
       // =========================
       const currentPrice =
@@ -753,6 +894,11 @@ export default async function handler(req, res) {
 
         currentPrice: roundPrice(currentPrice),
 
+        // =========================
+        // SESSION
+        // =========================
+        session,
+
         direction: {
           H4: h4Direction,
           H1: h1Direction,
@@ -823,9 +969,18 @@ export default async function handler(req, res) {
             "M15",
             "M5"
           ],
+
+          sessions: [
+            "ASIA / TOKYO",
+            "LONDON",
+            "NEW YORK",
+            "LONDON + NEW YORK OVERLAP"
+          ],
+
           data: "OHLC",
+
           method:
-            "Market Structure + S/R + Breakout Retest + M5 Confirmation"
+            "Market Structure + S/R + Breakout Retest + M5 Confirmation + Forex Session Engine"
         },
 
         cached: false,
@@ -858,4 +1013,4 @@ export default async function handler(req, res) {
       error: error.message || "Analysis failed"
     });
   }
-                                     }
+          }

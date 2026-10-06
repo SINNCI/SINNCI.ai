@@ -73,6 +73,194 @@ body::after{
   transform:skewY(-7deg);
 }
 
+/* ==============================
+   AUTH
+   ============================== */
+
+#authScreen{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:
+    radial-gradient(circle at 50% 20%,rgba(216,180,90,.10),transparent 35%),
+    rgba(5,6,7,.97);
+}
+
+.auth-box{
+  width:100%;
+  max-width:420px;
+  padding:30px;
+  border:1px solid rgba(216,180,90,.18);
+  border-radius:24px;
+  background:linear-gradient(
+    145deg,
+    rgba(22,24,29,.97),
+    rgba(9,11,14,.96)
+  );
+  box-shadow:
+    0 25px 80px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.auth-logo{
+  width:58px;
+  height:58px;
+  margin:0 auto 16px;
+  border:1px solid rgba(216,180,90,.5);
+  border-radius:17px;
+  display:grid;
+  place-items:center;
+  color:var(--gold2);
+  font-size:27px;
+  font-weight:900;
+  background:rgba(216,180,90,.06);
+}
+
+.auth-title{
+  text-align:center;
+  font-size:25px;
+  font-weight:900;
+  letter-spacing:1px;
+}
+
+.auth-subtitle{
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:7px;
+  line-height:1.5;
+}
+
+.auth-tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  margin-top:24px;
+}
+
+.auth-tab{
+  padding:11px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:rgba(255,255,255,.025);
+  color:var(--muted);
+  cursor:pointer;
+  font-weight:800;
+}
+
+.auth-tab.active{
+  color:#111;
+  background:var(--gold);
+  border-color:var(--gold);
+}
+
+.auth-form{
+  margin-top:18px;
+}
+
+.auth-input{
+  width:100%;
+  padding:14px;
+  margin-bottom:10px;
+  border-radius:11px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.035);
+  color:var(--white);
+  outline:none;
+  font-size:13px;
+}
+
+.auth-input:focus{
+  border-color:rgba(216,180,90,.5);
+}
+
+.auth-btn{
+  width:100%;
+  padding:14px;
+  border:0;
+  border-radius:11px;
+  background:linear-gradient(135deg,var(--gold2),var(--gold));
+  color:#111;
+  font-weight:900;
+  cursor:pointer;
+  margin-top:4px;
+}
+
+.auth-message{
+  margin-top:13px;
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+}
+
+.auth-error{color:var(--red)}
+.auth-success{color:var(--green)}
+
+#pendingScreen{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9998;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(5,6,7,.97);
+}
+
+.pending-box{
+  width:100%;
+  max-width:420px;
+  padding:30px;
+  text-align:center;
+  border:1px solid rgba(216,180,90,.18);
+  border-radius:24px;
+  background:linear-gradient(
+    145deg,
+    rgba(22,24,29,.97),
+    rgba(9,11,14,.96)
+  );
+}
+
+.pending-icon{
+  font-size:42px;
+  margin-bottom:15px;
+}
+
+.pending-title{
+  font-size:23px;
+  font-weight:900;
+}
+
+.pending-text{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.6;
+}
+
+.logout-btn{
+  margin-top:20px;
+  padding:11px 22px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;
+  background:rgba(255,255,255,.04);
+  color:var(--white);
+  cursor:pointer;
+}
+
+/* ==============================
+   MAIN
+   ============================== */
+
+#app{
+  display:none;
+}
+
 .topbar{
   position:relative;
   z-index:2;
@@ -307,17 +495,9 @@ body::after{
   overflow:hidden;
 }
 
-.signal-card.buy{
-  border-color:rgba(32,217,139,.2);
-}
-
-.signal-card.sell{
-  border-color:rgba(255,82,104,.2);
-}
-
-.signal-card.wait{
-  border-color:rgba(242,201,76,.2);
-}
+.signal-card.buy{border-color:rgba(32,217,139,.2)}
+.signal-card.sell{border-color:rgba(255,82,104,.2)}
+.signal-card.wait{border-color:rgba(242,201,76,.2)}
 
 .signal-top{
   display:flex;
@@ -509,9 +689,7 @@ body::after{
   letter-spacing:2px;
 }
 
-.footer strong{
-  color:var(--gold);
-}
+.footer strong{color:var(--gold)}
 
 @media(max-width:800px){
 
@@ -573,15 +751,146 @@ body::after{
   .price{
     font-size:32px;
   }
+
+  .auth-box,
+  .pending-box{
+    padding:23px;
+  }
 }
 </style>
 
 <!-- SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script>
+/* ==============================
+   SUPABASE CONFIG
+   ============================== */
+
+const SUPABASE_URL =
+  "https://bmxkpkizuyqkxvpasmnb.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_dd0-uoKSoJ_Y3lgFogQYdg_U8yhzqeX";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+</script>
+
 </head>
 
 <body>
+
+<!-- AUTH SCREEN -->
+
+<div id="authScreen">
+
+  <div class="auth-box">
+
+    <div class="auth-logo">S</div>
+
+    <div class="auth-title">
+      SINNCI AI
+    </div>
+
+    <div class="auth-subtitle">
+      XAUUSD MARKET INTELLIGENCE
+    </div>
+
+    <div class="auth-tabs">
+
+      <button
+        id="loginTab"
+        class="auth-tab active"
+        onclick="showAuthMode('login')">
+        LOGIN
+      </button>
+
+      <button
+        id="registerTab"
+        class="auth-tab"
+        onclick="showAuthMode('register')">
+        REGISTER
+      </button>
+
+    </div>
+
+    <form
+      id="authForm"
+      class="auth-form"
+      onsubmit="handleAuth(event)">
+
+      <input
+        id="authEmail"
+        class="auth-input"
+        type="email"
+        placeholder="Email"
+        required>
+
+      <input
+        id="authPassword"
+        class="auth-input"
+        type="password"
+        placeholder="Password"
+        minlength="6"
+        required>
+
+      <button
+        id="authBtn"
+        class="auth-btn"
+        type="submit">
+        LOGIN
+      </button>
+
+    </form>
+
+    <div
+      id="authMessage"
+      class="auth-message">
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- PENDING APPROVAL -->
+
+<div id="pendingScreen">
+
+  <div class="pending-box">
+
+    <div class="pending-icon">
+      ⏳
+    </div>
+
+    <div class="pending-title">
+      PENDING APPROVAL
+    </div>
+
+    <div class="pending-text">
+      Your account has been created successfully.
+      <br><br>
+      Please wait for SINNCI admin approval before accessing the dashboard.
+    </div>
+
+    <button
+      class="logout-btn"
+      onclick="logout()">
+      LOGOUT
+    </button>
+
+  </div>
+
+</div>
+
+
+<!-- MAIN APP -->
+
+<div id="app">
 
 <header class="topbar">
 
@@ -591,6 +900,7 @@ body::after{
 
     <div>
       <div class="brand-title">SINNCI AI</div>
+
       <div class="brand-sub">
         SMARTER ANALYSIS • BETTER DECISIONS
       </div>
@@ -679,27 +989,31 @@ body::after{
   </section>
 
 
-  <section id="signalCard"
-           class="card signal-card wait">
+  <section
+    id="signalCard"
+    class="card signal-card wait">
 
     <div class="signal-top">
 
       <div class="signal-main">
 
-        <div id="signalIcon"
-             class="signal-icon">
+        <div
+          id="signalIcon"
+          class="signal-icon">
           ⏳
         </div>
 
         <div>
 
-          <div id="signalName"
-               class="signal-name">
+          <div
+            id="signalName"
+            class="signal-name">
             WAIT
           </div>
 
-          <div id="signalSub"
-               class="signal-sub">
+          <div
+            id="signalSub"
+            class="signal-sub">
             No high-quality setup
           </div>
 
@@ -707,8 +1021,9 @@ body::after{
 
       </div>
 
-      <div id="score"
-           class="score">
+      <div
+        id="score"
+        class="score">
         BUY 0 • SELL 0
       </div>
 
@@ -719,42 +1034,27 @@ body::after{
 
       <div class="metric">
         <div class="metric-label">ENTRY</div>
-        <div id="entry"
-             class="metric-value">
-          ---
-        </div>
+        <div id="entry" class="metric-value">---</div>
       </div>
 
       <div class="metric">
         <div class="metric-label">STRUCTURE SL</div>
-        <div id="sl"
-             class="metric-value">
-          ---
-        </div>
+        <div id="sl" class="metric-value">---</div>
       </div>
 
       <div class="metric">
         <div class="metric-label">TP1</div>
-        <div id="tp1"
-             class="metric-value">
-          ---
-        </div>
+        <div id="tp1" class="metric-value">---</div>
       </div>
 
       <div class="metric">
         <div class="metric-label">TP2</div>
-        <div id="tp2"
-             class="metric-value">
-          ---
-        </div>
+        <div id="tp2" class="metric-value">---</div>
       </div>
 
       <div class="metric">
         <div class="metric-label">PUNCA</div>
-        <div id="punca"
-             class="metric-value">
-          ---
-        </div>
+        <div id="punca" class="metric-value">---</div>
       </div>
 
     </div>
@@ -764,8 +1064,9 @@ body::after{
 
   <div class="analyze-wrap">
 
-    <button id="analyzeBtn"
-            class="analyze-btn">
+    <button
+      id="analyzeBtn"
+      class="analyze-btn">
 
       ✦ ANALYZE MARKET
 
@@ -820,8 +1121,7 @@ body::after{
         PUNCA SOURCE
       </div>
 
-      <div id="puncaSource"
-           class="data-value">
+      <div id="puncaSource" class="data-value">
         ---
       </div>
 
@@ -838,8 +1138,7 @@ body::after{
         RISK
       </div>
 
-      <div id="risk"
-           class="data-value">
+      <div id="risk" class="data-value">
         ---
       </div>
 
@@ -856,8 +1155,7 @@ body::after{
         MAX RISK
       </div>
 
-      <div id="maxRisk"
-           class="data-value">
+      <div id="maxRisk" class="data-value">
         ---
       </div>
 
@@ -874,8 +1172,7 @@ body::after{
         REASON
       </div>
 
-      <div id="reason"
-           class="data-value">
+      <div id="reason" class="data-value">
         ---
       </div>
 
@@ -895,8 +1192,377 @@ body::after{
 
 </main>
 
+</div>
+
 
 <script>
+
+/* ==============================
+   AUTH STATE
+   ============================== */
+
+let authMode = "login";
+
+
+function showAuthMode(mode){
+
+  authMode = mode;
+
+  const loginTab =
+    document.getElementById("loginTab");
+
+  const registerTab =
+    document.getElementById("registerTab");
+
+  const authBtn =
+    document.getElementById("authBtn");
+
+  const message =
+    document.getElementById("authMessage");
+
+  message.textContent = "";
+  message.className = "auth-message";
+
+  if(mode === "login"){
+
+    loginTab.classList.add("active");
+    registerTab.classList.remove("active");
+
+    authBtn.textContent = "LOGIN";
+
+  }
+
+  else{
+
+    loginTab.classList.remove("active");
+    registerTab.classList.add("active");
+
+    authBtn.textContent = "CREATE ACCOUNT";
+
+  }
+
+}
+
+
+/* ==============================
+   AUTH MESSAGE
+   ============================== */
+
+function showAuthMessage(
+  message,
+  type = ""
+){
+
+  const el =
+    document.getElementById("authMessage");
+
+  el.textContent =
+    message;
+
+  el.className =
+    "auth-message " + type;
+
+}
+
+
+/* ==============================
+   LOGIN / REGISTER
+   ============================== */
+
+async function handleAuth(event){
+
+  event.preventDefault();
+
+  const email =
+    document.getElementById("authEmail")
+      .value
+      .trim();
+
+  const password =
+    document.getElementById("authPassword")
+      .value;
+
+  const button =
+    document.getElementById("authBtn");
+
+  button.disabled = true;
+
+  button.textContent =
+    authMode === "login"
+      ? "LOGGING IN..."
+      : "CREATING ACCOUNT...";
+
+  showAuthMessage("");
+
+  try{
+
+    if(authMode === "login"){
+
+      const {
+        error
+      } =
+      await supabaseClient.auth
+        .signInWithPassword({
+          email,
+          password
+        });
+
+      if(error)
+        throw error;
+
+      await checkUserAccess();
+
+    }
+
+    else{
+
+      const {
+        data,
+        error
+      } =
+      await supabaseClient.auth
+        .signUp({
+          email,
+          password
+        });
+
+      if(error)
+        throw error;
+
+      if(!data.session){
+
+        showAuthMessage(
+          "Account created. Please check your email and confirm your account.",
+          "auth-success"
+        );
+
+      }
+
+      else{
+
+        await checkUserAccess();
+
+      }
+
+    }
+
+  }
+
+  catch(error){
+
+    showAuthMessage(
+      error.message || "Authentication failed.",
+      "auth-error"
+    );
+
+  }
+
+  finally{
+
+    button.disabled = false;
+
+    button.textContent =
+      authMode === "login"
+        ? "LOGIN"
+        : "CREATE ACCOUNT";
+
+  }
+
+}
+
+
+/* ==============================
+   CHECK USER ACCESS
+   ============================== */
+
+async function checkUserAccess(){
+
+  const {
+    data: {
+      user
+    }
+  } =
+  await supabaseClient.auth
+    .getUser();
+
+  if(!user){
+
+    showAuthScreen();
+
+    return;
+
+  }
+
+
+  const {
+    data: profile,
+    error
+  } =
+  await supabaseClient
+    .from("profiles")
+    .select("approved,email")
+    .eq("id",user.id)
+    .single();
+
+
+  if(error){
+
+    console.error(error);
+
+    showAuthMessage(
+      "Unable to check account approval.",
+      "auth-error"
+    );
+
+    return;
+
+  }
+
+
+  if(profile?.approved === true){
+
+    showApp();
+
+  }
+
+  else{
+
+    showPending();
+
+  }
+
+}
+
+
+/* ==============================
+   SCREEN CONTROL
+   ============================== */
+
+function showAuthScreen(){
+
+  document.getElementById(
+    "authScreen"
+  ).style.display = "flex";
+
+  document.getElementById(
+    "pendingScreen"
+  ).style.display = "none";
+
+  document.getElementById(
+    "app"
+  ).style.display = "none";
+
+}
+
+
+function showPending(){
+
+  document.getElementById(
+    "authScreen"
+  ).style.display = "none";
+
+  document.getElementById(
+    "pendingScreen"
+  ).style.display = "flex";
+
+  document.getElementById(
+    "app"
+  ).style.display = "none";
+
+}
+
+
+function showApp(){
+
+  document.getElementById(
+    "authScreen"
+  ).style.display = "none";
+
+  document.getElementById(
+    "pendingScreen"
+  ).style.display = "none";
+
+  document.getElementById(
+    "app"
+  ).style.display = "block";
+
+  getLivePrice();
+
+}
+
+
+/* ==============================
+   LOGOUT
+   ============================== */
+
+async function logout(){
+
+  await supabaseClient.auth.signOut();
+
+  showAuthScreen();
+
+}
+
+
+/* ==============================
+   AUTH SESSION LISTENER
+   ============================== */
+
+supabaseClient.auth.onAuthStateChange(
+  async (event, session) => {
+
+    if(event === "SIGNED_OUT"){
+
+      showAuthScreen();
+
+    }
+
+  }
+);
+
+
+/* ==============================
+   INITIAL AUTH CHECK
+   ============================== */
+
+(async function(){
+
+  try{
+
+    const {
+      data: {
+        session
+      }
+    } =
+    await supabaseClient.auth
+      .getSession();
+
+    if(!session){
+
+      showAuthScreen();
+
+      return;
+
+    }
+
+    await checkUserAccess();
+
+  }
+
+  catch(error){
+
+    console.error(error);
+
+    showAuthScreen();
+
+  }
+
+})();
+
+
+/* ==============================
+   LIVE PRICE
+   ============================== */
 
 const priceEl =
   document.getElementById("price");
@@ -925,10 +1591,6 @@ const aiStatus =
 const aiDescription =
   document.getElementById("aiDescription");
 
-
-/* ==============================
-   LIVE PRICE
-   ============================== */
 
 async function getLivePrice(){
 
@@ -1103,35 +1765,12 @@ async function analyze(){
     }
 
 
-    /* DIRECTIONS */
+    setDirection("h4",data.direction?.H4);
+    setDirection("h1",data.direction?.H1);
+    setDirection("m30",data.direction?.M30);
+    setDirection("m15",data.direction?.M15);
+    setDirection("m5",data.direction?.M5);
 
-    setDirection(
-      "h4",
-      data.direction?.H4
-    );
-
-    setDirection(
-      "h1",
-      data.direction?.H1
-    );
-
-    setDirection(
-      "m30",
-      data.direction?.M30
-    );
-
-    setDirection(
-      "m15",
-      data.direction?.M15
-    );
-
-    setDirection(
-      "m5",
-      data.direction?.M5
-    );
-
-
-    /* SIGNAL */
 
     const signal =
       data.signal || "WAIT";
@@ -1144,8 +1783,7 @@ async function analyze(){
       signalCard.className =
         "card signal-card buy";
 
-      signalIcon.textContent =
-        "↑";
+      signalIcon.textContent = "↑";
 
       signalName.textContent =
         "BUY SIGNAL";
@@ -1170,8 +1808,7 @@ async function analyze(){
       signalCard.className =
         "card signal-card sell";
 
-      signalIcon.textContent =
-        "↓";
+      signalIcon.textContent = "↓";
 
       signalName.textContent =
         "SELL SIGNAL";
@@ -1218,8 +1855,6 @@ async function analyze(){
     }
 
 
-    /* LEVELS */
-
     setText(
       "entry",
       data.entry !== null &&
@@ -1253,8 +1888,6 @@ async function analyze(){
     );
 
 
-    /* PUNCA */
-
     if(data.punca){
 
       const puncaPrice =
@@ -1284,8 +1917,6 @@ async function analyze(){
     }
 
 
-    /* RISK */
-
     if(
       data.risk !== null &&
       data.risk !== undefined
@@ -1304,8 +1935,6 @@ async function analyze(){
 
     }
 
-
-    /* MAX RISK */
 
     if(
       data.maxAllowedRisk !== null &&
@@ -1326,8 +1955,6 @@ async function analyze(){
     }
 
 
-    /* REASON */
-
     setText(
       "reason",
       data.waitReason ||
@@ -1341,8 +1968,6 @@ async function analyze(){
     );
 
 
-    /* SCORE */
-
     const buyScore =
       data.scores?.buy ?? 0;
 
@@ -1354,8 +1979,6 @@ async function analyze(){
       `BUY ${buyScore} • SELL ${sellScore}`
     );
 
-
-    /* SUCCESS */
 
     startCooldown();
 
@@ -1383,9 +2006,6 @@ async function analyze(){
 
     aiDescription.textContent =
       "Unable to complete market analysis.";
-
-
-    /* Short cooldown on error */
 
     startCooldown(10);
 
@@ -1452,13 +2072,6 @@ analyzeBtn.addEventListener(
 );
 
 
-/* ==============================
-   INITIAL PRICE
-   ============================== */
-
-getLivePrice();
-
-
 /*
   Live price:
   60 seconds sekali.
@@ -1476,4 +2089,4 @@ setInterval(
 </script>
 
 </body>
-</html>
+  </html>

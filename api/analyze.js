@@ -21,8 +21,6 @@ export default async function handler(req, res) {
     };
 
     const market = {};
-
-    // 120 candles supaya AI boleh tengok harga lama
     const OUTPUT_SIZE = 120;
 
     for (const [name, interval] of Object.entries(timeframes)) {
@@ -69,16 +67,11 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 2. BASIC HELPERS
+    // 2. HELPERS
     // =========================================================
 
     function roundPrice(price) {
       return Number(price.toFixed(2));
-    }
-
-    function average(values) {
-      if (!values.length) return 0;
-      return values.reduce((a, b) => a + b, 0) / values.length;
     }
 
     function candleRange(c) {
@@ -102,7 +95,7 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 3. SWING POINTS
+    // 3. SWINGS
     // =========================================================
 
     function findSwingHighs(candles) {
@@ -175,17 +168,11 @@ export default async function handler(req, res) {
       const l1 = lows[lows.length - 1].price;
       const l2 = lows[lows.length - 2].price;
 
-      const higherHigh = h1 > h2;
-      const higherLow = l1 > l2;
-
-      const lowerHigh = h1 < h2;
-      const lowerLow = l1 < l2;
-
-      if (higherHigh && higherLow) {
+      if (h1 > h2 && l1 > l2) {
         return "BULLISH";
       }
 
-      if (lowerHigh && lowerLow) {
+      if (h1 < h2 && l1 < l2) {
         return "BEARISH";
       }
 
@@ -201,7 +188,7 @@ export default async function handler(req, res) {
     };
 
     // =========================================================
-    // 5. SUPPORT / RESISTANCE
+    // 5. HISTORICAL SNR
     // =========================================================
 
     function findZones(candles) {
@@ -210,10 +197,8 @@ export default async function handler(req, res) {
 
       const zones = [];
 
-      // Resistance from old swing highs
       highs.forEach(s => {
         const c = candles[s.index];
-
         const range = candleRange(c);
 
         zones.push({
@@ -221,15 +206,13 @@ export default async function handler(req, res) {
           low: c.high - Math.max(range * 0.35, 0.5),
           high: c.high,
           index: s.index,
-          score: 2,
+          score: 3,
           source: "OLD SWING HIGH"
         });
       });
 
-      // Support from old swing lows
       lows.forEach(s => {
         const c = candles[s.index];
-
         const range = candleRange(c);
 
         zones.push({
@@ -237,7 +220,7 @@ export default async function handler(req, res) {
           low: c.low,
           high: c.low + Math.max(range * 0.35, 0.5),
           index: s.index,
-          score: 2,
+          score: 3,
           source: "OLD SWING LOW"
         });
       });
@@ -246,7 +229,7 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 6. DBD / RBR
+    // 6. RBR / DBD
     // =========================================================
 
     function findPatterns(candles) {
@@ -259,59 +242,44 @@ export default async function handler(req, res) {
 
         if (!a || !b || !c) continue;
 
-        const aBear = bearish(a);
-        const cBear = bearish(c);
+        const aRange = candleRange(a);
+        const bRange = candleRange(b);
+        const cRange = candleRange(c);
 
-        const aBull = bullish(a);
-        const cBull = bullish(c);
-
-        const baseRange = candleRange(b);
-
-        const firstRange = candleRange(a);
-        const secondRange = candleRange(c);
-
-        // -------------------------
-        // DBD = Drop Base Drop
-        // -------------------------
-
+        // DBD
         if (
-          aBear &&
-          cBear &&
-          baseRange < firstRange &&
-          baseRange < secondRange &&
-          bodySize(a) > baseRange * 0.45 &&
-          bodySize(c) > secondRange * 0.45
+          bearish(a) &&
+          bearish(c) &&
+          bRange < aRange &&
+          bRange < cRange &&
+          bodySize(a) > aRange * 0.45 &&
+          bodySize(c) > cRange * 0.45
         ) {
           patterns.push({
-            type: "DBD",
-            direction: "SELL",
+            type: "SELL",
             low: b.low,
             high: b.high,
             index: i + 1,
-            score: 5,
+            score: 7,
             source: "DROP BASE DROP"
           });
         }
 
-        // -------------------------
-        // RBR = Rally Base Rally
-        // -------------------------
-
+        // RBR
         if (
-          aBull &&
-          cBull &&
-          baseRange < firstRange &&
-          baseRange < secondRange &&
-          bodySize(a) > baseRange * 0.45 &&
-          bodySize(c) > secondRange * 0.45
+          bullish(a) &&
+          bullish(c) &&
+          bRange < aRange &&
+          bRange < cRange &&
+          bodySize(a) > aRange * 0.45 &&
+          bodySize(c) > cRange * 0.45
         ) {
           patterns.push({
-            type: "RBR",
-            direction: "BUY",
+            type: "BUY",
             low: b.low,
             high: b.high,
             index: i + 1,
-            score: 5,
+            score: 7,
             source: "RALLY BASE RALLY"
           });
         }
@@ -333,38 +301,32 @@ export default async function handler(req, res) {
 
           if (!c) continue;
 
-          // Resistance broken upwards
           if (
             zone.type === "RESISTANCE" &&
             c.close > zone.high
           ) {
             results.push({
-              type: "RESISTANCE_BROKEN",
-              oldType: "RESISTANCE",
-              newType: "SUPPORT",
+              type: "SUPPORT",
               low: zone.low,
               high: zone.high,
               index: i,
-              score: 4,
+              score: 5,
               source: "RESISTANCE BECOME SUPPORT"
             });
 
             break;
           }
 
-          // Support broken downwards
           if (
             zone.type === "SUPPORT" &&
             c.close < zone.low
           ) {
             results.push({
-              type: "SUPPORT_BROKEN",
-              oldType: "SUPPORT",
-              newType: "RESISTANCE",
+              type: "RESISTANCE",
               low: zone.low,
               high: zone.high,
               index: i,
-              score: 4,
+              score: 5,
               source: "SUPPORT BECOME RESISTANCE"
             });
 
@@ -377,54 +339,25 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // 8. BUILD ALL HISTORICAL ZONES
+    // 8. BUILD HISTORICAL ANALYSIS
     // =========================================================
 
     const analysis = {};
 
     for (const [tf, candles] of Object.entries(market)) {
-      const srZones = findZones(candles);
+      const zones = findZones(candles);
       const patterns = findPatterns(candles);
-      const breakouts = findBreakouts(candles, srZones);
+      const breakouts = findBreakouts(candles, zones);
 
       analysis[tf] = {
-        zones: srZones,
+        zones,
         patterns,
         breakouts
       };
     }
 
     // =========================================================
-    // 9. COMBINE / MERGE CONFLUENCE
-    // =========================================================
-
-    const allZones = [];
-
-    for (const [tf, data] of Object.entries(analysis)) {
-      data.zones.forEach(z => {
-        allZones.push({
-          ...z,
-          timeframe: tf
-        });
-      });
-
-      data.patterns.forEach(p => {
-        allZones.push({
-          ...p,
-          timeframe: tf
-        });
-      });
-
-      data.breakouts.forEach(b => {
-        allZones.push({
-          ...b,
-          timeframe: tf
-        });
-      });
-    }
-
-    // =========================================================
-    // 10. ADD TF WEIGHT
+    // 9. COLLECT ALL ZONES
     // =========================================================
 
     const tfWeight = {
@@ -435,14 +368,36 @@ export default async function handler(req, res) {
       M5: 1
     };
 
-    allZones.forEach(zone => {
-      zone.score =
-        (zone.score || 0) +
-        (tfWeight[zone.timeframe] || 0);
-    });
+    const allZones = [];
+
+    for (const [tf, data] of Object.entries(analysis)) {
+      data.zones.forEach(z => {
+        allZones.push({
+          ...z,
+          timeframe: tf,
+          score: z.score + tfWeight[tf]
+        });
+      });
+
+      data.patterns.forEach(p => {
+        allZones.push({
+          ...p,
+          timeframe: tf,
+          score: p.score + tfWeight[tf]
+        });
+      });
+
+      data.breakouts.forEach(b => {
+        allZones.push({
+          ...b,
+          timeframe: tf,
+          score: b.score + tfWeight[tf]
+        });
+      });
+    }
 
     // =========================================================
-    // 11. MERGE NEARBY ZONES
+    // 10. MERGE NEARBY ZONES
     // =========================================================
 
     function mergeZones(zones) {
@@ -469,22 +424,38 @@ export default async function handler(req, res) {
         });
 
         if (existing) {
-          existing.low = Math.min(existing.low, zone.low);
-          existing.high = Math.max(existing.high, zone.high);
-          existing.score += zone.score;
-          existing.timeframes.push(zone.timeframe);
+          existing.low = Math.min(
+            existing.low,
+            zone.low
+          );
 
-          if (!existing.sources.includes(zone.source)) {
+          existing.high = Math.max(
+            existing.high,
+            zone.high
+          );
+
+          existing.score += zone.score;
+
+          existing.timeframes.push(
+            zone.timeframe
+          );
+
+          if (
+            zone.source &&
+            !existing.sources.includes(zone.source)
+          ) {
             existing.sources.push(zone.source);
           }
         } else {
           merged.push({
-            type: zone.type || zone.newType,
+            type: zone.type,
             low: zone.low,
             high: zone.high,
             score: zone.score,
             timeframes: [zone.timeframe],
-            sources: [zone.source || zone.type]
+            sources: [
+              zone.source || zone.type
+            ]
           });
         }
       }
@@ -495,44 +466,70 @@ export default async function handler(req, res) {
     const mergedZones = mergeZones(allZones);
 
     // =========================================================
-    // 12. CURRENT PRICE
+    // 11. CURRENT PRICE
     // =========================================================
 
     const currentPrice =
       Number(market.M5[0].close);
 
     // =========================================================
-    // 13. DETERMINE MAJOR DIRECTION
+    // 12. MAJOR DIRECTION
+    //
+    // H4 = MAIN ANCHOR
+    // H1 = CONFIRM / CONSOLIDATION
     // =========================================================
 
     let majorDirection = "SIDEWAYS";
-
-    if (
-      directions.H4 === "BULLISH" &&
-      directions.H1 === "BULLISH"
-    ) {
-      majorDirection = "BULLISH";
-    }
+    let directionReason = "";
 
     if (
       directions.H4 === "BEARISH" &&
-      directions.H1 === "BEARISH"
+      (
+        directions.H1 === "BEARISH" ||
+        directions.H1 === "SIDEWAYS"
+      )
     ) {
       majorDirection = "BEARISH";
+
+      directionReason =
+        "H4 bearish. H1 is bearish/sideways, so the higher-timeframe bias remains bearish.";
     }
 
-    // Kalau H4/H1 bercanggah,
-    // jangan paksa BUY/SELL
-    if (
-      directions.H4 !== directions.H1 &&
-      directions.H4 !== "WAIT" &&
-      directions.H1 !== "WAIT"
+    else if (
+      directions.H4 === "BULLISH" &&
+      (
+        directions.H1 === "BULLISH" ||
+        directions.H1 === "SIDEWAYS"
+      )
+    ) {
+      majorDirection = "BULLISH";
+
+      directionReason =
+        "H4 bullish. H1 is bullish/sideways, so the higher-timeframe bias remains bullish.";
+    }
+
+    else if (
+      directions.H4 === "BEARISH" &&
+      directions.H1 === "BULLISH"
     ) {
       majorDirection = "SIDEWAYS";
+
+      directionReason =
+        "H4 bearish but H1 bullish. Higher-timeframe conflict, so SINNCI will not force BUY or SELL.";
+    }
+
+    else if (
+      directions.H4 === "BULLISH" &&
+      directions.H1 === "BEARISH"
+    ) {
+      majorDirection = "SIDEWAYS";
+
+      directionReason =
+        "H4 bullish but H1 bearish. Higher-timeframe conflict, so SINNCI will not force BUY or SELL.";
     }
 
     // =========================================================
-    // 14. SIDEWAY RANGE
+    // 13. H1 RANGE
     // =========================================================
 
     const recentH1 = market.H1.slice(0, 60);
@@ -545,7 +542,8 @@ export default async function handler(req, res) {
       ...recentH1.map(c => c.low)
     );
 
-    const rangeSize = rangeHigh - rangeLow;
+    const rangeSize =
+      rangeHigh - rangeLow;
 
     const rangePosition =
       rangeSize > 0
@@ -557,7 +555,7 @@ export default async function handler(req, res) {
       rangePosition < 0.65;
 
     // =========================================================
-    // 15. FIND BEST BUY / SELL PUNCA
+    // 14. BEST ZONES
     // =========================================================
 
     function bestZone(type) {
@@ -565,52 +563,71 @@ export default async function handler(req, res) {
         .filter(z => z.type === type)
         .sort((a, b) => b.score - a.score);
 
-      if (!candidates.length) return null;
-
-      return candidates[0];
+      return candidates.length
+        ? candidates[0]
+        : null;
     }
 
-    const bestSupport = bestZone("SUPPORT");
-    const bestResistance = bestZone("RESISTANCE");
+    const bestSupport =
+      bestZone("SUPPORT");
+
+    const bestResistance =
+      bestZone("RESISTANCE");
 
     // =========================================================
-    // 16. FIND PATTERN PUNCA
+    // 15. DIRECTIONAL PUNCA
     // =========================================================
 
-    const buyPatterns = mergedZones
-      .filter(z =>
-        z.sources.some(s =>
-          String(s).includes("RALLY BASE RALLY")
-        )
-      )
-      .sort((a, b) => b.score - a.score);
+    function bestPunca(type, direction) {
+      const candidates = mergedZones
+        .filter(z => {
+          if (z.type !== type) return false;
 
-    const sellPatterns = mergedZones
-      .filter(z =>
-        z.sources.some(s =>
-          String(s).includes("DROP BASE DROP")
-        )
-      )
-      .sort((a, b) => b.score - a.score);
+          if (direction === "BUY") {
+            return z.sources.some(s =>
+              String(s).includes("RALLY BASE RALLY") ||
+              String(s).includes("OLD SWING LOW") ||
+              String(s).includes("RESISTANCE BECOME SUPPORT")
+            );
+          }
+
+          if (direction === "SELL") {
+            return z.sources.some(s =>
+              String(s).includes("DROP BASE DROP") ||
+              String(s).includes("OLD SWING HIGH") ||
+              String(s).includes("SUPPORT BECOME RESISTANCE")
+            );
+          }
+
+          return false;
+        })
+        .sort((a, b) => b.score - a.score);
+
+      return candidates.length
+        ? candidates[0]
+        : null;
+    }
 
     const buyPunca =
-      buyPatterns[0] || bestSupport;
+      bestPunca("SUPPORT", "BUY") ||
+      bestSupport;
 
     const sellPunca =
-      sellPatterns[0] || bestResistance;
+      bestPunca("RESISTANCE", "SELL") ||
+      bestResistance;
 
     // =========================================================
-    // 17. CHECK PRICE NEAR ZONE
+    // 16. PRICE NEAR PUNCA
     // =========================================================
 
     function priceNearZone(price, zone) {
       if (!zone) return false;
 
+      const zoneSize =
+        Math.max(zone.high - zone.low, 0.5);
+
       const buffer =
-        Math.max(
-          (zone.high - zone.low) * 0.8,
-          1.5
-        );
+        Math.max(zoneSize * 0.5, 1.0);
 
       return (
         price >= zone.low - buffer &&
@@ -619,124 +636,164 @@ export default async function handler(req, res) {
     }
 
     const nearBuyPunca =
-      priceNearZone(currentPrice, buyPunca);
+      priceNearZone(
+        currentPrice,
+        buyPunca
+      );
 
     const nearSellPunca =
-      priceNearZone(currentPrice, sellPunca);
+      priceNearZone(
+        currentPrice,
+        sellPunca
+      );
 
     // =========================================================
-    // 18. FINAL SIGNAL
+    // 17. FINAL SIGNAL
     // =========================================================
 
     let signal = "WAIT";
     let entryZone = null;
     let selectedPunca = null;
-    let reason = "";
+    let reason = directionReason;
 
-    // ---------------------------------------------------------
-    // BULLISH MARKET
-    // ---------------------------------------------------------
-
-    if (majorDirection === "BULLISH") {
-      if (nearBuyPunca && buyPunca) {
-        signal = "BUY";
-        selectedPunca = buyPunca;
-
-        entryZone = {
-          low: roundPrice(buyPunca.low),
-          high: roundPrice(buyPunca.high)
-        };
-
-        reason =
-          "H4/H1 bullish. Current price is near a historical BUY punca with SNR/RBR confluence.";
-      } else {
-        signal = "WAIT";
-        selectedPunca = buyPunca;
-
-        reason =
-          "H4/H1 bullish, but current price has not reached the historical BUY punca. Wait for price to return to the zone.";
-      }
-    }
-
-    // ---------------------------------------------------------
-    // BEARISH MARKET
-    // ---------------------------------------------------------
+    // =========================================================
+    // BEARISH
+    // =========================================================
 
     if (majorDirection === "BEARISH") {
-      if (nearSellPunca && sellPunca) {
+      selectedPunca = sellPunca;
+
+      if (
+        sellPunca &&
+        nearSellPunca
+      ) {
         signal = "SELL";
-        selectedPunca = sellPunca;
 
         entryZone = {
-          low: roundPrice(sellPunca.low),
-          high: roundPrice(sellPunca.high)
+          low: roundPrice(
+            sellPunca.low
+          ),
+          high: roundPrice(
+            sellPunca.high
+          )
         };
 
         reason =
-          "H4/H1 bearish. Current price is near a historical SELL punca with SNR/DBD confluence.";
-      } else {
-        signal = "WAIT";
-        selectedPunca = sellPunca;
-
-        reason =
-          "H4/H1 bearish, but current price has not reached the historical SELL punca. Wait for price to return to the zone.";
-      }
-    }
-
-    // ---------------------------------------------------------
-    // SIDEWAYS
-    // ---------------------------------------------------------
-
-    if (majorDirection === "SIDEWAYS") {
-      if (middleRange) {
-        signal = "WAIT";
-
-        reason =
-          "Market is sideways and current price is in the middle of the range. No entry because the middle of the range is high risk.";
-      } else if (
-        rangePosition <= 0.35 &&
-        bestSupport
-      ) {
-        signal = nearBuyPunca ? "BUY" : "WAIT";
-
-        selectedPunca = buyPunca;
-
-        if (nearBuyPunca) {
-          entryZone = {
-            low: roundPrice(buyPunca.low),
-            high: roundPrice(buyPunca.high)
-          };
-        }
-
-        reason =
-          "Sideways market. Price is near the lower range/support area. Look for BUY at the valid support punca.";
-      } else if (
-        rangePosition >= 0.65 &&
-        bestResistance
-      ) {
-        signal = nearSellPunca ? "SELL" : "WAIT";
-
-        selectedPunca = sellPunca;
-
-        if (nearSellPunca) {
-          entryZone = {
-            low: roundPrice(sellPunca.low),
-            high: roundPrice(sellPunca.high)
-          };
-        }
-
-        reason =
-          "Sideways market. Price is near the upper range/resistance area. Look for SELL at the valid resistance punca.";
+          directionReason +
+          " Price is now at the historical SELL punca. Wait for bearish confirmation before entry.";
       } else {
         signal = "WAIT";
 
         reason =
-          "Sideways market. Wait for price to reach support low or resistance high.";
+          directionReason +
+          " Price has not reached the historical SELL punca. Do not chase price. Wait for price to return to the resistance/supply area.";
       }
     }
 
     // =========================================================
-    // 19. SL / TP
+    // BULLISH
+    // =========================================================
+
+    if (majorDirection === "BULLISH") {
+      selectedPunca = buyPunca;
+
+      if (
+        buyPunca &&
+        nearBuyPunca
+      ) {
+        signal = "BUY";
+
+        entryZone = {
+          low: roundPrice(
+            buyPunca.low
+          ),
+          high: roundPrice(
+            buyPunca.high
+          )
+        };
+
+        reason =
+          directionReason +
+          " Price is now at the historical BUY punca. Wait for bullish confirmation before entry.";
+      } else {
+        signal = "WAIT";
+
+        reason =
+          directionReason +
+          " Price has not reached the historical BUY punca. Do not chase price. Wait for price to return to the support/demand area.";
+      }
+    }
+
+    // =========================================================
+    // TRUE SIDEWAYS / CONFLICT
+    // =========================================================
+
+    if (majorDirection === "SIDEWAYS") {
+      selectedPunca = null;
+
+      if (middleRange) {
+        signal = "WAIT";
+
+        reason =
+          directionReason +
+          " Current price is in the middle of the range. No trade.";
+      }
+
+      else if (
+        rangePosition <= 0.35 &&
+        buyPunca &&
+        nearBuyPunca
+      ) {
+        signal = "BUY";
+        selectedPunca = buyPunca;
+
+        entryZone = {
+          low: roundPrice(
+            buyPunca.low
+          ),
+          high: roundPrice(
+            buyPunca.high
+          )
+        };
+
+        reason =
+          directionReason +
+          " Price is at the lower range and near a valid historical BUY punca.";
+      }
+
+      else if (
+        rangePosition >= 0.65 &&
+        sellPunca &&
+        nearSellPunca
+      ) {
+        signal = "SELL";
+        selectedPunca = sellPunca;
+
+        entryZone = {
+          low: roundPrice(
+            sellPunca.low
+          ),
+          high: roundPrice(
+            sellPunca.high
+          )
+        };
+
+        reason =
+          directionReason +
+          " Price is at the upper range and near a valid historical SELL punca.";
+      }
+
+      else {
+        signal = "WAIT";
+
+        reason =
+          directionReason +
+          " Wait for price to reach a valid support or resistance punca.";
+      }
+    }
+
+    // =========================================================
+    // 18. SL / TP
     // =========================================================
 
     let entry = null;
@@ -746,36 +803,69 @@ export default async function handler(req, res) {
 
     if (entryZone) {
       entry = roundPrice(
-        (entryZone.low + entryZone.high) / 2
+        (entryZone.low +
+          entryZone.high) / 2
       );
 
+      const zoneSize =
+        Math.max(
+          entryZone.high -
+          entryZone.low,
+          1
+        );
+
+      const slBuffer =
+        Math.max(
+          zoneSize * 0.75,
+          2
+        );
+
       if (signal === "BUY") {
-        sl = roundPrice(entryZone.low - 3);
-        tp1 = roundPrice(entry + 6);
-        tp2 = roundPrice(entry + 12);
+        sl = roundPrice(
+          entryZone.low - slBuffer
+        );
+
+        tp1 = roundPrice(
+          entry + zoneSize * 2
+        );
+
+        tp2 = roundPrice(
+          entry + zoneSize * 4
+        );
       }
 
       if (signal === "SELL") {
-        sl = roundPrice(entryZone.high + 3);
-        tp1 = roundPrice(entry - 6);
-        tp2 = roundPrice(entry - 12);
+        sl = roundPrice(
+          entryZone.high + slBuffer
+        );
+
+        tp1 = roundPrice(
+          entry - zoneSize * 2
+        );
+
+        tp2 = roundPrice(
+          entry - zoneSize * 4
+        );
       }
     }
 
     // =========================================================
-    // 20. FINAL RESPONSE
+    // 19. RESPONSE
     // =========================================================
 
     return res.status(200).json({
       symbol: "XAUUSD",
 
-      price: roundPrice(currentPrice),
+      price:
+        roundPrice(currentPrice),
 
-      signal: signal,
+      signal,
 
-      major_direction: majorDirection,
+      major_direction:
+        majorDirection,
 
-      direction: directions,
+      direction:
+        directions,
 
       market_structure: {
         H4: directions.H4,
@@ -786,71 +876,126 @@ export default async function handler(req, res) {
       },
 
       range: {
-        high: roundPrice(rangeHigh),
-        low: roundPrice(rangeLow),
-        position_percent: Number(
-          (rangePosition * 100).toFixed(1)
-        ),
-        middle_range: middleRange
+        high:
+          roundPrice(rangeHigh),
+
+        low:
+          roundPrice(rangeLow),
+
+        position_percent:
+          Number(
+            (
+              rangePosition * 100
+            ).toFixed(1)
+          ),
+
+        middle_range:
+          middleRange
       },
 
       punca: selectedPunca
         ? {
-            low: roundPrice(selectedPunca.low),
-            high: roundPrice(selectedPunca.high),
-            score: selectedPunca.score,
+            low:
+              roundPrice(
+                selectedPunca.low
+              ),
+
+            high:
+              roundPrice(
+                selectedPunca.high
+              ),
+
+            score:
+              selectedPunca.score,
+
             timeframes: [
-              ...new Set(selectedPunca.timeframes)
+              ...new Set(
+                selectedPunca.timeframes
+              )
             ],
+
             sources: [
-              ...new Set(selectedPunca.sources)
+              ...new Set(
+                selectedPunca.sources
+              )
             ]
           }
         : null,
 
-      entry_zone: entryZone,
+      entry_zone:
+        entryZone,
 
-      entry: entry,
-      sl: sl,
-      tp1: tp1,
-      tp2: tp2,
+      entry,
+      sl,
+      tp1,
+      tp2,
 
-      best_support: bestSupport
-        ? {
-            low: roundPrice(bestSupport.low),
-            high: roundPrice(bestSupport.high),
-            score: bestSupport.score,
-            timeframes: [
-              ...new Set(bestSupport.timeframes)
-            ]
-          }
-        : null,
+      best_support:
+        bestSupport
+          ? {
+              low:
+                roundPrice(
+                  bestSupport.low
+                ),
 
-      best_resistance: bestResistance
-        ? {
-            low: roundPrice(bestResistance.low),
-            high: roundPrice(bestResistance.high),
-            score: bestResistance.score,
-            timeframes: [
-              ...new Set(bestResistance.timeframes)
-            ]
-          }
-        : null,
+              high:
+                roundPrice(
+                  bestSupport.high
+                ),
 
-      reason: reason,
+              score:
+                bestSupport.score,
+
+              timeframes: [
+                ...new Set(
+                  bestSupport.timeframes
+                )
+              ]
+            }
+          : null,
+
+      best_resistance:
+        bestResistance
+          ? {
+              low:
+                roundPrice(
+                  bestResistance.low
+                ),
+
+              high:
+                roundPrice(
+                  bestResistance.high
+                ),
+
+              score:
+                bestResistance.score,
+
+              timeframes: [
+                ...new Set(
+                  bestResistance.timeframes
+                )
+              ]
+            }
+          : null,
+
+      reason,
 
       market_status:
-        "Historical multi-timeframe SNR + DBD/RBR + breakout analysis",
+        "SINNCI Historical SNR + Punca + DBD/RBR + Breakout Analysis",
 
       note:
-        "SINNCI AI: H4/H1 direction first, historical punca second, current price mainly for entry timing."
+        "H4 is the main direction anchor. H1 confirms or consolidates. Historical punca is prioritized before current price. Current price is mainly used for timing."
     });
 
   } catch (error) {
-    console.error("SINNCI AI ERROR:", error);
+    console.error(
+      "SINNCI AI ERROR:",
+      error
+    );
 
     return res.status(500).json({
-      error: "SINNCI AI analysis temporarily unavailable"
+      error:
+        "SINNCI AI analysis temporarily unavailable"
     });
   }
-        }
+}

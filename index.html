@@ -1377,57 +1377,148 @@ async function handleAuth(event){
 
 async function checkUserAccess(){
 
-  const {
-    data: {
-      user
+  try{
+
+    const {
+      data: {
+        user
+      },
+      error: userError
+    } = await supabaseClient.auth.getUser();
+
+    if(userError){
+
+      console.error(
+        "AUTH USER ERROR:",
+        userError
+      );
+
+      showAuthMessage(
+        loginMsg,
+        "AUTH ERROR: " +
+        (
+          userError.message ||
+          "Unable to get user."
+        ),
+        "error"
+      );
+
+      showAuthScreen();
+      return;
+
     }
-  } =
-  await supabaseClient.auth
-    .getUser();
 
-  if(!user){
+    if(!user){
 
-    showAuthScreen();
+      showAuthScreen();
+      return;
 
-    return;
+    }
 
-  }
-
-
-  const {
-    data: profile,
-    error
-  } =
-  await supabaseClient
-    .from("profiles")
-    .select("approved,email")
-    .eq("id",user.id)
-    .single();
-
-
-  if(error){
-
-    console.error(error);
-
-    showAuthMessage(
-      "Unable to check account approval.",
-      "auth-error"
+    console.log(
+      "LOGGED IN USER:",
+      user.id,
+      user.email
     );
 
-    return;
+    const {
+      data: profile,
+      error: profileError
+    } = await supabaseClient
+      .from("profiles")
+      .select("id,approved,email")
+      .eq("id",user.id)
+      .maybeSingle();
+
+    console.log(
+      "PROFILE RESULT:",
+      profile
+    );
+
+    if(profileError){
+
+      console.error(
+        "PROFILE ERROR:",
+        profileError
+      );
+
+      showAuthMessage(
+        loginMsg,
+        "PROFILE ERROR: " +
+        (
+          profileError.message ||
+          "Unable to check account approval."
+        ),
+        "error"
+      );
+
+      showAuthScreen();
+      return;
+
+    }
+
+    if(!profile){
+
+      console.error(
+        "PROFILE NOT FOUND:",
+        user.id
+      );
+
+      showAuthMessage(
+        loginMsg,
+        "PROFILE NOT FOUND. Please contact SINNCI admin.",
+        "error"
+      );
+
+      showAuthScreen();
+      return;
+
+    }
+
+    if(profile.approved === true){
+
+      console.log(
+        "ACCOUNT APPROVED"
+      );
+
+      showApp();
+
+      loadPrice();
+
+    }
+
+    else{
+
+      console.log(
+        "ACCOUNT PENDING APPROVAL"
+      );
+
+      showPending(
+        user.email
+      );
+
+    }
 
   }
 
+  catch(error){
 
-  if(profile?.approved === true){
+    console.error(
+      "CHECK USER ACCESS ERROR:",
+      error
+    );
 
-    showApp();
+    showAuthMessage(
+      loginMsg,
+      "SYSTEM ERROR: " +
+      (
+        error.message ||
+        "Unable to check account approval."
+      ),
+      "error"
+    );
 
-  }
-
-  else{
-
-    showPending();
+    showAuthScreen();
 
   }
 

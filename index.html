@@ -101,6 +101,11 @@
       cursor: pointer;
     }
 
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .result {
       margin-top: 20px;
       display: none;
@@ -341,15 +346,24 @@
 
       try {
 
-        const response = await fetch("/api/price");
+        const response =
+          await fetch("/api/price");
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
-        if (data.error) {
-          throw new Error(data.error);
+        if (!response.ok || data.error) {
+          throw new Error(
+            data.error || "Unable to get XAUUSD price"
+          );
         }
 
-        const price = Number(data.price);
+        const price =
+          Number(data.price);
+
+        if (!Number.isFinite(price)) {
+          throw new Error("Invalid price received");
+        }
 
         document.getElementById("livePrice").textContent =
           price.toFixed(2);
@@ -366,7 +380,7 @@
           "Unavailable";
 
         document.getElementById("status").textContent =
-          "Connection error";
+          "API: " + error.message;
 
       }
 
@@ -382,9 +396,11 @@
       const button =
         document.querySelector("button");
 
-      button.textContent = "ANALYZING...";
+      button.textContent =
+        "ANALYZING...";
 
-      button.disabled = true;
+      button.disabled =
+        true;
 
       try {
 
@@ -394,59 +410,76 @@
         const data =
           await response.json();
 
-        if (data.error) {
-          throw new Error(data.error);
+        if (!response.ok || data.error) {
+          throw new Error(
+            data.error || "Analysis failed"
+          );
         }
 
 
+        // =========================
         // SIGNAL
+        // =========================
 
         document.getElementById("signal").textContent =
-          data.signal;
+          data.signal || "WAIT";
 
 
+        // =========================
         // TIMEFRAME DIRECTION
+        // =========================
 
         document.getElementById("h4").textContent =
-          data.direction.H4;
+          data.direction?.H4 || "-";
 
         document.getElementById("h1").textContent =
-          data.direction.H1;
+          data.direction?.H1 || "-";
 
         document.getElementById("m30").textContent =
-          data.direction.M30;
+          data.direction?.M30 || "-";
 
         document.getElementById("m15").textContent =
-          data.direction.M15;
+          data.direction?.M15 || "-";
 
         document.getElementById("m5").textContent =
-          data.direction.M5;
+          data.direction?.M5 || "-";
 
 
+        // =========================
         // LEVELS
+        // =========================
 
         document.getElementById("entry").textContent =
-          data.entry
+          data.entry !== null &&
+          data.entry !== undefined
             ? Number(data.entry).toFixed(2)
             : "-";
 
         document.getElementById("sl").textContent =
-          data.sl
+          data.sl !== null &&
+          data.sl !== undefined
             ? Number(data.sl).toFixed(2)
             : "-";
 
         document.getElementById("tp1").textContent =
-          data.tp1
+          data.tp1 !== null &&
+          data.tp1 !== undefined
             ? Number(data.tp1).toFixed(2)
             : "-";
 
         document.getElementById("tp2").textContent =
-          data.tp2
+          data.tp2 !== null &&
+          data.tp2 !== undefined
             ? Number(data.tp2).toFixed(2)
             : "-";
 
 
+        // =========================
+        // MESSAGE
+        // =========================
+
         document.getElementById("message").textContent =
+          data.status ||
           "SINNCI AI Technical Analysis";
 
 
@@ -474,14 +507,21 @@
     }
 
 
-    // LOAD LIVE PRICE
+    // =========================
+    // INITIAL PRICE LOAD
+    // =========================
 
     getLivePrice();
 
 
-    // UPDATE EVERY 5 SECONDS
+    // =========================
+    // UPDATE EVERY 30 SECONDS
+    // =========================
 
-    setInterval(getLivePrice, 5000);
+    setInterval(
+      getLivePrice,
+      30000
+    );
 
   </script>
 

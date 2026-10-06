@@ -1,777 +1,1487 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SINNCI AI</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SINNCI AI</title>
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-    }
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
 
-    body {
-      background:
-        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
-        #050505;
-      background-size: 40px 40px;
-      color: white;
-      min-height: 100vh;
-      padding: 20px;
-    }
+:root{
+  --bg:#050607;
+  --panel:rgba(13,15,18,.88);
+  --gold:#d8b45a;
+  --gold2:#f3d37a;
+  --white:#f4f4f4;
+  --muted:#858991;
+  --green:#20d98b;
+  --red:#ff5268;
+  --yellow:#f2c94c;
+  --line:rgba(255,255,255,.07);
+}
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background:
-        radial-gradient(circle at 50% 0%, rgba(212,175,55,.10), transparent 35%),
-        radial-gradient(circle at 0% 100%, rgba(0,255,136,.05), transparent 30%);
-    }
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 10% 10%,rgba(216,180,90,.09),transparent 28%),
+    radial-gradient(circle at 90% 30%,rgba(30,215,139,.055),transparent 25%),
+    radial-gradient(circle at 50% 100%,rgba(255,70,90,.045),transparent 30%),
+    #050607;
+  color:var(--white);
+  font-family:Inter,Arial,sans-serif;
+  overflow-x:hidden;
+}
 
-    .container {
-      max-width: 760px;
-      margin: auto;
-      position: relative;
-      z-index: 1;
-    }
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.18;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:linear-gradient(to bottom,black,transparent 90%);
+}
 
-    .header {
-      text-align: center;
-      margin: 25px 0 22px;
-    }
+body::after{
+  content:"";
+  position:fixed;
+  left:-5%;
+  right:-5%;
+  bottom:5%;
+  height:300px;
+  pointer-events:none;
+  opacity:.08;
+  background:
+    linear-gradient(135deg,
+      transparent 0 8%,
+      var(--gold) 8.2% 8.5%,
+      transparent 8.7% 18%,
+      var(--green) 18.2% 18.5%,
+      transparent 18.7% 32%,
+      var(--gold) 32.2% 32.5%,
+      transparent 32.7% 47%,
+      var(--red) 47.2% 47.5%,
+      transparent 47.7% 61%,
+      var(--green) 61.2% 61.5%,
+      transparent 61.7% 76%,
+      var(--gold) 76.2% 76.5%,
+      transparent 76.7% 100%);
+  transform:skewY(-7deg);
+}
 
-    .logo {
-      width: 58px;
-      height: 58px;
-      margin: auto;
-      border-radius: 18px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(145deg, #151515, #080808);
-      border: 1px solid rgba(212,175,55,.45);
-      box-shadow: 0 0 35px rgba(212,175,55,.10);
-      color: #d4af37;
-      font-weight: 900;
-      font-size: 18px;
-      letter-spacing: 1px;
-    }
+.topbar{
+  position:relative;
+  z-index:2;
+  max-width:1250px;
+  margin:auto;
+  padding:24px 20px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
 
-    .header h1 {
-      margin-top: 14px;
-      font-size: 38px;
-      letter-spacing: 4px;
-      font-weight: 900;
-    }
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
 
-    .header h1 span {
-      color: #d4af37;
-    }
+.logo{
+  width:42px;
+  height:42px;
+  border:1px solid rgba(216,180,90,.5);
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  color:var(--gold2);
+  font-size:20px;
+  font-weight:900;
+  background:rgba(216,180,90,.06);
+  box-shadow:0 0 25px rgba(216,180,90,.08);
+}
 
-    .header p {
-      color: #777;
-      margin-top: 7px;
-      font-size: 13px;
-      letter-spacing: 1px;
-    }
+.brand-title{
+  font-size:21px;
+  font-weight:900;
+  letter-spacing:1.5px;
+}
 
-    .card {
-      background: rgba(15,15,15,.88);
-      border: 1px solid #292929;
-      border-radius: 20px;
-      padding: 22px;
-      margin-bottom: 18px;
-      box-shadow:
-        0 15px 40px rgba(0,0,0,.35),
-        inset 0 1px rgba(255,255,255,.025);
-      backdrop-filter: blur(10px);
-    }
+.brand-sub{
+  font-size:9px;
+  color:var(--gold);
+  letter-spacing:2px;
+  margin-top:3px;
+}
 
-    .live-box {
-      text-align: center;
-      padding: 28px 20px;
-      border-color: rgba(212,175,55,.20);
-    }
+.live{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:8px 12px;
+  border:1px solid rgba(32,217,139,.2);
+  border-radius:30px;
+  background:rgba(32,217,139,.05);
+  font-size:11px;
+  color:#9ff5ce;
+}
 
-    .live-label {
-      color: #888;
-      font-size: 12px;
-      letter-spacing: 3px;
-    }
+.live-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 12px var(--green);
+}
 
-    .price {
-      font-size: 46px;
-      font-weight: 900;
-      margin: 10px 0;
-      letter-spacing: 1px;
-    }
+.container{
+  position:relative;
+  z-index:1;
+  max-width:1250px;
+  margin:auto;
+  padding:12px 20px 50px;
+}
 
-    .status {
-      display: inline-block;
-      color: #00ff88;
-      background: rgba(0,255,136,.06);
-      border: 1px solid rgba(0,255,136,.15);
-      padding: 7px 12px;
-      border-radius: 50px;
-      font-size: 11px;
-      letter-spacing: .5px;
-    }
+.hero{
+  display:grid;
+  grid-template-columns:1.35fr .65fr;
+  gap:16px;
+  margin-bottom:16px;
+}
 
-    label {
-      display: block;
-      color: #999;
-      margin-bottom: 8px;
-      font-size: 13px;
-    }
+.card{
+  border:1px solid var(--line);
+  background:linear-gradient(
+    145deg,
+    rgba(22,24,29,.94),
+    rgba(9,11,14,.9)
+  );
+  border-radius:22px;
+  box-shadow:
+    0 18px 60px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.025);
+  backdrop-filter:blur(14px);
+}
 
-    select,
-    input {
-      width: 100%;
-      padding: 14px;
-      margin-bottom: 16px;
-      background: #111;
-      border: 1px solid #303030;
-      border-radius: 12px;
-      color: white;
-      font-size: 15px;
-      outline: none;
-    }
+.price-card{
+  padding:24px;
+  position:relative;
+  overflow:hidden;
+}
 
-    select:focus,
-    input:focus {
-      border-color: #d4af37;
-      box-shadow: 0 0 0 2px rgba(212,175,55,.08);
-    }
+.price-card::after{
+  content:"";
+  position:absolute;
+  width:180px;
+  height:180px;
+  right:-70px;
+  top:-70px;
+  border-radius:50%;
+  border:1px solid rgba(216,180,90,.13);
+  box-shadow:
+    0 0 0 30px rgba(216,180,90,.025),
+    0 0 0 60px rgba(216,180,90,.015);
+}
 
-    button {
-      width: 100%;
-      padding: 16px;
-      border: 1px solid #d4af37;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #f1d477, #b88a16);
-      color: #080808;
-      font-size: 15px;
-      font-weight: 900;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: .2s;
-    }
+.market-label{
+  color:var(--gold);
+  font-size:11px;
+  letter-spacing:2px;
+  font-weight:700;
+}
 
-    button:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 8px 25px rgba(212,175,55,.18);
-    }
+.symbol{
+  margin-top:9px;
+  font-size:28px;
+  font-weight:900;
+}
 
-    button:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-    }
+.symbol span{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:500;
+  margin-left:8px;
+}
 
-    .result {
-      margin-top: 22px;
-      display: none;
-    }
+.price{
+  margin-top:18px;
+  font-size:42px;
+  font-weight:900;
+}
 
-    .signal {
-      text-align: center;
-      font-size: 38px;
-      font-weight: 900;
-      margin-bottom: 20px;
-      letter-spacing: 2px;
-    }
+.price-change{
+  margin-top:6px;
+  color:var(--green);
+  font-size:13px;
+}
 
-    .directions {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-      margin-bottom: 18px;
-    }
+.market-status{
+  position:absolute;
+  right:22px;
+  top:22px;
+  color:var(--muted);
+  font-size:11px;
+}
 
-    .tf {
-      background: #111;
-      border: 1px solid #252525;
-      padding: 13px 5px;
-      border-radius: 12px;
-      text-align: center;
-    }
+.timeframe{
+  margin-top:22px;
+  display:flex;
+  gap:7px;
+}
 
-    .tf span {
-      display: block;
-      color: #666;
-      font-size: 10px;
-      margin-bottom: 6px;
-      letter-spacing: 1px;
-    }
+.tf{
+  padding:7px 12px;
+  border-radius:9px;
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:10px;
+}
 
-    .tf strong {
-      font-size: 11px;
-    }
+.tf.active{
+  color:#111;
+  background:var(--gold);
+  border-color:var(--gold);
+  font-weight:800;
+}
 
-    .levels {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+.ai-card{
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
 
-    .level {
-      background: #111;
-      border: 1px solid #252525;
-      padding: 16px;
-      border-radius: 12px;
-      text-align: center;
-    }
+.ai-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
 
-    .level span {
-      display: block;
-      color: #666;
-      font-size: 10px;
-      margin-bottom: 7px;
-      letter-spacing: 1px;
-    }
+.ai-title{
+  font-weight:800;
+  font-size:14px;
+}
 
-    .level strong {
-      font-size: 19px;
-    }
+.ai-badge{
+  font-size:9px;
+  padding:6px 9px;
+  border-radius:20px;
+  background:rgba(216,180,90,.08);
+  color:var(--gold);
+  border:1px solid rgba(216,180,90,.18);
+}
 
-    .extra {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 10px;
-    }
+.ai-icon{
+  width:62px;
+  height:62px;
+  border-radius:18px;
+  margin-top:20px;
+  display:grid;
+  place-items:center;
+  font-size:28px;
+  background:rgba(216,180,90,.07);
+  border:1px solid rgba(216,180,90,.16);
+}
 
-    .extra-box {
-      background: #0d0d0d;
-      border: 1px solid #222;
-      border-radius: 12px;
-      padding: 13px;
-      text-align: center;
-    }
+.ai-status{
+  margin-top:16px;
+  font-size:26px;
+  font-weight:900;
+  color:var(--yellow);
+}
 
-    .extra-box span {
-      display: block;
-      color: #666;
-      font-size: 10px;
-      margin-bottom: 5px;
-    }
+.ai-desc{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.5;
+}
 
-    .extra-box strong {
-      font-size: 13px;
-    }
+.signal-card{
+  padding:25px;
+  margin-bottom:16px;
+  position:relative;
+  overflow:hidden;
+}
 
-    .message {
-      text-align: center;
-      color: #999;
-      margin-top: 16px;
-      font-size: 12px;
-      line-height: 1.5;
-    }
+.signal-card.buy{
+  border-color:rgba(32,217,139,.2);
+}
 
-    .footer {
-      text-align: center;
-      color: #444;
-      font-size: 11px;
-      margin: 28px 0 10px;
-      letter-spacing: 1px;
-    }
+.signal-card.sell{
+  border-color:rgba(255,82,104,.2);
+}
 
-    @media(max-width:500px) {
-      body {
-        padding: 12px;
-      }
+.signal-card.wait{
+  border-color:rgba(242,201,76,.2);
+}
 
-      .header h1 {
-        font-size: 31px;
-      }
+.signal-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
 
-      .price {
-        font-size: 38px;
-      }
+.signal-main{
+  display:flex;
+  align-items:center;
+  gap:13px;
+}
 
-      .directions {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-  </style>
+.signal-icon{
+  width:48px;
+  height:48px;
+  border-radius:15px;
+  display:grid;
+  place-items:center;
+  font-size:23px;
+  font-weight:900;
+}
+
+.buy .signal-icon{
+  color:var(--green);
+  background:rgba(32,217,139,.09);
+}
+
+.sell .signal-icon{
+  color:var(--red);
+  background:rgba(255,82,104,.09);
+}
+
+.wait .signal-icon{
+  color:var(--yellow);
+  background:rgba(242,201,76,.08);
+}
+
+.signal-name{
+  font-size:22px;
+  font-weight:900;
+}
+
+.signal-sub{
+  color:var(--muted);
+  font-size:10px;
+  margin-top:3px;
+}
+
+.score{
+  font-size:11px;
+  color:var(--gold);
+}
+
+.signal-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:9px;
+  margin-top:22px;
+}
+
+.metric{
+  padding:14px;
+  border-radius:13px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.045);
+}
+
+.metric-label{
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:1px;
+}
+
+.metric-value{
+  margin-top:7px;
+  font-size:15px;
+  font-weight:800;
+}
+
+.analyze-wrap{
+  display:flex;
+  justify-content:center;
+  margin:20px 0;
+}
+
+.analyze-btn{
+  border:0;
+  cursor:pointer;
+  padding:15px 38px;
+  border-radius:14px;
+  color:#111;
+  background:linear-gradient(
+    135deg,
+    var(--gold2),
+    var(--gold)
+  );
+  font-weight:900;
+  letter-spacing:.5px;
+  box-shadow:0 10px 35px rgba(216,180,90,.18);
+  transition:.2s;
+}
+
+.analyze-btn:hover:not(:disabled){
+  transform:translateY(-2px);
+  box-shadow:0 14px 40px rgba(216,180,90,.27);
+}
+
+.analyze-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.section-title{
+  margin:25px 0 11px;
+  color:var(--gold);
+  font-size:10px;
+  letter-spacing:2px;
+  font-weight:800;
+}
+
+.direction-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+}
+
+.direction{
+  padding:15px;
+  text-align:center;
+  border-radius:14px;
+  background:var(--panel);
+  border:1px solid var(--line);
+}
+
+.tf-name{
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:1px;
+}
+
+.dir{
+  margin-top:8px;
+  font-size:12px;
+  font-weight:900;
+}
+
+.bullish{color:var(--green)}
+.bearish{color:var(--red)}
+.neutral{color:var(--yellow)}
+
+.data-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+
+.data-card{
+  padding:18px;
+  border-radius:16px;
+  background:var(--panel);
+  border:1px solid var(--line);
+}
+
+.data-label{
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:1px;
+}
+
+.data-value{
+  margin-top:8px;
+  font-size:17px;
+  font-weight:900;
+}
+
+.data-small{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:9px;
+}
+
+.footer{
+  text-align:center;
+  margin-top:40px;
+  color:#555a62;
+  font-size:9px;
+  letter-spacing:2px;
+}
+
+.footer strong{
+  color:var(--gold);
+}
+
+@media(max-width:800px){
+
+  .topbar{
+    padding:18px 14px 10px;
+  }
+
+  .container{
+    padding:10px 14px 35px;
+  }
+
+  .hero{
+    grid-template-columns:1fr;
+  }
+
+  .price{
+    font-size:35px;
+  }
+
+  .signal-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .direction-grid{
+    grid-template-columns:repeat(5,1fr);
+    overflow-x:auto;
+  }
+
+  .direction{
+    min-width:65px;
+  }
+
+  .data-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:480px){
+
+  .signal-card,
+  .price-card,
+  .ai-card{
+    padding:18px;
+    border-radius:18px;
+  }
+
+  .signal-name{
+    font-size:19px;
+  }
+
+  .metric{
+    padding:11px;
+  }
+
+  .metric-value{
+    font-size:13px;
+  }
+
+  .price{
+    font-size:32px;
+  }
+}
+</style>
 </head>
 
 <body>
 
-  <div class="container">
+<header class="topbar">
 
-    <div class="header">
-      <div class="logo">SAI</div>
-      <h1>SINNCI <span>AI</span></h1>
-      <p>AI TRADING ANALYSIS SYSTEM</p>
-    </div>
+  <div class="brand">
 
-    <!-- LIVE PRICE -->
-    <div class="card live-box">
+    <div class="logo">S</div>
 
-      <div class="live-label">
-        XAUUSD LIVE PRICE
+    <div>
+      <div class="brand-title">SINNCI AI</div>
+      <div class="brand-sub">
+        SMARTER ANALYSIS • BETTER DECISIONS
       </div>
-
-      <div class="price" id="livePrice">
-        Loading...
-      </div>
-
-      <div class="status" id="status">
-        Connecting...
-      </div>
-
-    </div>
-
-    <!-- ANALYSIS -->
-    <div class="card">
-
-      <label>Trading Pair</label>
-
-      <select id="pair">
-        <option value="XAUUSD">XAUUSD</option>
-      </select>
-
-      <label>Timeframe</label>
-
-      <select id="timeframe">
-        <option value="M5">M5</option>
-        <option value="M15">M15</option>
-        <option value="M30">M30</option>
-        <option value="H1">H1</option>
-        <option value="H4">H4</option>
-      </select>
-
-      <label>Current Price</label>
-
-      <input
-        type="number"
-        id="currentPrice"
-        placeholder="Current XAUUSD price"
-        step="0.01"
-      >
-
-      <button id="analyzeButton" onclick="analyzeMarket()">
-        ANALYZE MARKET
-      </button>
-
-      <!-- RESULT -->
-      <div class="result" id="result">
-
-        <div class="signal" id="signal">
-          WAIT
-        </div>
-
-        <!-- TIMEFRAME -->
-        <div class="directions">
-
-          <div class="tf">
-            <span>H4</span>
-            <strong id="h4">-</strong>
-          </div>
-
-          <div class="tf">
-            <span>H1</span>
-            <strong id="h1">-</strong>
-          </div>
-
-          <div class="tf">
-            <span>M30</span>
-            <strong id="m30">-</strong>
-          </div>
-
-          <div class="tf">
-            <span>M15</span>
-            <strong id="m15">-</strong>
-          </div>
-
-          <div class="tf">
-            <span>M5</span>
-            <strong id="m5">-</strong>
-          </div>
-
-        </div>
-
-        <!-- LEVELS -->
-        <div class="levels">
-
-          <div class="level">
-            <span>ENTRY</span>
-            <strong id="entry">-</strong>
-          </div>
-
-          <div class="level">
-            <span>STOP LOSS</span>
-            <strong id="sl">-</strong>
-          </div>
-
-          <div class="level">
-            <span>TP 1</span>
-            <strong id="tp1">-</strong>
-          </div>
-
-          <div class="level">
-            <span>TP 2</span>
-            <strong id="tp2">-</strong>
-          </div>
-
-        </div>
-
-        <!-- EXTRA AI DATA -->
-        <div class="extra">
-
-          <div class="extra-box">
-            <span>PUNCA</span>
-            <strong id="punca">-</strong>
-          </div>
-
-          <div class="extra-box">
-            <span>RISK</span>
-            <strong id="risk">-</strong>
-          </div>
-
-        </div>
-
-        <div class="message" id="message">
-          SINNCI AI Technical Analysis
-        </div>
-
-      </div>
-
-    </div>
-
-    <div class="footer">
-      SINNCI.BigMovement © 2026
     </div>
 
   </div>
 
+  <div class="live">
+    <span class="live-dot"></span>
+    LIVE MARKET
+  </div>
 
-  <script>
-
-    let analyzeCooldown = false;
-    let cooldownSeconds = 60;
+</header>
 
 
-    // ==============================
-    // LIVE PRICE
-    // ==============================
+<main class="container">
 
-    async function getLivePrice() {
+  <!-- XAUUSD HERO -->
 
-      try {
+  <section class="hero">
 
-        const response = await fetch("/api/price");
+    <div class="card price-card">
 
-        const data = await response.json();
+      <div class="market-label">
+        PRECIOUS METAL
+      </div>
 
-        if (!response.ok || data.error) {
-          throw new Error(
-            data.error || "Unable to get XAUUSD price"
-          );
-        }
+      <div class="symbol">
+        XAUUSD
+        <span>GOLD / U.S. DOLLAR</span>
+      </div>
 
-        const price = Number(data.price);
+      <div id="price" class="price">
+        ---
+      </div>
 
-        if (!Number.isFinite(price)) {
-          throw new Error("Invalid price received");
-        }
+      <div id="priceStatus" class="price-change">
+        Connecting to market...
+      </div>
 
-        document.getElementById("livePrice")
-          .textContent = price.toFixed(2);
+      <div class="market-status">
+        ● REAL DATA
+      </div>
 
-        document.getElementById("currentPrice")
-          .value = price.toFixed(2);
+      <div class="timeframe">
+        <div class="tf">H4</div>
+        <div class="tf">H1</div>
+        <div class="tf">M30</div>
+        <div class="tf">M15</div>
+        <div class="tf active">M5</div>
+      </div>
 
-        document.getElementById("status")
-          .textContent = "● LIVE • Updated just now";
+    </div>
 
-      }
 
-      catch(error) {
+    <!-- AI ENGINE -->
 
-        document.getElementById("livePrice")
-          .textContent = "Unavailable";
+    <div class="card ai-card">
 
-        document.getElementById("status")
-          .textContent = "API: " + error.message;
+      <div class="ai-head">
 
-      }
+        <div class="ai-title">
+          SINNCI MARKET ENGINE
+        </div>
+
+        <div class="ai-badge">
+          AI ACTIVE
+        </div>
+
+      </div>
+
+      <div class="ai-icon">
+        ✦
+      </div>
+
+      <div>
+
+        <div id="aiStatus" class="ai-status">
+          WAIT
+        </div>
+
+        <div id="aiDescription" class="ai-desc">
+          Waiting for high-quality market structure.
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- SIGNAL -->
+
+  <section id="signalCard"
+           class="card signal-card wait">
+
+    <div class="signal-top">
+
+      <div class="signal-main">
+
+        <div id="signalIcon"
+             class="signal-icon">
+          ⏳
+        </div>
+
+        <div>
+
+          <div id="signalName"
+               class="signal-name">
+            WAIT
+          </div>
+
+          <div id="signalSub"
+               class="signal-sub">
+            No high-quality setup
+          </div>
+
+        </div>
+
+      </div>
+
+      <div id="score"
+           class="score">
+        BUY 0 • SELL 0
+      </div>
+
+    </div>
+
+
+    <div class="signal-grid">
+
+      <div class="metric">
+        <div class="metric-label">ENTRY</div>
+        <div id="entry"
+             class="metric-value">
+          ---
+        </div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">STRUCTURE SL</div>
+        <div id="sl"
+             class="metric-value">
+          ---
+        </div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">TP1</div>
+        <div id="tp1"
+             class="metric-value">
+          ---
+        </div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">TP2</div>
+        <div id="tp2"
+             class="metric-value">
+          ---
+        </div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-label">PUNCA</div>
+        <div id="punca"
+             class="metric-value">
+          ---
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ANALYZE -->
+
+  <div class="analyze-wrap">
+
+    <button id="analyzeBtn"
+            class="analyze-btn">
+
+      ✦ ANALYZE MARKET
+
+    </button>
+
+  </div>
+
+
+  <!-- DIRECTIONS -->
+
+  <div class="section-title">
+    MULTI-TIMEFRAME DIRECTION
+  </div>
+
+  <section class="direction-grid">
+
+    <div class="direction">
+      <div class="tf-name">H4</div>
+      <div id="h4" class="dir neutral">---</div>
+    </div>
+
+    <div class="direction">
+      <div class="tf-name">H1</div>
+      <div id="h1" class="dir neutral">---</div>
+    </div>
+
+    <div class="direction">
+      <div class="tf-name">M30</div>
+      <div id="m30" class="dir neutral">---</div>
+    </div>
+
+    <div class="direction">
+      <div class="tf-name">M15</div>
+      <div id="m15" class="dir neutral">---</div>
+    </div>
+
+    <div class="direction">
+      <div class="tf-name">M5</div>
+      <div id="m5" class="dir neutral">---</div>
+    </div>
+
+  </section>
+
+
+  <!-- MARKET INTELLIGENCE -->
+
+  <div class="section-title">
+    MARKET INTELLIGENCE
+  </div>
+
+  <section class="data-grid">
+
+    <div class="data-card">
+
+      <div class="data-label">
+        PUNCA SOURCE
+      </div>
+
+      <div id="puncaSource"
+           class="data-value">
+        ---
+      </div>
+
+      <div class="data-small">
+        Historical structure
+      </div>
+
+    </div>
+
+
+    <div class="data-card">
+
+      <div class="data-label">
+        RISK
+      </div>
+
+      <div id="risk"
+           class="data-value">
+        ---
+      </div>
+
+      <div class="data-small">
+        Structure-based
+      </div>
+
+    </div>
+
+
+    <div class="data-card">
+
+      <div class="data-label">
+        MAX RISK
+      </div>
+
+      <div id="maxRisk"
+           class="data-value">
+        ---
+      </div>
+
+      <div class="data-small">
+        Dynamic volatility
+      </div>
+
+    </div>
+
+
+    <div class="data-card">
+
+      <div class="data-label">
+        REASON
+      </div>
+
+      <div id="reason"
+           class="data-value">
+        ---
+      </div>
+
+      <div class="data-small">
+        AI decision filter
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <footer class="footer">
+    <strong>SINNCI AI</strong>
+    • XAUUSD MARKET INTELLIGENCE
+  </footer>
+
+</main>
+
+
+<script>
+
+const priceEl =
+  document.getElementById("price");
+
+const priceStatus =
+  document.getElementById("priceStatus");
+
+const analyzeBtn =
+  document.getElementById("analyzeBtn");
+
+const signalCard =
+  document.getElementById("signalCard");
+
+const signalIcon =
+  document.getElementById("signalIcon");
+
+const signalName =
+  document.getElementById("signalName");
+
+const signalSub =
+  document.getElementById("signalSub");
+
+const aiStatus =
+  document.getElementById("aiStatus");
+
+const aiDescription =
+  document.getElementById("aiDescription");
+
+
+/* ==============================
+   LIVE PRICE
+   ============================== */
+
+async function getLivePrice(){
+
+  try{
+
+    const response =
+      await fetch("/api/price");
+
+    const data =
+      await response.json();
+
+    if(!response.ok || data.error){
+
+      throw new Error(
+        data.error ||
+        "Market data unavailable"
+      );
+
+    }
+
+    const price =
+      Number(data.price);
+
+    if(!Number.isFinite(price)){
+
+      throw new Error(
+        "Invalid price"
+      );
+
+    }
+
+    priceEl.textContent =
+      price.toFixed(2);
+
+    priceStatus.textContent =
+      "● Live XAUUSD market price";
+
+    priceStatus.style.color =
+      "var(--green)";
+
+  }
+
+  catch(error){
+
+    priceEl.textContent =
+      "Unavailable";
+
+    priceStatus.textContent =
+      "API: " + error.message;
+
+    priceStatus.style.color =
+      "var(--red)";
+
+  }
+
+}
+
+
+/* ==============================
+   DIRECTION
+   ============================== */
+
+function setDirection(id,value){
+
+  const el =
+    document.getElementById(id);
+
+  el.textContent =
+    value || "---";
+
+  el.className =
+    "dir";
+
+  if(value === "BULLISH"){
+
+    el.classList.add("bullish");
+
+  }
+
+  else if(value === "BEARISH"){
+
+    el.classList.add("bearish");
+
+  }
+
+  else{
+
+    el.classList.add("neutral");
+
+  }
+
+}
+
+
+/* ==============================
+   TEXT
+   ============================== */
+
+function setText(id,value){
+
+  document.getElementById(id)
+    .textContent =
+    value ?? "---";
+
+}
+
+
+/* ==============================
+   RESET
+   ============================== */
+
+function resetSignal(){
+
+  setText("entry","---");
+  setText("sl","---");
+  setText("tp1","---");
+  setText("tp2","---");
+  setText("punca","---");
+
+}
+
+
+/* ==============================
+   ANALYZE
+   ============================== */
+
+async function analyze(){
+
+  analyzeBtn.disabled =
+    true;
+
+  analyzeBtn.textContent =
+    "◌ ANALYZING MARKET...";
+
+  aiStatus.textContent =
+    "SCANNING";
+
+  aiStatus.style.color =
+    "var(--gold)";
+
+  aiDescription.textContent =
+    "Scanning H4 → H1 → M30 → M15 → M5 structure...";
+
+  signalCard.className =
+    "card signal-card wait";
+
+  signalIcon.textContent =
+    "◌";
+
+  signalName.textContent =
+    "ANALYZING";
+
+  signalSub.textContent =
+    "Searching historical punca...";
+
+
+  try{
+
+    const response =
+      await fetch("/api/analyze");
+
+    const data =
+      await response.json();
+
+    if(!response.ok || data.error){
+
+      throw new Error(
+        data.error ||
+        "Analysis failed"
+      );
 
     }
 
 
-    // ==============================
-    // ANALYZE MARKET
-    // ==============================
-
-    async function analyzeMarket() {
-
-      if (analyzeCooldown) {
-        return;
-      }
-
-      const button =
-        document.getElementById("analyzeButton");
-
-      analyzeCooldown = true;
-
-      button.disabled = true;
-
-      let remaining = cooldownSeconds;
-
-      button.textContent =
-        "ANALYZING...";
-
-      try {
-
-        const response =
-          await fetch("/api/analyze");
-
-        const data =
-          await response.json();
-
-        if (!response.ok || data.error) {
-
-          throw new Error(
-            data.error || "Analysis failed"
-          );
-
-        }
-
-
-        // SIGNAL
-
-        const signal =
-          data.signal || "WAIT";
-
-        const signalElement =
-          document.getElementById("signal");
-
-        signalElement.textContent =
-          signal;
-
-
-        // SIGNAL COLOR
-
-        if (signal === "BUY") {
-
-          signalElement.style.color =
-            "#00ff88";
-
-        }
-
-        else if (signal === "SELL") {
-
-          signalElement.style.color =
-            "#ff4d4d";
-
-        }
-
-        else {
-
-          signalElement.style.color =
-            "#d4af37";
-
-        }
-
-
-        // DIRECTIONS
-
-        document.getElementById("h4")
-          .textContent =
-          data.direction?.H4 || "-";
-
-        document.getElementById("h1")
-          .textContent =
-          data.direction?.H1 || "-";
-
-        document.getElementById("m30")
-          .textContent =
-          data.direction?.M30 || "-";
-
-        document.getElementById("m15")
-          .textContent =
-          data.direction?.M15 || "-";
-
-        document.getElementById("m5")
-          .textContent =
-          data.direction?.M5 || "-";
-
-
-        // LEVELS
-
-        document.getElementById("entry")
-          .textContent =
-          data.entry !== null &&
-          data.entry !== undefined
-            ? Number(data.entry).toFixed(2)
-            : "-";
-
-        document.getElementById("sl")
-          .textContent =
-          data.sl !== null &&
-          data.sl !== undefined
-            ? Number(data.sl).toFixed(2)
-            : "-";
-
-        document.getElementById("tp1")
-          .textContent =
-          data.tp1 !== null &&
-          data.tp1 !== undefined
-            ? Number(data.tp1).toFixed(2)
-            : "-";
-
-        document.getElementById("tp2")
-          .textContent =
-          data.tp2 !== null &&
-          data.tp2 !== undefined
-            ? Number(data.tp2).toFixed(2)
-            : "-";
-
-
-        // PUNCA
-
-        if (data.punca) {
-
-          const source =
-            data.punca.source || "-";
-
-          const price =
-            data.punca.price !== undefined
-              ? Number(data.punca.price).toFixed(2)
-              : "";
-
-          document.getElementById("punca")
-            .textContent =
-            price
-              ? source + " • " + price
-              : source;
-
-        }
-
-        else {
-
-          document.getElementById("punca")
-            .textContent = "-";
-
-        }
-
-
-        // RISK
-
-        if (data.risk !== undefined) {
-
-          document.getElementById("risk")
-            .textContent =
-            Number(data.risk).toFixed(2);
-
-        }
-
-        else {
-
-          document.getElementById("risk")
-            .textContent = "-";
-
-        }
-
-
-        // MESSAGE
-
-        document.getElementById("message")
-          .textContent =
-          data.status ||
-          "SINNCI AI Technical Analysis";
-
-
-        document.getElementById("result")
-          .style.display = "block";
-
-
-        // START COOLDOWN
-
-        button.textContent =
-          "NEXT ANALYSIS: 60s";
-
-        const timer =
-          setInterval(() => {
-
-            remaining--;
-
-            button.textContent =
-              "NEXT ANALYSIS: " +
-              remaining +
-              "s";
-
-            if (remaining <= 0) {
-
-              clearInterval(timer);
-
-              analyzeCooldown = false;
-
-              button.disabled = false;
-
-              button.textContent =
-                "ANALYZE MARKET";
-
-            }
-
-          }, 1000);
-
-
-      }
-
-      catch(error) {
-
-        document.getElementById("message")
-          .textContent =
-          "Analysis error: " +
-          error.message;
-
-        document.getElementById("result")
-          .style.display = "block";
-
-
-        // Release button after error
-
-        setTimeout(() => {
-
-          analyzeCooldown = false;
-
-          button.disabled = false;
-
-          button.textContent =
-            "ANALYZE MARKET";
-
-        }, 3000);
-
-      }
-
-    }
-
-
-    // ==============================
-    // INITIAL PRICE
-    // ==============================
-
-    getLivePrice();
-
-
-    // ==============================
-    // UPDATE EVERY 60 SECONDS
-    // ==============================
-
-    setInterval(
-      getLivePrice,
-      60000
+    /* DIRECTIONS */
+
+    setDirection(
+      "h4",
+      data.direction?.H4
     );
 
-  </script>
+    setDirection(
+      "h1",
+      data.direction?.H1
+    );
+
+    setDirection(
+      "m30",
+      data.direction?.M30
+    );
+
+    setDirection(
+      "m15",
+      data.direction?.M15
+    );
+
+    setDirection(
+      "m5",
+      data.direction?.M5
+    );
+
+
+    /* SIGNAL */
+
+    const signal =
+      data.signal || "WAIT";
+
+    resetSignal();
+
+
+    if(signal === "BUY"){
+
+      signalCard.className =
+        "card signal-card buy";
+
+      signalIcon.textContent =
+        "↑";
+
+      signalName.textContent =
+        "BUY SIGNAL";
+
+      signalSub.textContent =
+        "High-quality bullish setup";
+
+      aiStatus.textContent =
+        "BUY";
+
+      aiStatus.style.color =
+        "var(--green)";
+
+      aiDescription.textContent =
+        "Structure, direction and confirmation align.";
+
+    }
+
+
+    else if(signal === "SELL"){
+
+      signalCard.className =
+        "card signal-card sell";
+
+      signalIcon.textContent =
+        "↓";
+
+      signalName.textContent =
+        "SELL SIGNAL";
+
+      signalSub.textContent =
+        "High-quality bearish setup";
+
+      aiStatus.textContent =
+        "SELL";
+
+      aiStatus.style.color =
+        "var(--red)";
+
+      aiDescription.textContent =
+        "Structure, direction and confirmation align.";
+
+    }
+
+
+    else{
+
+      signalCard.className =
+        "card signal-card wait";
+
+      signalIcon.textContent =
+        "⏳";
+
+      signalName.textContent =
+        "WAIT";
+
+      signalSub.textContent =
+        data.waitReason ||
+        "No high-quality setup";
+
+      aiStatus.textContent =
+        "WAIT";
+
+      aiStatus.style.color =
+        "var(--yellow)";
+
+      aiDescription.textContent =
+        "No valid entry. Waiting for a cleaner setup.";
+
+    }
+
+
+    /* LEVELS */
+
+    setText(
+      "entry",
+      data.entry !== null &&
+      data.entry !== undefined
+        ? Number(data.entry).toFixed(2)
+        : "---"
+    );
+
+    setText(
+      "sl",
+      data.sl !== null &&
+      data.sl !== undefined
+        ? Number(data.sl).toFixed(2)
+        : "---"
+    );
+
+    setText(
+      "tp1",
+      data.tp1 !== null &&
+      data.tp1 !== undefined
+        ? Number(data.tp1).toFixed(2)
+        : "---"
+    );
+
+    setText(
+      "tp2",
+      data.tp2 !== null &&
+      data.tp2 !== undefined
+        ? Number(data.tp2).toFixed(2)
+        : "---"
+    );
+
+
+    /* PUNCA */
+
+    if(data.punca){
+
+      const puncaPrice =
+        data.punca.price !== undefined
+          ? Number(data.punca.price).toFixed(2)
+          : "---";
+
+      setText(
+        "punca",
+        puncaPrice +
+        " • " +
+        (data.punca.source || "---")
+      );
+
+      setText(
+        "puncaSource",
+        data.punca.source || "---"
+      );
+
+    }
+
+    else{
+
+      setText("punca","---");
+      setText("puncaSource","---");
+
+    }
+
+
+    /* RISK */
+
+    if(
+      data.risk !== null &&
+      data.risk !== undefined
+    ){
+
+      setText(
+        "risk",
+        Number(data.risk).toFixed(2)
+      );
+
+    }
+
+    else{
+
+      setText("risk","---");
+
+    }
+
+
+    /* MAX RISK */
+
+    if(
+      data.maxAllowedRisk !== null &&
+      data.maxAllowedRisk !== undefined
+    ){
+
+      setText(
+        "maxRisk",
+        Number(data.maxAllowedRisk).toFixed(2)
+      );
+
+    }
+
+    else{
+
+      setText("maxRisk","---");
+
+    }
+
+
+    /* REASON */
+
+    setText(
+      "reason",
+      data.waitReason ||
+      (
+        signal === "BUY"
+          ? "BUY SETUP"
+          : signal === "SELL"
+            ? "SELL SETUP"
+            : "WAIT"
+      )
+    );
+
+
+    /* SCORE */
+
+    const buyScore =
+      data.scores?.buy ?? 0;
+
+    const sellScore =
+      data.scores?.sell ?? 0;
+
+    setText(
+      "score",
+      `BUY ${buyScore} • SELL ${sellScore}`
+    );
+
+
+    /* SUCCESS */
+
+    startCooldown();
+
+  }
+
+  catch(error){
+
+    signalCard.className =
+      "card signal-card wait";
+
+    signalIcon.textContent =
+      "⚠";
+
+    signalName.textContent =
+      "ERROR";
+
+    signalSub.textContent =
+      error.message;
+
+    aiStatus.textContent =
+      "ERROR";
+
+    aiStatus.style.color =
+      "var(--red)";
+
+    aiDescription.textContent =
+      "Unable to complete market analysis.";
+
+
+    /* Short cooldown on error */
+
+    startCooldown(10);
+
+  }
+
+}
+
+
+/* ==============================
+   API COOLDOWN
+   ============================== */
+
+let cooldownTimer = null;
+
+function startCooldown(seconds = 60){
+
+  clearInterval(cooldownTimer);
+
+  let remaining =
+    seconds;
+
+  analyzeBtn.disabled =
+    true;
+
+  analyzeBtn.textContent =
+    `NEXT ANALYSIS: ${remaining}s`;
+
+  cooldownTimer =
+    setInterval(() => {
+
+      remaining--;
+
+      if(remaining <= 0){
+
+        clearInterval(
+          cooldownTimer
+        );
+
+        analyzeBtn.disabled =
+          false;
+
+        analyzeBtn.textContent =
+          "✦ ANALYZE MARKET";
+
+        return;
+
+      }
+
+      analyzeBtn.textContent =
+        `NEXT ANALYSIS: ${remaining}s`;
+
+    },1000);
+
+}
+
+
+/* ==============================
+   BUTTON
+   ============================== */
+
+analyzeBtn.addEventListener(
+  "click",
+  analyze
+);
+
+
+/* ==============================
+   INITIAL PRICE
+   ============================== */
+
+getLivePrice();
+
+
+/*
+  Live price:
+  60 seconds sekali.
+
+  Analyze:
+  maximum 1 request setiap 60 saat
+  untuk browser ini.
+*/
+
+setInterval(
+  getLivePrice,
+  60000
+);
+
+</script>
 
 </body>
 </html>

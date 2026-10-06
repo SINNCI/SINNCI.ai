@@ -1387,39 +1387,19 @@ async function checkUserAccess(){
     } = await supabaseClient.auth.getUser();
 
     if(userError){
-
-      console.error(
-        "AUTH USER ERROR:",
-        userError
-      );
-
+      console.error("AUTH USER ERROR:", userError);
       showAuthMessage(
-        loginMsg,
-        "AUTH ERROR: " +
-        (
-          userError.message ||
-          "Unable to get user."
-        ),
-        "error"
+        userError.message || "Unable to get user.",
+        "auth-error"
       );
-
       showAuthScreen();
       return;
-
     }
 
     if(!user){
-
       showAuthScreen();
       return;
-
     }
-
-    console.log(
-      "LOGGED IN USER:",
-      user.id,
-      user.email
-    );
 
     const {
       data: profile,
@@ -1430,99 +1410,47 @@ async function checkUserAccess(){
       .eq("id",user.id)
       .maybeSingle();
 
-    console.log(
-      "PROFILE RESULT:",
-      profile
-    );
-
     if(profileError){
-
-      console.error(
-        "PROFILE ERROR:",
-        profileError
-      );
-
+      console.error("PROFILE ERROR:", profileError);
       showAuthMessage(
-        loginMsg,
         "PROFILE ERROR: " +
-        (
-          profileError.message ||
-          "Unable to check account approval."
-        ),
-        "error"
+        (profileError.message || "Unable to check account approval."),
+        "auth-error"
       );
-
       showAuthScreen();
       return;
-
     }
 
     if(!profile){
-
-      console.error(
-        "PROFILE NOT FOUND:",
-        user.id
-      );
-
       showAuthMessage(
-        loginMsg,
         "PROFILE NOT FOUND. Please contact SINNCI admin.",
-        "error"
+        "auth-error"
       );
-
       showAuthScreen();
       return;
-
     }
 
     if(profile.approved === true){
-
-      console.log(
-        "ACCOUNT APPROVED"
-      );
-
       showApp();
-
-      loadPrice();
-
+    }else{
+      showPending();
     }
 
-    else{
+  }catch(error){
 
-      console.log(
-        "ACCOUNT PENDING APPROVAL"
-      );
-
-      showPending(
-        user.email
-      );
-
-    }
-
-  }
-
-  catch(error){
-
-    console.error(
-      "CHECK USER ACCESS ERROR:",
-      error
-    );
+    console.error("CHECK USER ACCESS ERROR:", error);
 
     showAuthMessage(
-      loginMsg,
       "SYSTEM ERROR: " +
-      (
-        error.message ||
-        "Unable to check account approval."
-      ),
-      "error"
+      (error.message || "Unable to check account approval."),
+      "auth-error"
     );
 
     showAuthScreen();
 
   }
 
-}
+    }
 
 
 /* ==============================

@@ -743,6 +743,181 @@ body::after{
 }
 
 /* ==============================
+   ECONOMIC NEWS
+   ============================== */
+
+.news-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.news-card{
+  padding:18px;
+  border-radius:18px;
+  background:var(--panel);
+  border:1px solid var(--line);
+}
+
+.news-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.news-heading{
+  font-size:14px;
+  font-weight:900;
+}
+
+.news-subheading{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:.5px;
+}
+
+.news-filters{
+  display:flex;
+  gap:5px;
+}
+
+.news-filter{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.035);
+  color:var(--muted);
+  padding:6px 8px;
+  border-radius:8px;
+  font-size:8px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.news-filter.active{
+  color:#111;
+  background:var(--gold);
+  border-color:var(--gold);
+}
+
+.news-item{
+  padding:14px;
+  border-radius:14px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.055);
+}
+
+.news-item.high{
+  border-color:rgba(255,82,104,.16);
+}
+
+.news-item.medium{
+  border-color:rgba(242,201,76,.13);
+}
+
+.news-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.news-name{
+  font-size:12px;
+  font-weight:900;
+  line-height:1.35;
+}
+
+.news-time{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:9px;
+}
+
+.news-impact{
+  flex-shrink:0;
+  padding:5px 8px;
+  border-radius:7px;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.5px;
+}
+
+.news-impact.high{
+  color:#ff7182;
+  background:rgba(255,82,104,.09);
+  border:1px solid rgba(255,82,104,.15);
+}
+
+.news-impact.medium{
+  color:#f3d37a;
+  background:rgba(242,201,76,.08);
+  border:1px solid rgba(242,201,76,.13);
+}
+
+.news-countdown{
+  margin-top:12px;
+  font-size:11px;
+  font-weight:900;
+}
+
+.news-live{
+  color:var(--red);
+}
+
+.news-data{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:6px;
+  margin-top:11px;
+}
+
+.news-box{
+  padding:8px;
+  border-radius:9px;
+  background:rgba(255,255,255,.025);
+}
+
+.news-label{
+  color:var(--muted);
+  font-size:7px;
+  letter-spacing:.7px;
+}
+
+.news-value{
+  margin-top:4px;
+  font-size:10px;
+  font-weight:900;
+}
+
+.news-warning{
+  margin-top:10px;
+  color:#ff9aa6;
+  font-size:9px;
+  line-height:1.4;
+}
+
+.news-source{
+  margin-top:12px;
+  text-align:center;
+  color:#5f646c;
+  font-size:8px;
+}
+
+.news-source a{
+  color:var(--gold);
+  text-decoration:none;
+}
+
+.news-empty{
+  padding:22px;
+  text-align:center;
+  color:var(--muted);
+  font-size:10px;
+}
+
+/* ==============================
    MARKET DATA
    ============================== */
 
@@ -870,6 +1045,19 @@ body::after{
 
   .session-time{
     font-size:11px;
+  }
+
+  .news-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .news-filters{
+    width:100%;
+  }
+
+  .news-filter{
+    flex:1;
   }
 }
 </style>
@@ -1347,6 +1535,78 @@ const supabaseClient =
   </section>
 
 
+  <!-- ==============================
+       ECONOMIC NEWS
+       ============================== -->
+
+  <div class="section-title">
+    ECONOMIC NEWS • XAUUSD
+  </div>
+
+  <section class="news-card">
+
+    <div class="news-header">
+
+      <div>
+        <div class="news-heading">
+          MARKET-MOVING EVENTS
+        </div>
+
+        <div class="news-subheading">
+          HIGH & MEDIUM IMPACT • MALAYSIA TIME
+        </div>
+      </div>
+
+      <div class="news-filters">
+
+        <button
+          id="newsAllBtn"
+          class="news-filter active"
+          onclick="filterNews('all')">
+          ALL
+        </button>
+
+        <button
+          id="newsHighBtn"
+          class="news-filter"
+          onclick="filterNews('high')">
+          HIGH
+        </button>
+
+        <button
+          id="newsMediumBtn"
+          class="news-filter"
+          onclick="filterNews('medium')">
+          MEDIUM
+        </button>
+
+      </div>
+
+    </div>
+
+    <div
+      id="newsList"
+      class="news-list">
+
+      <div class="news-empty">
+        Scanning economic calendar...
+      </div>
+
+    </div>
+
+    <div class="news-source">
+      Economic data by
+      <a
+        href="https://www.financecalendar.com/"
+        target="_blank"
+        rel="noopener noreferrer">
+        FinanceCalendar.com
+      </a>
+    </div>
+
+  </section>
+
+
   <div class="section-title">
     MULTI-TIMEFRAME DIRECTION
   </div>
@@ -1775,6 +2035,8 @@ function showApp(){
   getLivePrice();
 
   updateSessionDisplay();
+
+  loadEconomicNews();
 
 }
 
@@ -2238,6 +2500,485 @@ function updateSessionDisplay(){
 setInterval(
   updateSessionDisplay,
   60000
+);
+
+
+/* ==============================
+   ECONOMIC NEWS ENGINE
+   ============================== */
+
+let sinnciNews = [];
+let newsFilter = "all";
+
+
+async function loadEconomicNews(){
+
+  const newsList =
+    document.getElementById("newsList");
+
+  if(!newsList)
+    return;
+
+  try{
+
+    newsList.innerHTML = `
+      <div class="news-empty">
+        Scanning economic calendar...
+      </div>
+    `;
+
+    const response =
+      await fetch("/api/news");
+
+    const data =
+      await response.json();
+
+    if(
+      !response.ok ||
+      !data.success ||
+      !Array.isArray(data.events)
+    ){
+
+      throw new Error(
+        "Economic news unavailable"
+      );
+
+    }
+
+    sinnciNews =
+      data.events.filter(event => {
+
+        const impact =
+          String(
+            event.impact || ""
+          ).toLowerCase();
+
+        return (
+          impact === "high" ||
+          impact === "medium"
+        );
+
+      });
+
+    renderEconomicNews();
+
+  }
+
+  catch(error){
+
+    console.error(
+      "SINNCI NEWS ERROR:",
+      error
+    );
+
+    newsList.innerHTML = `
+      <div class="news-empty">
+        Economic news temporarily unavailable
+      </div>
+    `;
+
+  }
+
+}
+
+
+/* ==============================
+   NEWS FILTER
+   ============================== */
+
+function filterNews(type){
+
+  newsFilter = type;
+
+  [
+    "newsAllBtn",
+    "newsHighBtn",
+    "newsMediumBtn"
+  ].forEach(id => {
+
+    document
+      .getElementById(id)
+      ?.classList.remove("active");
+
+  });
+
+  if(type === "all"){
+
+    document
+      .getElementById("newsAllBtn")
+      ?.classList.add("active");
+
+  }
+
+  if(type === "high"){
+
+    document
+      .getElementById("newsHighBtn")
+      ?.classList.add("active");
+
+  }
+
+  if(type === "medium"){
+
+    document
+      .getElementById("newsMediumBtn")
+      ?.classList.add("active");
+
+  }
+
+  renderEconomicNews();
+
+}
+
+
+/* ==============================
+   MALAYSIA TIME
+   ============================== */
+
+function formatNewsMYT(date){
+
+  return new Intl.DateTimeFormat(
+    "en-MY",
+    {
+      timeZone:"Asia/Kuala_Lumpur",
+      day:"2-digit",
+      month:"short",
+      hour:"2-digit",
+      minute:"2-digit",
+      hour12:true
+    }
+  ).format(date);
+
+}
+
+
+/* ==============================
+   COUNTDOWN
+   ============================== */
+
+function newsCountdown(date){
+
+  const difference =
+    new Date(date).getTime() -
+    Date.now();
+
+  if(
+    difference <= 0 &&
+    difference > -3600000
+  ){
+
+    return {
+      text:"🔴 LIVE NOW",
+      live:true
+    };
+
+  }
+
+  if(difference <= -3600000){
+
+    return {
+      text:"PASSED",
+      live:false
+    };
+
+  }
+
+  const totalSeconds =
+    Math.floor(
+      difference / 1000
+    );
+
+  const days =
+    Math.floor(
+      totalSeconds / 86400
+    );
+
+  const hours =
+    Math.floor(
+      (totalSeconds % 86400) / 3600
+    );
+
+  const minutes =
+    Math.floor(
+      (totalSeconds % 3600) / 60
+    );
+
+  if(days > 0){
+
+    return {
+      text:`IN ${days}D ${hours}H`,
+      live:false
+    };
+
+  }
+
+  if(hours > 0){
+
+    return {
+      text:`IN ${hours}H ${minutes}M`,
+      live:false
+    };
+
+  }
+
+  return {
+    text:`IN ${minutes}M`,
+    live:false
+  };
+
+}
+
+
+/* ==============================
+   NEWS VALUE
+   ============================== */
+
+function newsValue(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    value === ""
+  ){
+
+    return "—";
+
+  }
+
+  return value;
+
+}
+
+
+/* ==============================
+   RENDER NEWS
+   ============================== */
+
+function renderEconomicNews(){
+
+  const newsList =
+    document.getElementById(
+      "newsList"
+    );
+
+  if(!newsList)
+    return;
+
+  let list =
+    sinnciNews.filter(event => {
+
+      if(newsFilter === "all")
+        return true;
+
+      return (
+        String(
+          event.impact || ""
+        ).toLowerCase() ===
+        newsFilter
+      );
+
+    });
+
+  list =
+    list
+      .filter(event => event.time_utc)
+      .sort(
+        (a,b) =>
+          new Date(a.time_utc) -
+          new Date(b.time_utc)
+      )
+      .slice(0,10);
+
+  if(!list.length){
+
+    newsList.innerHTML = `
+      <div class="news-empty">
+        No HIGH / MEDIUM impact news available.
+      </div>
+    `;
+
+    return;
+
+  }
+
+  newsList.innerHTML =
+    list.map(event => {
+
+      const impact =
+        String(
+          event.impact || "medium"
+        ).toLowerCase();
+
+      const time =
+        new Date(
+          event.time_utc
+        );
+
+      const countdown =
+        newsCountdown(time);
+
+      const name =
+        event.name ||
+        event.title ||
+        "Economic News";
+
+      return `
+
+        <div
+          class="news-item ${impact}"
+          data-news-time="${time.toISOString()}">
+
+          <div class="news-top">
+
+            <div>
+
+              <div class="news-name">
+                🇺🇸 ${name}
+              </div>
+
+              <div class="news-time">
+                ${formatNewsMYT(time)} MYT
+              </div>
+
+            </div>
+
+            <div
+              class="news-impact ${impact}">
+              ${
+                impact === "high"
+                  ? "HIGH"
+                  : "MEDIUM"
+              }
+            </div>
+
+          </div>
+
+          <div
+            class="news-countdown ${
+              countdown.live
+                ? "news-live"
+                : ""
+            }">
+
+            ⏳ ${countdown.text}
+
+          </div>
+
+          <div class="news-data">
+
+            <div class="news-box">
+
+              <div class="news-label">
+                FORECAST
+              </div>
+
+              <div class="news-value">
+                ${newsValue(event.consensus)}
+              </div>
+
+            </div>
+
+            <div class="news-box">
+
+              <div class="news-label">
+                PREVIOUS
+              </div>
+
+              <div class="news-value">
+                ${newsValue(event.prior)}
+              </div>
+
+            </div>
+
+            <div class="news-box">
+
+              <div class="news-label">
+                ACTUAL
+              </div>
+
+              <div class="news-value">
+                ${newsValue(event.actual)}
+              </div>
+
+            </div>
+
+          </div>
+
+          ${
+            impact === "high"
+            ? `
+              <div class="news-warning">
+                ⚠ High volatility may occur on XAUUSD
+              </div>
+            `
+            : ""
+          }
+
+        </div>
+
+      `;
+
+    }).join("");
+
+}
+
+
+/* ==============================
+   UPDATE COUNTDOWN
+   ============================== */
+
+function updateNewsCountdowns(){
+
+  document
+    .querySelectorAll(
+      "[data-news-time]"
+    )
+    .forEach(item => {
+
+      const date =
+        new Date(
+          item.dataset.newsTime
+        );
+
+      const countdown =
+        item.querySelector(
+          ".news-countdown"
+        );
+
+      if(!countdown)
+        return;
+
+      const result =
+        newsCountdown(date);
+
+      countdown.className =
+        "news-countdown " +
+        (
+          result.live
+            ? "news-live"
+            : ""
+        );
+
+      countdown.textContent =
+        "⏳ " + result.text;
+
+    });
+
+}
+
+
+/* ==============================
+   NEWS AUTO UPDATE
+   ============================== */
+
+setInterval(
+  updateNewsCountdowns,
+  30000
+);
+
+setInterval(
+  loadEconomicNews,
+  300000
 );
 
 

@@ -12,123 +12,128 @@ export default async function handler(req, res) {
     const SYMBOL = "XAU/USD";
     const PRICE_SYMBOL = "XAUUSD";
 
-    // =========================
+    // =========================================================
+    // SINNCI MARKET ENGINE PRO
+    // =========================================================
+
+    const POINT = 0.01;
+
+    // Fixed risk model
+    const SCALP_SL_POINTS = 500;
+    const SCALP_TP1_POINTS = 600;
+    const SCALP_TP2_POINTS = 1200;
+
+    const INTRA_SL_POINTS = 500;
+    const INTRA_TP1_POINTS = 1600;
+    const INTRA_TP2_POINTS = 2500;
+
+    // ---------------------------------------------------------
     // CACHE
-    // =========================
+    // ---------------------------------------------------------
 
-    const CACHE_MS = 90000;
+    const now = Date.now();
 
-    if (!globalThis.__SINNCI_ANALYZE_CACHE) {
-      globalThis.__SINNCI_ANALYZE_CACHE = {
+    if (!globalThis.__SINNCI_PRO_CACHE) {
+      globalThis.__SINNCI_PRO_CACHE = {
         data: null,
-        timestamp: 0,
-        running: false
+        timestamp: 0
       };
     }
 
-    const cache = globalThis.__SINNCI_ANALYZE_CACHE;
-
     if (
-      cache.data &&
-      Date.now() - cache.timestamp < CACHE_MS
+      globalThis.__SINNCI_PRO_CACHE.data &&
+      now - globalThis.__SINNCI_PRO_CACHE.timestamp < 60000
     ) {
-      return res.status(200).json({
-        ...cache.data,
-        cached: true
-      });
+      return res.status(200).json(globalThis.__SINNCI_PRO_CACHE.data);
     }
 
-    if (cache.running) {
-      if (cache.data) {
-        return res.status(200).json({
-          ...cache.data,
-          cached: true
-        });
-      }
-
-      return res.status(200).json({
-        status: "success",
-        symbol: PRICE_SYMBOL,
-        signal: "WAIT",
-        signalStatus: "WAIT",
-        waitReason: "Analysis is already running."
-      });
-    }
-
-    cache.running = true;
-
-    // =========================
+    // =========================================================
     // HELPERS
-    // =========================
+    // =========================================================
 
     const safeNum = (v, fallback = 0) => {
       const n = Number(v);
       return Number.isFinite(n) ? n : fallback;
     };
 
-    const round = (v, decimals = 2) => {
-      const p = Math.pow(10, decimals);
+    const round = (v, d = 2) => {
+      const p = Math.pow(10, d);
       return Math.round(v * p) / p;
     };
 
-    // XAUUSD
-    // 0.01 price = 1 point
-    // 10 points = 1 pip
-    //
-    // 500 points = 50 pips = 5.00 price
-    // 600 points = 60 pips = 6.00 price
-    // 1200 points = 120 pips = 12.00 price
-    // 1600 points = 160 pips = 16.00 price
-    // 2500 points = 250 pips = 25.00 price
+    const pointsToPrice = (points) => points * POINT;
 
-    const pointSize = 0.01;
+    const priceToPoints = (price) => price / POINT;
 
-    const pointsToPrice = points =>
-      points * pointSize;
-
-    const priceToPoints = price =>
-      Math.abs(price) / pointSize;
-
-    const avg = arr => {
-      if (!arr.length) return 0;
-
-      return (
-        arr.reduce((a, b) => a + b, 0) /
-        arr.length
-      );
+    const avg = (arr) => {
+      const a = arr.filter(Number.isFinite);
+      if (!a.length) return 0;
+      return a.reduce((x, y) => x + y, 0) / a.length;
     };
 
-    // =========================
-    // FETCH OHLC
-    // =========================
+    const clamp = (v, min, max) =>
+      Math.max(min, Math.min(max, v));
 
-    async function getCandles(interval) {
+    const candleBody = (c) =>
+      Math.abs(safeNum(c.close) - safeNum(c.open));
+
+    const candleRange = (c) =>
+      Math.max(
+        0.0001,
+        safeNum(c.high) - safeNum(c.low)
+      );
+
+    const upperWick = (c) =>
+      safeNum(c.high) -
+      Math.max(safeNum(c.open), safeNum(c.close));
+
+    const lowerWick = (c) =>
+      Math.min(safeNum(c.open), safeNum(c.close)) -
+      safeNum(c.low);
+
+    const bullish = (c) =>
+      safeNum(c.close) > safeNum(c.open);
+
+    const bearish = (c) =>
+      safeNum(c.close) < safeNum(c.open);
+
+    const bodyRatio = (c) =>
+      candleBody(c) / candleRange(c);
+
+    // =========================================================
+    // TWELVE DATA
+    // =========================================================
+
+    async function getCandles(interval, outputsize = 100) {
       const url =
         `https://api.twelvedata.com/time_series` +
         `?symbol=${encodeURIComponent(SYMBOL)}` +
         `&interval=${interval}` +
-        `&outputsize=80` +
-        `&apikey=${API_KEY}`;
+        `&outputsize=${outputsize}` +
+        `&apikey=${encodeURIComponent(API_KEY)}`;
 
       const response = await fetch(url);
-      const data = await response.json();
 
-      if (
-        !response.ok ||
-        data.status === "error"
-      ) {
+      const text = await response.text();
+
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
         throw new Error(
-          data.message ||
-          `Twelve Data error: ${response.status}`
+          `Invalid Twelve Data response for ${interval}`
         );
       }
 
       if (
-        !Array.isArray(data.values) ||
-        !data.values.length
+        data.status === "error" ||
+        data.code ||
+        !Array.isArray(data.values)
       ) {
         throw new Error(
-          `No candle data returned for ${interval}`
+          data.message ||
+          `No candle data for ${interval}`
         );
       }
 
@@ -140,3545 +145,2346 @@ export default async function handler(req, res) {
           low: safeNum(c.low),
           close: safeNum(c.close)
         }))
+        .filter(c =>
+          c.open &&
+          c.high &&
+          c.low &&
+          c.close
+        )
         .reverse();
     }
 
-    const [
-      h4,
-      h1,
-      m15,
-      m5
-    ] = await Promise.all([
-      getCandles("4h"),
-      getCandles("1h"),
-      getCandles("15min"),
-      getCandles("5min")
+    // =========================================================
+    // FETCH MTF
+    // =========================================================
+
+    const [H4, H1, M15, M5] = await Promise.all([
+      getCandles("4h", 100),
+      getCandles("1h", 100),
+      getCandles("15min", 100),
+      getCandles("5min", 120)
     ]);
 
-    // =========================
-    // ATR
-    // =========================
-
-    function calculateATR(
-      candles,
-      period = 14
+    if (
+      H4.length < 20 ||
+      H1.length < 20 ||
+      M15.length < 20 ||
+      M5.length < 30
     ) {
-      if (
-        candles.length <
-        period + 1
-      ) {
-        return 0;
-      }
+      throw new Error("Not enough market data");
+    }
+
+    // =========================================================
+    // ATR
+    // =========================================================
+
+    function calculateATR(candles, period = 14) {
+      if (candles.length < period + 1) return 0;
 
       const trs = [];
 
       for (
-        let i = 1;
+        let i = candles.length - period;
         i < candles.length;
         i++
       ) {
-        const current =
-          candles[i];
+        const c = candles[i];
+        const prev = candles[i - 1];
 
-        const previous =
-          candles[i - 1];
+        if (!prev) continue;
 
-        const tr =
-          Math.max(
-            current.high -
-              current.low,
-
-            Math.abs(
-              current.high -
-                previous.close
-            ),
-
-            Math.abs(
-              current.low -
-                previous.close
-            )
-          );
+        const tr = Math.max(
+          c.high - c.low,
+          Math.abs(c.high - prev.close),
+          Math.abs(c.low - prev.close)
+        );
 
         trs.push(tr);
       }
 
-      return avg(
-        trs.slice(-period)
-      );
+      return avg(trs);
     }
 
-    const atrH4 =
-      calculateATR(h4);
+    const atr = {
+      H4: calculateATR(H4),
+      H1: calculateATR(H1),
+      M15: calculateATR(M15),
+      M5: calculateATR(M5)
+    };
 
-    const atrH1 =
-      calculateATR(h1);
+    // =========================================================
+    // SWINGS
+    // =========================================================
 
-    const atrM15 =
-      calculateATR(m15);
-
-    const atrM5 =
-      calculateATR(m5);
-
-    // =========================
-    // SWING DETECTION
-    // =========================
-
-    function getSwings(
-      candles,
-      lookback = 2
-    ) {
+    function getSwingPoints(candles, left = 2, right = 2) {
       const highs = [];
       const lows = [];
 
       for (
-        let i = lookback;
-        i <
-        candles.length - lookback;
+        let i = left;
+        i < candles.length - right;
         i++
       ) {
+        const c = candles[i];
+
         let isHigh = true;
         let isLow = true;
 
-        for (
-          let j = 1;
-          j <= lookback;
-          j++
-        ) {
+        for (let j = 1; j <= left; j++) {
           if (
-            candles[i].high <=
-              candles[i - j].high ||
-            candles[i].high <=
-              candles[i + j].high
+            candles[i - j].high >= c.high ||
+            candles[i - j].low <= c.low
           ) {
             isHigh = false;
-          }
-
-          if (
-            candles[i].low >=
-              candles[i - j].low ||
-            candles[i].low >=
-              candles[i + j].low
-          ) {
             isLow = false;
+            break;
           }
         }
 
         if (isHigh) {
-          highs.push(
-            candles[i].high
-          );
+          for (let j = 1; j <= right; j++) {
+            if (
+              candles[i + j].high >= c.high
+            ) {
+              isHigh = false;
+              break;
+            }
+          }
         }
 
         if (isLow) {
-          lows.push(
-            candles[i].low
-          );
-        }
-      }
-
-      return {
-        highs: highs.slice(-12),
-        lows: lows.slice(-12)
-      };
-    }
-
-    // Swing points dengan index
-    // digunakan untuk detect pattern
-    function getSwingPoints(
-      candles,
-      lookback = 2
-    ) {
-      const highs = [];
-      const lows = [];
-
-      for (
-        let i = lookback;
-        i <
-        candles.length - lookback;
-        i++
-      ) {
-        let isHigh = true;
-        let isLow = true;
-
-        for (
-          let j = 1;
-          j <= lookback;
-          j++
-        ) {
-          if (
-            candles[i].high <=
-              candles[i - j].high ||
-            candles[i].high <=
-              candles[i + j].high
-          ) {
-            isHigh = false;
-          }
-
-          if (
-            candles[i].low >=
-              candles[i - j].low ||
-            candles[i].low >=
-              candles[i + j].low
-          ) {
-            isLow = false;
+          for (let j = 1; j <= right; j++) {
+            if (
+              candles[i + j].low <= c.low
+            ) {
+              isLow = false;
+              break;
+            }
           }
         }
 
         if (isHigh) {
           highs.push({
             index: i,
-            price:
-              candles[i].high
+            price: c.high,
+            datetime: c.datetime
           });
         }
 
         if (isLow) {
           lows.push({
             index: i,
-            price:
-              candles[i].low
+            price: c.low,
+            datetime: c.datetime
           });
         }
       }
 
       return {
-        highs:
-          highs.slice(-15),
-
-        lows:
-          lows.slice(-15)
+        highs,
+        lows
       };
     }
 
-    const swingsH4 =
-      getSwings(h4);
-
-    const swingsH1 =
-      getSwings(h1);
-
-    const swingsM15 =
-      getSwings(m15);
-
-    const swingsM5 =
-      getSwings(m5);
-
-    const pointsH1 =
-      getSwingPoints(h1);
-
-    const pointsM15 =
-      getSwingPoints(m15);
-
-    const pointsM5 =
-      getSwingPoints(m5);
-
-    // =========================
+    // =========================================================
     // STRUCTURE
-    // =========================
+    // =========================================================
 
-    function structureFromSwings(
-      swings
-    ) {
-      const highs =
-        swings.highs;
+    function structure(candles) {
+      const swings = getSwingPoints(candles);
 
-      const lows =
-        swings.lows;
+      const highs = swings.highs.slice(-4);
+      const lows = swings.lows.slice(-4);
 
-      if (
-        highs.length < 2 ||
-        lows.length < 2
-      ) {
+      let direction = "NEUTRAL";
+
+      if (highs.length >= 2 && lows.length >= 2) {
+        const h1 = highs[highs.length - 2].price;
+        const h2 = highs[highs.length - 1].price;
+
+        const l1 = lows[lows.length - 2].price;
+        const l2 = lows[lows.length - 1].price;
+
+        if (h2 > h1 && l2 > l1) {
+          direction = "BULLISH";
+        }
+
+        if (h2 < h1 && l2 < l1) {
+          direction = "BEARISH";
+        }
+      }
+
+      return {
+        direction,
+        highs,
+        lows,
+        latestHigh:
+          highs.length
+            ? highs[highs.length - 1].price
+            : null,
+        previousHigh:
+          highs.length >= 2
+            ? highs[highs.length - 2].price
+            : null,
+        latestLow:
+          lows.length
+            ? lows[lows.length - 1].price
+            : null,
+        previousLow:
+          lows.length >= 2
+            ? lows[lows.length - 2].price
+            : null
+      };
+    }
+
+    const structureH4 = structure(H4);
+    const structureH1 = structure(H1);
+    const structureM15 = structure(M15);
+    const structureM5 = structure(M5);
+
+    // =========================================================
+    // DIRECTION
+    // =========================================================
+
+    function getDirection(candles) {
+      const s = structure(candles);
+
+      if (s.direction !== "NEUTRAL") {
+        return s.direction;
+      }
+
+      const recent = candles.slice(-8);
+
+      const bull = recent.filter(bullish).length;
+      const bear = recent.filter(bearish).length;
+
+      if (bull > bear + 1) return "BULLISH";
+      if (bear > bull + 1) return "BEARISH";
+
+      return "NEUTRAL";
+    }
+
+    const direction = {
+      H4: getDirection(H4),
+      H1: getDirection(H1),
+      M15: getDirection(M15),
+      M5: getDirection(M5)
+    };
+
+    // =========================================================
+    // CURRENT MARKET PRICE
+    // =========================================================
+
+    const currentPrice =
+      safeNum(M5[M5.length - 1].close);
+
+    // =========================================================
+    // ZONE BUILDER
+    // BODY + WICK
+    // =========================================================
+
+    function candleZone(c, type, source) {
+      const bodyHigh =
+        Math.max(c.open, c.close);
+
+      const bodyLow =
+        Math.min(c.open, c.close);
+
+      return {
+        type,
+        source,
+        high: round(c.high, 2),
+        low: round(c.low, 2),
+        bodyHigh: round(bodyHigh, 2),
+        bodyLow: round(bodyLow, 2),
+        midpoint: round(
+          (c.high + c.low) / 2,
+          2
+        ),
+        datetime: c.datetime,
+        range: round(
+          c.high - c.low,
+          2
+        ),
+        body: round(
+          candleBody(c),
+          2
+        )
+      };
+    }
+
+    // =========================================================
+    // FIND ZONES
+    // =========================================================
+
+    function buildZones(candles, source) {
+      const zones = [];
+
+      const start =
+        Math.max(2, candles.length - 35);
+
+      for (let i = start; i < candles.length - 1; i++) {
+        const c = candles[i];
+        const next = candles[i + 1];
+
+        const body = candleBody(c);
+        const range = candleRange(c);
+
+        if (range <= 0) continue;
+
+        const displacement =
+          Math.abs(next.close - c.close);
+
+        // Strong bullish source
+        if (
+          bullish(c) &&
+          body / range >= 0.45
+        ) {
+          zones.push(
+            candleZone(
+              c,
+              "DEMAND",
+              source
+            )
+          );
+        }
+
+        // Strong bearish source
+        if (
+          bearish(c) &&
+          body / range >= 0.45
+        ) {
+          zones.push(
+            candleZone(
+              c,
+              "SUPPLY",
+              source
+            )
+          );
+        }
+
+        // Displacement candle
+        if (
+          displacement >
+          Math.max(
+            atr[source] * 0.45,
+            POINT * 40
+          )
+        ) {
+          zones.push(
+            candleZone(
+              c,
+              bullish(c)
+                ? "DEMAND"
+                : "SUPPLY",
+              source
+            )
+          );
+        }
+      }
+
+      return zones;
+    }
+
+    const zonesH1 = buildZones(H1, "H1");
+    const zonesM15 = buildZones(M15, "M15");
+    const zonesM5 = buildZones(M5, "M5");
+
+    const allZones = [
+      ...zonesH1,
+      ...zonesM15,
+      ...zonesM5
+    ];
+
+    // =========================================================
+    // ZONE QUALITY
+    // =========================================================
+
+    function zoneQuality(zone) {
+      let score = 0;
+
+      if (zone.source === "H1") score += 30;
+      if (zone.source === "M15") score += 24;
+      if (zone.source === "M5") score += 14;
+
+      const distance =
+        Math.abs(
+          currentPrice - zone.midpoint
+        );
+
+      const distancePoints =
+        priceToPoints(distance);
+
+      if (distancePoints <= 80) score += 25;
+      else if (distancePoints <= 160) score += 18;
+      else if (distancePoints <= 300) score += 10;
+      else if (distancePoints <= 500) score += 4;
+
+      if (zone.body > POINT * 25) {
+        score += 8;
+      }
+
+      if (zone.range > POINT * 40) {
+        score += 5;
+      }
+
+      return clamp(
+        Math.round(score),
+        0,
+        100
+      );
+    }
+
+    allZones.forEach(z => {
+      z.quality = zoneQuality(z);
+    });
+
+    // =========================================================
+    // SUPPORT / RESISTANCE
+    // =========================================================
+
+    function nearestLevels(candles) {
+      const swings = getSwingPoints(candles);
+
+      const supports =
+        swings.lows
+          .map(x => x.price)
+          .filter(x => x < currentPrice);
+
+      const resistances =
+        swings.highs
+          .map(x => x.price)
+          .filter(x => x > currentPrice);
+
+      supports.sort(
+        (a, b) =>
+          Math.abs(currentPrice - a) -
+          Math.abs(currentPrice - b)
+      );
+
+      resistances.sort(
+        (a, b) =>
+          Math.abs(currentPrice - a) -
+          Math.abs(currentPrice - b)
+      );
+
+      return {
+        support:
+          supports.length
+            ? supports[0]
+            : null,
+        resistance:
+          resistances.length
+            ? resistances[0]
+            : null
+      };
+    }
+
+    const levelsM15 =
+      nearestLevels(M15);
+
+    const levelsM5 =
+      nearestLevels(M5);
+
+    // =========================================================
+    // M15 FORMING / CLOSED CANDLE
+    // =========================================================
+
+    const m15Current =
+      M15[M15.length - 1];
+
+    const m15Closed =
+      M15[M15.length - 2];
+
+    const m15Before =
+      M15[M15.length - 3];
+
+    // =========================================================
+    // M15 BREAK DETECTION
+    // IMPORTANT:
+    // FORMING CANDLE IS NOT TREATED AS CONFIRMED BREAK
+    // =========================================================
+
+    function detectM15Break() {
+      const range = M15.slice(-22, -2);
+
+      const rangeHigh =
+        Math.max(...range.map(c => c.high));
+
+      const rangeLow =
+        Math.min(...range.map(c => c.low));
+
+      const closed = m15Closed.close;
+
+      if (closed > rangeHigh) {
         return {
-          direction: "NEUTRAL",
-          pattern: "MIXED",
-          swingHighs:
-            highs.slice(-4),
-          swingLows:
-            lows.slice(-4)
+          type: "BULLISH_BREAK",
+          confirmed: true,
+          level: rangeHigh
         };
       }
 
-      const h1 =
-        highs[
-          highs.length - 2
-        ];
-
-      const h2 =
-        highs[
-          highs.length - 1
-        ];
-
-      const l1 =
-        lows[
-          lows.length - 2
-        ];
-
-      const l2 =
-        lows[
-          lows.length - 1
-        ];
-
-      const lowerHigh =
-        h2 < h1;
-
-      const lowerLow =
-        l2 < l1;
-
-      const higherHigh =
-        h2 > h1;
-
-      const higherLow =
-        l2 > l1;
-
-      if (
-        lowerHigh &&
-        lowerLow
-      ) {
+      if (closed < rangeLow) {
         return {
-          direction: "BEARISH",
-          pattern: "LH_LL",
-          swingHighs:
-            highs.slice(-4),
-          swingLows:
-            lows.slice(-4)
+          type: "BEARISH_BREAK",
+          confirmed: true,
+          level: rangeLow
         };
       }
 
-      if (
-        higherHigh &&
-        higherLow
-      ) {
+      if (m15Current.close > rangeHigh) {
         return {
-          direction: "BULLISH",
-          pattern: "HH_HL",
-          swingHighs:
-            highs.slice(-4),
-          swingLows:
-            lows.slice(-4)
+          type: "BULLISH_BREAK_FORMING",
+          confirmed: false,
+          level: rangeHigh
+        };
+      }
+
+      if (m15Current.close < rangeLow) {
+        return {
+          type: "BEARISH_BREAK_FORMING",
+          confirmed: false,
+          level: rangeLow
         };
       }
 
       return {
-        direction: "NEUTRAL",
-        pattern: "MIXED",
-        swingHighs:
-          highs.slice(-4),
-        swingLows:
-          lows.slice(-4)
+        type: "NONE",
+        confirmed: false,
+        level: null
       };
     }
 
-    const structureH4 =
-      structureFromSwings(
-        swingsH4
-      );
+    const m15Break =
+      detectM15Break();
 
-    const structureH1 =
-      structureFromSwings(
-        swingsH1
-      );
+    // =========================================================
+    // FLIP ZONE
+    // SBR / RBS
+    // =========================================================
 
-    const structureM15 =
-      structureFromSwings(
-        swingsM15
-      );
+    function detectFlip() {
+      const result = {
+        bullish: null,
+        bearish: null
+      };
 
-    // =========================
-    // DIRECTION
-    // =========================
-
-    function directionFromCandles(
-      candles
-    ) {
-      if (
-        candles.length < 10
-      ) {
-        return "NEUTRAL";
-      }
-
-      const recent =
-        candles.slice(-8);
-
-      const bullish =
-        recent.filter(
-          c =>
-            c.close >
-            c.open
-        ).length;
-
-      const bearish =
-        recent.filter(
-          c =>
-            c.close <
-            c.open
-        ).length;
+      const s = structureM15;
 
       if (
-        bullish >
-        bearish
+        s.latestHigh &&
+        m15Closed.close > s.latestHigh
       ) {
-        return "BULLISH";
+        result.bullish = {
+          role: "RBS",
+          level: s.latestHigh,
+          status: "SUPPORT_AFTER_BREAK"
+        };
       }
 
       if (
-        bearish >
-        bullish
+        s.latestLow &&
+        m15Closed.close < s.latestLow
       ) {
-        return "BEARISH";
+        result.bearish = {
+          role: "SBR",
+          level: s.latestLow,
+          status: "RESISTANCE_AFTER_BREAK"
+        };
+      }
+
+      return result;
+    }
+
+    const flip = detectFlip();
+
+    // =========================================================
+    // LIQUIDITY SWEEP
+    // =========================================================
+
+    function detectLiquiditySweep(candles) {
+      if (candles.length < 8) {
+        return {
+          bullish: false,
+          bearish: false,
+          level: null
+        };
+      }
+
+      const last =
+        candles[candles.length - 1];
+
+      const previous =
+        candles.slice(-7, -1);
+
+      const previousLow =
+        Math.min(...previous.map(c => c.low));
+
+      const previousHigh =
+        Math.max(...previous.map(c => c.high));
+
+      const bullishSweep =
+        last.low < previousLow &&
+        last.close > previousLow &&
+        lowerWick(last) >
+          candleBody(last) * 0.8;
+
+      const bearishSweep =
+        last.high > previousHigh &&
+        last.close < previousHigh &&
+        upperWick(last) >
+          candleBody(last) * 0.8;
+
+      return {
+        bullish: bullishSweep,
+        bearish: bearishSweep,
+        level: bullishSweep
+          ? previousLow
+          : bearishSweep
+          ? previousHigh
+          : null
+      };
+    }
+
+    const liquidityM5 =
+      detectLiquiditySweep(M5);
+
+    const liquidityM15 =
+      detectLiquiditySweep(M15);
+
+    // =========================================================
+    // DOUBLE TOP / BOTTOM
+    // =========================================================
+
+    function detectDouble(candles) {
+      const s = getSwingPoints(candles);
+
+      if (
+        s.highs.length >= 2
+      ) {
+        const h1 =
+          s.highs[s.highs.length - 2].price;
+
+        const h2 =
+          s.highs[s.highs.length - 1].price;
+
+        const tolerance =
+          Math.max(
+            POINT * 35,
+            atr.M5 * 0.35
+          );
+
+        if (
+          Math.abs(h1 - h2) <= tolerance
+        ) {
+          return {
+            type: "DOUBLE_TOP",
+            level: Math.max(h1, h2)
+          };
+        }
+      }
+
+      if (
+        s.lows.length >= 2
+      ) {
+        const l1 =
+          s.lows[s.lows.length - 2].price;
+
+        const l2 =
+          s.lows[s.lows.length - 1].price;
+
+        const tolerance =
+          Math.max(
+            POINT * 35,
+            atr.M5 * 0.35
+          );
+
+        if (
+          Math.abs(l1 - l2) <= tolerance
+        ) {
+          return {
+            type: "DOUBLE_BOTTOM",
+            level: Math.min(l1, l2)
+          };
+        }
+      }
+
+      return {
+        type: "NONE",
+        level: null
+      };
+    }
+
+    const doubleM5 =
+      detectDouble(M5);
+
+    // =========================================================
+    // QUASIMODO HEURISTIC
+    // =========================================================
+
+    function detectQM(candles) {
+      const s = getSwingPoints(candles);
+
+      if (
+        s.highs.length >= 3 &&
+        s.lows.length >= 2
+      ) {
+        const h1 =
+          s.highs[s.highs.length - 3].price;
+
+        const h2 =
+          s.highs[s.highs.length - 2].price;
+
+        const h3 =
+          s.highs[s.highs.length - 1].price;
+
+        const l1 =
+          s.lows[s.lows.length - 2].price;
+
+        const l2 =
+          s.lows[s.lows.length - 1].price;
+
+        if (
+          h2 > h1 &&
+          h2 > h3 &&
+          l2 < l1
+        ) {
+          return {
+            type: "QM_SELL",
+            level: h3
+          };
+        }
+
+        if (
+          h2 < h1 &&
+          h2 < h3 &&
+          l2 > l1
+        ) {
+          return {
+            type: "QM_BUY",
+            level: l3Safe(s.lows)
+          };
+        }
+      }
+
+      return {
+        type: "NONE",
+        level: null
+      };
+    }
+
+    function l3Safe(lows) {
+      if (!lows.length) return null;
+      return lows[lows.length - 1].price;
+    }
+
+    const qmM5 =
+      detectQM(M5);
+
+    // =========================================================
+    // M5 TRIGGERS
+    // =========================================================
+
+    function detectM5Trigger() {
+      const last =
+        M5[M5.length - 1];
+
+      const prev =
+        M5[M5.length - 2];
+
+      const prev2 =
+        M5[M5.length - 3];
+
+      let buy = [];
+      let sell = [];
+
+      // Bullish engulfing
+      if (
+        bearish(prev) &&
+        bullish(last) &&
+        last.close >= prev.open &&
+        last.open <= prev.close
+      ) {
+        buy.push("BULLISH_ENGULFING");
+      }
+
+      // Bearish engulfing
+      if (
+        bullish(prev) &&
+        bearish(last) &&
+        last.close <= prev.open &&
+        last.open >= prev.close
+      ) {
+        sell.push("BEARISH_ENGULFING");
+      }
+
+      // Bullish rejection
+      if (
+        lowerWick(last) >
+          candleBody(last) * 1.2 &&
+        last.close >
+          last.low +
+          candleRange(last) * 0.55
+      ) {
+        buy.push("BULLISH_REJECTION");
+      }
+
+      // Bearish rejection
+      if (
+        upperWick(last) >
+          candleBody(last) * 1.2 &&
+        last.close <
+          last.low +
+          candleRange(last) * 0.45
+      ) {
+        sell.push("BEARISH_REJECTION");
+      }
+
+      // Strong bullish candle
+      if (
+        bullish(last) &&
+        bodyRatio(last) >= 0.65 &&
+        last.close >
+          last.low +
+          candleRange(last) * 0.75
+      ) {
+        buy.push("BULLISH_DISPLACEMENT");
+      }
+
+      // Strong bearish candle
+      if (
+        bearish(last) &&
+        bodyRatio(last) >= 0.65 &&
+        last.close <
+          last.low +
+          candleRange(last) * 0.25
+      ) {
+        sell.push("BEARISH_DISPLACEMENT");
+      }
+
+      // Micro structure shift
+      if (
+        prev2 &&
+        last.close > prev2.high
+      ) {
+        buy.push("M5_STRUCTURE_SHIFT");
+      }
+
+      if (
+        prev2 &&
+        last.close < prev2.low
+      ) {
+        sell.push("M5_STRUCTURE_SHIFT");
+      }
+
+      return {
+        buy,
+        sell,
+        strongest:
+          buy.length > sell.length
+            ? "BUY"
+            : sell.length > buy.length
+            ? "SELL"
+            : "NEUTRAL"
+      };
+    }
+
+    const m5Trigger =
+      detectM5Trigger();
+
+    // =========================================================
+    // CMP LOCATION
+    // =========================================================
+
+    function getCmpLocation() {
+      let nearestZone = null;
+      let minDistance = Infinity;
+
+      for (const z of allZones) {
+        const inside =
+          currentPrice >= z.low &&
+          currentPrice <= z.high;
+
+        const distance =
+          inside
+            ? 0
+            : Math.min(
+                Math.abs(currentPrice - z.low),
+                Math.abs(currentPrice - z.high)
+              );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestZone = {
+            ...z,
+            inside
+          };
+        }
+      }
+
+      if (!nearestZone) {
+        return {
+          state: "NO_ZONE",
+          zone: null,
+          distancePoints: null
+        };
+      }
+
+      const distancePoints =
+        priceToPoints(minDistance);
+
+      let state = "FAR_FROM_ZONE";
+
+      if (nearestZone.inside) {
+        state = "INSIDE_ZONE";
+      } else if (distancePoints <= 50) {
+        state = "APPROACHING_ZONE";
+      } else if (distancePoints <= 120) {
+        state = "NEAR_ZONE";
+      }
+
+      return {
+        state,
+        zone: nearestZone,
+        distancePoints: round(
+          distancePoints,
+          0
+        )
+      };
+    }
+
+    const cmpLocation =
+      getCmpLocation();
+
+    // =========================================================
+    // CMP REACTION
+    // =========================================================
+
+    function cmpReaction() {
+      const last =
+        M5[M5.length - 1];
+
+      const prev =
+        M5[M5.length - 2];
+
+      if (
+        cmpLocation.state ===
+        "NO_ZONE"
+      ) {
+        return "NO_ZONE";
+      }
+
+      if (
+        cmpLocation.zone.type ===
+        "DEMAND"
+      ) {
+        if (bullish(last)) {
+          return "REJECTING_DEMAND";
+        }
+
+        if (
+          last.low <
+          cmpLocation.zone.low
+        ) {
+          return "BREAKING_DEMAND";
+        }
+
+        return "TESTING_DEMAND";
+      }
+
+      if (
+        cmpLocation.zone.type ===
+        "SUPPLY"
+      ) {
+        if (bearish(last)) {
+          return "REJECTING_SUPPLY";
+        }
+
+        if (
+          last.high >
+          cmpLocation.zone.high
+        ) {
+          return "BREAKING_SUPPLY";
+        }
+
+        return "TESTING_SUPPLY";
       }
 
       return "NEUTRAL";
     }
 
-    const dirH4 =
-      structureH4.direction !==
-      "NEUTRAL"
-        ? structureH4.direction
-        : directionFromCandles(h4);
+    const reaction =
+      cmpReaction();
 
-    const dirH1 =
-      structureH1.direction !==
-      "NEUTRAL"
-        ? structureH1.direction
-        : directionFromCandles(h1);
+    // =========================================================
+    // M5 EARLY BREAK AGAINST M15
+    // =========================================================
 
-    const dirM15 =
-      structureM15.direction !==
-      "NEUTRAL"
-        ? structureM15.direction
-        : directionFromCandles(m15);
+    function detectEarlyM5Break() {
+      const last =
+        M5[M5.length - 1];
 
-    const dirM5 =
-      directionFromCandles(m5);
+      const support =
+        levelsM15.support;
 
-    // =========================
-    // CURRENT PRICE
-    // =========================
+      const resistance =
+        levelsM15.resistance;
 
-    const currentPrice =
-      m5[
-        m5.length - 1
-      ].close;
+      const result = {
+        bullish: false,
+        bearish: false,
+        support: support,
+        resistance: resistance
+      };
 
-    // =========================
-    // BREAKOUT / RETEST
-    // =========================
-
-    function breakoutRetest(
-      candles
-    ) {
       if (
-        candles.length < 20
+        support &&
+        last.close < support
       ) {
-        return {
-          bullishBreakout: false,
-          bearishBreakout: false,
-          bullishRetest: false,
-          bearishRetest: false,
-          rangeHigh: null,
-          rangeLow: null
-        };
+        result.bearish = true;
       }
 
-      const recent =
-        candles.slice(
-          -20,
-          -3
-        );
+      if (
+        resistance &&
+        last.close > resistance
+      ) {
+        result.bullish = true;
+      }
 
-      const rangeHigh =
-        Math.max(
-          ...recent.map(
-            c => c.high
-          )
-        );
-
-      const rangeLow =
-        Math.min(
-          ...recent.map(
-            c => c.low
-          )
-        );
-
-      const last =
-        candles[
-          candles.length - 1
-        ];
-
-      const previous =
-        candles[
-          candles.length - 2
-        ];
-
-      const bullishBreakout =
-        previous.close <=
-          rangeHigh &&
-        last.close >
-          rangeHigh;
-
-      const bearishBreakout =
-        previous.close >=
-          rangeLow &&
-        last.close <
-          rangeLow;
-
-      const bullishRetest =
-        last.low <=
-          rangeHigh &&
-        last.close >
-          rangeHigh;
-
-      const bearishRetest =
-        last.high >=
-          rangeLow &&
-        last.close <
-          rangeLow;
-
-      return {
-        bullishBreakout,
-        bearishBreakout,
-        bullishRetest,
-        bearishRetest,
-
-        rangeHigh:
-          round(rangeHigh),
-
-        rangeLow:
-          round(rangeLow)
-      };
+      return result;
     }
 
-    const breakout =
-      breakoutRetest(m15);
+    const earlyBreak =
+      detectEarlyM5Break();
 
-    // =========================
-    // M5 CONFIRMATION
-    // =========================
+    // =========================================================
+    // M15 SUPPORT / RESISTANCE UNDER TEST
+    // =========================================================
 
-    function confirmation(
-      candles
-    ) {
+    function m15TestStatus() {
+      const result = {
+        support: false,
+        resistance: false
+      };
+
       if (
-        candles.length < 5
-      ) {
-        return {
-          direction: "NONE",
-          reason:
-            "NO_CONFIRMATION",
-
-          bullishEngulfing: false,
-          bearishEngulfing: false,
-
-          bullishRejection: false,
-          bearishRejection: false,
-
-          strongBullish: false,
-          strongBearish: false
-        };
-      }
-
-      const last =
-        candles[
-          candles.length - 1
-        ];
-
-      const prev =
-        candles[
-          candles.length - 2
-        ];
-
-      const body =
+        levelsM15.support &&
         Math.abs(
-          last.close -
-            last.open
-        );
-
-      const range =
-        last.high -
-        last.low;
-
-      const upperWick =
-        last.high -
-        Math.max(
-          last.open,
-          last.close
-        );
-
-      const lowerWick =
-        Math.min(
-          last.open,
-          last.close
-        ) -
-        last.low;
-
-      const bullishEngulfing =
-        last.close >
-          last.open &&
-        prev.close <
-          prev.open &&
-        last.open <=
-          prev.close &&
-        last.close >=
-          prev.open;
-
-      const bearishEngulfing =
-        last.close <
-          last.open &&
-        prev.close >
-          prev.open &&
-        last.open >=
-          prev.close &&
-        last.close <=
-          prev.open;
-
-      const bullishRejection =
-        range > 0 &&
-        lowerWick >
-          body * 1.3 &&
-        last.close >
-          last.open;
-
-      const bearishRejection =
-        range > 0 &&
-        upperWick >
-          body * 1.3 &&
-        last.close <
-          last.open;
-
-      const strongBullish =
-        range > 0 &&
-        body / range >=
-          0.65 &&
-        last.close >
-          last.open;
-
-      const strongBearish =
-        range > 0 &&
-        body / range >=
-          0.65 &&
-        last.close <
-          last.open;
-
-      if (
-        bullishEngulfing ||
-        bullishRejection ||
-        strongBullish
+          currentPrice -
+          levelsM15.support
+        ) <= POINT * 80
       ) {
-        return {
-          direction: "BUY",
-
-          reason:
-            bullishEngulfing
-              ? "BULLISH_ENGULFING"
-              : bullishRejection
-              ? "BULLISH_REJECTION"
-              : "STRONG_BULLISH_CANDLE",
-
-          bullishEngulfing,
-          bearishEngulfing,
-
-          bullishRejection,
-          bearishRejection,
-
-          strongBullish,
-          strongBearish
-        };
+        result.support = true;
       }
 
       if (
-        bearishEngulfing ||
-        bearishRejection ||
-        strongBearish
+        levelsM15.resistance &&
+        Math.abs(
+          currentPrice -
+          levelsM15.resistance
+        ) <= POINT * 80
       ) {
-        return {
-          direction: "SELL",
-
-          reason:
-            bearishEngulfing
-              ? "BEARISH_ENGULFING"
-              : bearishRejection
-              ? "BEARISH_REJECTION"
-              : "STRONG_BEARISH_CANDLE",
-
-          bullishEngulfing,
-          bearishEngulfing,
-
-          bullishRejection,
-          bearishRejection,
-
-          strongBullish,
-          strongBearish
-        };
+        result.resistance = true;
       }
 
-      return {
-        direction: "NONE",
-
-        reason:
-          "NO_CONFIRMATION",
-
-        bullishEngulfing,
-        bearishEngulfing,
-
-        bullishRejection,
-        bearishRejection,
-
-        strongBullish,
-        strongBearish
-      };
+      return result;
     }
 
-    const m5Confirmation =
-      confirmation(m5);
-
-    // ==================================================
-    // PATTERN ENGINE
-    // ==================================================
-
-    const patternTolerance = Math.max(
-      atrM15 * 0.30,
-      0.50
-    );
-
-    const zoneWidth = Math.max(
-      atrM15 * 0.18,
-      0.30
-    );
-
-    // =========================
-    // DOUBLE TOP / BOTTOM
-    // =========================
-
-    function detectDoubleTopBottom() {
-      const highs =
-        pointsM15.highs;
-
-      const lows =
-        pointsM15.lows;
-
-      let doubleTop = {
-        detected: false,
-        active: false,
-        type: "DOUBLE_TOP",
-        price: null,
-        neckline: null,
-        zoneLow: null,
-        zoneHigh: null
-      };
-
-      let doubleBottom = {
-        detected: false,
-        active: false,
-        type: "DOUBLE_BOTTOM",
-        price: null,
-        neckline: null,
-        zoneLow: null,
-        zoneHigh: null
-      };
-
-      if (
-        highs.length >= 2
-      ) {
-        const a =
-          highs[
-            highs.length - 2
-          ];
-
-        const b =
-          highs[
-            highs.length - 1
-          ];
-
-        const difference =
-          Math.abs(
-            a.price -
-              b.price
-          );
-
-        if (
-          difference <=
-          patternTolerance
-        ) {
-          const between =
-            m15.slice(
-              a.index,
-              b.index + 1
-            );
-
-          const neckline =
-            between.length
-              ? Math.min(
-                  ...between.map(
-                    c => c.low
-                  )
-                )
-              : Math.min(
-                  a.price,
-                  b.price
-                ) -
-                patternTolerance;
-
-          const active =
-            currentPrice <=
-              b.price +
-                zoneWidth &&
-            currentPrice >=
-              neckline -
-                zoneWidth;
-
-          doubleTop = {
-            detected: true,
-            active,
-
-            type:
-              "DOUBLE_TOP",
-
-            price:
-              round(
-                (a.price +
-                  b.price) /
-                  2
-              ),
-
-            neckline:
-              round(
-                neckline
-              ),
-
-            zoneLow:
-              round(
-                b.price -
-                  zoneWidth
-              ),
-
-            zoneHigh:
-              round(
-                b.price +
-                  zoneWidth
-              )
-          };
-        }
-      }
-
-      if (
-        lows.length >= 2
-      ) {
-        const a =
-          lows[
-            lows.length - 2
-          ];
-
-        const b =
-          lows[
-            lows.length - 1
-          ];
-
-        const difference =
-          Math.abs(
-            a.price -
-              b.price
-          );
-
-        if (
-          difference <=
-          patternTolerance
-        ) {
-          const between =
-            m15.slice(
-              a.index,
-              b.index + 1
-            );
-
-          const neckline =
-            between.length
-              ? Math.max(
-                  ...between.map(
-                    c => c.high
-                  )
-                )
-              : Math.max(
-                  a.price,
-                  b.price
-                ) +
-                patternTolerance;
-
-          const active =
-            currentPrice >=
-              b.price -
-                zoneWidth &&
-            currentPrice <=
-              neckline +
-                zoneWidth;
-
-          doubleBottom = {
-            detected: true,
-            active,
-
-            type:
-              "DOUBLE_BOTTOM",
-
-            price:
-              round(
-                (a.price +
-                  b.price) /
-                  2
-              ),
-
-            neckline:
-              round(
-                neckline
-              ),
-
-            zoneLow:
-              round(
-                b.price -
-                  zoneWidth
-              ),
-
-            zoneHigh:
-              round(
-                b.price +
-                  zoneWidth
-              )
-          };
-        }
-      }
-
-      return {
-        doubleTop,
-        doubleBottom
-      };
-    }
-
-    const doublePatterns =
-      detectDoubleTopBottom();
-
-    // =========================
-    // QUASIMODO
-    // =========================
-
-    function detectQM() {
-      const highs =
-        pointsM15.highs;
-
-      const lows =
-        pointsM15.lows;
-
-      let qmSell = {
-        detected: false,
-        active: false,
-        type: "QM_SELL",
-        zoneLow: null,
-        zoneHigh: null,
-        neckline: null
-      };
-
-      let qmBuy = {
-        detected: false,
-        active: false,
-        type: "QM_BUY",
-        zoneLow: null,
-        zoneHigh: null,
-        neckline: null
-      };
-
-      // =========================
-      // QM SELL
-      // =========================
-
-      if (
-        highs.length >= 3
-      ) {
-        const left =
-          highs[
-            highs.length - 3
-          ];
-
-        const head =
-          highs[
-            highs.length - 2
-          ];
-
-        const right =
-          highs[
-            highs.length - 1
-          ];
-
-        const lowsBetween =
-          pointsM15.lows.filter(
-            x =>
-              x.index >
-                left.index &&
-              x.index <
-                right.index
-          );
-
-        const neckline =
-          lowsBetween.length
-            ? Math.min(
-                ...lowsBetween.map(
-                  x => x.price
-                )
-              )
-            : null;
-
-        const headHigher =
-          head.price >
-          left.price +
-            patternTolerance * 0.4;
-
-        const rightLower =
-          right.price <
-          head.price -
-            patternTolerance * 0.2;
-
-        const rightNearLeft =
-          right.price <=
-          left.price +
-            patternTolerance;
-
-        if (
-          headHigher &&
-          rightLower &&
-          rightNearLeft
-        ) {
-          const active =
-            currentPrice >=
-              right.price -
-                zoneWidth &&
-            currentPrice <=
-              right.price +
-                zoneWidth;
-
-          qmSell = {
-            detected: true,
-            active,
-
-            type:
-              "QM_SELL",
-
-            zoneLow:
-              round(
-                right.price -
-                  zoneWidth
-              ),
-
-            zoneHigh:
-              round(
-                right.price +
-                  zoneWidth
-              ),
-
-            neckline:
-              neckline !== null
-                ? round(
-                    neckline
-                  )
-                : null,
-
-            leftShoulder:
-              round(
-                left.price
-              ),
-
-            head:
-              round(
-                head.price
-              ),
-
-            rightShoulder:
-              round(
-                right.price
-              )
-          };
-        }
-      }
-
-      // =========================
-      // QM BUY
-      // =========================
-
-      if (
-        lows.length >= 3
-      ) {
-        const left =
-          lows[
-            lows.length - 3
-          ];
-
-        const head =
-          lows[
-            lows.length - 2
-          ];
-
-        const right =
-          lows[
-            lows.length - 1
-          ];
-
-        const highsBetween =
-          pointsM15.highs.filter(
-            x =>
-              x.index >
-                left.index &&
-              x.index <
-                right.index
-          );
-
-        const neckline =
-          highsBetween.length
-            ? Math.max(
-                ...highsBetween.map(
-                  x => x.price
-                )
-              )
-            : null;
-
-        const headLower =
-          head.price <
-          left.price -
-            patternTolerance * 0.4;
-
-        const rightHigher =
-          right.price >
-          head.price +
-            patternTolerance * 0.2;
-
-        const rightNearLeft =
-          right.price >=
-          left.price -
-            patternTolerance;
-
-        if (
-          headLower &&
-          rightHigher &&
-          rightNearLeft
-        ) {
-          const active =
-            currentPrice >=
-              right.price -
-                zoneWidth &&
-            currentPrice <=
-              right.price +
-                zoneWidth;
-
-          qmBuy = {
-            detected: true,
-            active,
-
-            type:
-              "QM_BUY",
-
-            zoneLow:
-              round(
-                right.price -
-                  zoneWidth
-              ),
-
-            zoneHigh:
-              round(
-                right.price +
-                  zoneWidth
-              ),
-
-            neckline:
-              neckline !== null
-                ? round(
-                    neckline
-                  )
-                : null,
-
-            leftShoulder:
-              round(
-                left.price
-              ),
-
-            head:
-              round(
-                head.price
-              ),
-
-            rightShoulder:
-              round(
-                right.price
-              )
-          };
-        }
-      }
-
-      return {
-        qmBuy,
-        qmSell
-      };
-    }
-
-    const qm =
-      detectQM();
-
-    // =========================
-    // LIQUIDITY SWEEP
-    // =========================
-
-    function detectLiquiditySweep() {
-      const recent =
-        m5.slice(-6);
-
-      if (
-        recent.length < 4
-      ) {
-        return {
-          bullish: false,
-          bearish: false
-        };
-      }
-
-      const last =
-        recent[
-          recent.length - 1
-        ];
-
-      const previous =
-        recent.slice(
-          0,
-          -1
-        );
-
-      const previousHigh =
-        Math.max(
-          ...previous.map(
-            c => c.high
-          )
-        );
-
-      const previousLow =
-        Math.min(
-          ...previous.map(
-            c => c.low
-          )
-        );
-
-      const bearish =
-        last.high >
-          previousHigh &&
-        last.close <
-          previousHigh;
-
-      const bullish =
-        last.low <
-          previousLow &&
-        last.close >
-          previousLow;
-
-      return {
-        bullish,
-        bearish,
-
-        sweptHigh:
-          bearish
-            ? round(
-                last.high
-              )
-            : null,
-
-        sweptLow:
-          bullish
-            ? round(
-                last.low
-              )
-            : null
-      };
-    }
-
-    const liquiditySweep =
-      detectLiquiditySweep();
-
-    // =========================
-    // ORDER BLOCK
-    // =========================
-
-    function detectOrderBlock() {
-      let bullishOB = {
-        detected: false,
-        active: false,
-        zoneLow: null,
-        zoneHigh: null
-      };
-
-      let bearishOB = {
-        detected: false,
-        active: false,
-        zoneLow: null,
-        zoneHigh: null
-      };
-
-      if (
-        m15.length >= 5
-      ) {
-        for (
-          let i =
-            m15.length - 4;
-          i >= 2;
-          i--
-        ) {
-          const base =
-            m15[i];
-
-          const next1 =
-            m15[i + 1];
-
-          const next2 =
-            m15[i + 2];
-
-          // Bullish order block
-          const bullishMove =
-            next1.close >
-              next1.open &&
-            next2.close >
-              next2.open &&
-            next2.close -
-              base.low >
-              atrM15 * 0.35;
-
-          if (
-            bullishMove &&
-            base.close <
-              base.open
-          ) {
-            const low =
-              base.low;
-
-            const high =
-              base.open;
-
-            const active =
-              currentPrice >=
-                low -
-                  zoneWidth &&
-              currentPrice <=
-                high +
-                  zoneWidth;
-
-            bullishOB = {
-              detected: true,
-              active,
-
-              zoneLow:
-                round(low),
-
-              zoneHigh:
-                round(high)
-            };
-
-            break;
-          }
-
-          // Bearish order block
-          const bearishMove =
-            next1.close <
-              next1.open &&
-            next2.close <
-              next2.open &&
-            base.high -
-              next2.close >
-              atrM15 * 0.35;
-
-          if (
-            bearishMove &&
-            base.close >
-              base.open
-          ) {
-            const low =
-              base.close;
-
-            const high =
-              base.high;
-
-            const active =
-              currentPrice >=
-                low -
-                  zoneWidth &&
-              currentPrice <=
-                high +
-                  zoneWidth;
-
-            bearishOB = {
-              detected: true,
-              active,
-
-              zoneLow:
-                round(low),
-
-              zoneHigh:
-                round(high)
-            };
-
-            break;
-          }
-        }
-      }
-
-      return {
-        bullishOB,
-        bearishOB
-      };
-    }
-
-    const orderBlock =
-      detectOrderBlock();
-
-    // =========================
-    // FRESH / FIRST TOUCH ZONE
-    // =========================
-
-    function detectFreshZones() {
-      let buyZone = null;
-      let sellZone = null;
-
-      const lows =
-        pointsM15.lows;
-
-      const highs =
-        pointsM15.highs;
-
-      // =========================
-      // BUY DEMAND ZONE
-      // =========================
-
-      for (
-        let i =
-          lows.length - 1;
-        i >= 0;
-        i--
-      ) {
-        const pivot =
-          lows[i];
-
-        const low =
-          pivot.price -
-          zoneWidth;
-
-        const high =
-          pivot.price +
-          zoneWidth;
-
-        let touches = 0;
-
-        for (
-          let j =
-            pivot.index + 1;
-          j <
-            m15.length;
-          j++
-        ) {
-          if (
-            m15[j].low <= high &&
-            m15[j].high >= low
-          ) {
-            touches++;
-          }
-        }
-
-        const active =
-          currentPrice >=
-            low -
-              zoneWidth &&
-          currentPrice <=
-            high +
-              zoneWidth;
-
-        if (
-          active
-        ) {
-          buyZone = {
-            direction: "BUY",
-            type: "DEMAND_ZONE",
-
-            zoneLow:
-              round(low),
-
-            zoneHigh:
-              round(high),
-
-            sourcePrice:
-              round(
-                pivot.price
-              ),
-
-            touches,
-
-            fresh:
-              touches === 0,
-
-            firstTouch:
-              touches <= 1,
-
-            active
-          };
-
-          break;
-        }
-      }
-
-      // =========================
-      // SELL SUPPLY ZONE
-      // =========================
-
-      for (
-        let i =
-          highs.length - 1;
-        i >= 0;
-        i--
-      ) {
-        const pivot =
-          highs[i];
-
-        const low =
-          pivot.price -
-          zoneWidth;
-
-        const high =
-          pivot.price +
-          zoneWidth;
-
-        let touches = 0;
-
-        for (
-          let j =
-            pivot.index + 1;
-          j <
-            m15.length;
-          j++
-        ) {
-          if (
-            m15[j].low <= high &&
-            m15[j].high >= low
-          ) {
-            touches++;
-          }
-        }
-
-        const active =
-          currentPrice >=
-            low -
-              zoneWidth &&
-          currentPrice <=
-            high +
-              zoneWidth;
-
-        if (
-          active
-        ) {
-          sellZone = {
-            direction: "SELL",
-            type: "SUPPLY_ZONE",
-
-            zoneLow:
-              round(low),
-
-            zoneHigh:
-              round(high),
-
-            sourcePrice:
-              round(
-                pivot.price
-              ),
-
-            touches,
-
-            fresh:
-              touches === 0,
-
-            firstTouch:
-              touches <= 1,
-
-            active
-          };
-
-          break;
-        }
-      }
-
-      return {
-        buyZone,
-        sellZone
-      };
-    }
-
-    const freshZones =
-      detectFreshZones();
-
-    // =========================
-    // ENTRY ZONE
-    // =========================
-
-    function getEntryZone(
-      direction
-    ) {
-      const zones = [];
-
-      if (
-        direction === "BUY"
-      ) {
-        if (
-          qm.qmBuy.detected
-        ) {
-          zones.push({
-            type: "QM_BUY",
-            priority:
-              qm.qmBuy.active
-                ? 5
-                : 2,
-            active:
-              qm.qmBuy.active,
-            zoneLow:
-              qm.qmBuy.zoneLow,
-            zoneHigh:
-              qm.qmBuy.zoneHigh
-          });
-        }
-
-        if (
-          doublePatterns
-            .doubleBottom
-            .detected
-        ) {
-          zones.push({
-            type:
-              "DOUBLE_BOTTOM",
-            priority:
-              doublePatterns
-                .doubleBottom
-                .active
-                ? 4
-                : 2,
-            active:
-              doublePatterns
-                .doubleBottom
-                .active,
-
-            zoneLow:
-              doublePatterns
-                .doubleBottom
-                .zoneLow,
-
-            zoneHigh:
-              doublePatterns
-                .doubleBottom
-                .zoneHigh
-          });
-        }
-
-        if (
-          orderBlock
-            .bullishOB
-            .detected
-        ) {
-          zones.push({
-            type:
-              "BULLISH_ORDER_BLOCK",
-
-            priority:
-              orderBlock
-                .bullishOB
-                .active
-                ? 4
-                : 2,
-
-            active:
-              orderBlock
-                .bullishOB
-                .active,
-
-            zoneLow:
-              orderBlock
-                .bullishOB
-                .zoneLow,
-
-            zoneHigh:
-              orderBlock
-                .bullishOB
-                .zoneHigh
-          });
-        }
-
-        if (
-          freshZones.buyZone
-        ) {
-          zones.push({
-            type:
-              freshZones
-                .buyZone
-                .fresh
-                ? "FRESH_DEMAND"
-                : "DEMAND_ZONE",
-
-            priority:
-              freshZones
-                .buyZone
-                .fresh
-                ? 5
-                : 3,
-
-            active: true,
-
-            zoneLow:
-              freshZones
-                .buyZone
-                .zoneLow,
-
-            zoneHigh:
-              freshZones
-                .buyZone
-                .zoneHigh
-          });
-        }
-      }
-
-      if (
-        direction === "SELL"
-      ) {
-        if (
-          qm.qmSell.detected
-        ) {
-          zones.push({
-            type: "QM_SELL",
-            priority:
-              qm.qmSell.active
-                ? 5
-                : 2,
-            active:
-              qm.qmSell.active,
-
-            zoneLow:
-              qm.qmSell.zoneLow,
-
-            zoneHigh:
-              qm.qmSell.zoneHigh
-          });
-        }
-
-        if (
-          doublePatterns
-            .doubleTop
-            .detected
-        ) {
-          zones.push({
-            type:
-              "DOUBLE_TOP",
-
-            priority:
-              doublePatterns
-                .doubleTop
-                .active
-                ? 4
-                : 2,
-
-            active:
-              doublePatterns
-                .doubleTop
-                .active,
-
-            zoneLow:
-              doublePatterns
-                .doubleTop
-                .zoneLow,
-
-            zoneHigh:
-              doublePatterns
-                .doubleTop
-                .zoneHigh
-          });
-        }
-
-        if (
-          orderBlock
-            .bearishOB
-            .detected
-        ) {
-          zones.push({
-            type:
-              "BEARISH_ORDER_BLOCK",
-
-            priority:
-              orderBlock
-                .bearishOB
-                .active
-                ? 4
-                : 2,
-
-            active:
-              orderBlock
-                .bearishOB
-                .active,
-
-            zoneLow:
-              orderBlock
-                .bearishOB
-                .zoneLow,
-
-            zoneHigh:
-              orderBlock
-                .bearishOB
-                .zoneHigh
-          });
-        }
-
-        if (
-          freshZones.sellZone
-        ) {
-          zones.push({
-            type:
-              freshZones
-                .sellZone
-                .fresh
-                ? "FRESH_SUPPLY"
-                : "SUPPLY_ZONE",
-
-            priority:
-              freshZones
-                .sellZone
-                .fresh
-                ? 5
-                : 3,
-
-            active: true,
-
-            zoneLow:
-              freshZones
-                .sellZone
-                .zoneLow,
-
-            zoneHigh:
-              freshZones
-                .sellZone
-                .zoneHigh
-          });
-        }
-      }
-
-      zones.sort(
-        (a, b) =>
-          b.priority -
-          a.priority
-      );
-
-      return (
-        zones[0] || null
-      );
-    }
-
-    const buyEntryZone =
-      getEntryZone("BUY");
-
-    const sellEntryZone =
-      getEntryZone("SELL");
-
-    // =========================
-    // ZONE PROXIMITY
-    // =========================
-
-    function zoneIsNear(
-      zone
-    ) {
-      if (!zone) {
-        return false;
-      }
-
-      return (
-        currentPrice >=
-          zone.zoneLow -
-            zoneWidth &&
-        currentPrice <=
-          zone.zoneHigh +
-            zoneWidth
-      );
-    }
-
-    const buyZoneNear =
-      zoneIsNear(
-        buyEntryZone
-      );
-
-    const sellZoneNear =
-      zoneIsNear(
-        sellEntryZone
-      );
-
-    // =========================
-    // PUNCA
-    // =========================
-
-    function findPunca(
-      direction
-    ) {
-      const levels = [
-        ...swingsH1.highs,
-        ...swingsM15.highs,
-        ...swingsH4.highs,
-
-        ...swingsH1.lows,
-        ...swingsM15.lows
+    const m15Test =
+      m15TestStatus();
+
+    // =========================================================
+    // MARKET REGIME
+    // =========================================================
+
+    function detectRegime() {
+      const dirs = [
+        direction.H4,
+        direction.H1,
+        direction.M15,
+        direction.M5
       ];
 
+      const bullishCount =
+        dirs.filter(
+          x => x === "BULLISH"
+        ).length;
+
+      const bearishCount =
+        dirs.filter(
+          x => x === "BEARISH"
+        ).length;
+
+      const atrNow = atr.M5;
+
+      const recentRanges =
+        M5.slice(-15).map(
+          c => c.high - c.low
+        );
+
+      const avgRange =
+        avg(recentRanges);
+
+      const volatilityRatio =
+        avgRange > 0
+          ? atrNow / avgRange
+          : 1;
+
       if (
-        direction === "SELL"
+        m15Break.confirmed
       ) {
-        const candidates =
-          levels.filter(
-            v =>
-              v >
-              currentPrice
-          );
+        return m15Break.type ===
+          "BULLISH_BREAK"
+          ? "BREAKOUT_BULLISH"
+          : "BREAKOUT_BEARISH";
+      }
 
-        if (
-          !candidates.length
-        ) {
-          return null;
-        }
+      if (
+        bullishCount >= 3
+      ) {
+        return "TRENDING_BULLISH";
+      }
 
-        return round(
+      if (
+        bearishCount >= 3
+      ) {
+        return "TRENDING_BEARISH";
+      }
+
+      if (
+        liquidityM5.bullish ||
+        liquidityM15.bullish
+      ) {
+        return "REVERSAL_BULLISH";
+      }
+
+      if (
+        liquidityM5.bearish ||
+        liquidityM15.bearish
+      ) {
+        return "REVERSAL_BEARISH";
+      }
+
+      if (
+        volatilityRatio > 1.35
+      ) {
+        return "HIGH_VOLATILITY";
+      }
+
+      return "RANGING";
+    }
+
+    const marketRegime =
+      detectRegime();
+
+    // =========================================================
+    // ZONE DIRECTION
+    // =========================================================
+
+    function zoneDirection(zone) {
+      if (!zone) return "NEUTRAL";
+
+      if (zone.type === "DEMAND") {
+        return "BUY";
+      }
+
+      if (zone.type === "SUPPLY") {
+        return "SELL";
+      }
+
+      return "NEUTRAL";
+    }
+
+    const zoneDir =
+      zoneDirection(
+        cmpLocation.zone
+      );
+
+    // =========================================================
+    // SCALPING ENGINE
+    // CMP-FIRST
+    // =========================================================
+
+    function scalpSide(side) {
+      let context = 0;
+      let location = 0;
+      let trigger = 0;
+      let pattern = 0;
+      let quality = 0;
+
+      const reasons = [];
+
+      // -------------------------------------------------------
+      // H1 CONTEXT
+      // -------------------------------------------------------
+
+      if (
+        direction.H1 ===
+        (side === "BUY"
+          ? "BULLISH"
+          : "BEARISH")
+      ) {
+        context += 20;
+        reasons.push(
+          `H1 ${side} bias`
+        );
+      } else if (
+        direction.H1 ===
+        "NEUTRAL"
+      ) {
+        context += 7;
+      }
+
+      // -------------------------------------------------------
+      // M15 CONTEXT
+      // -------------------------------------------------------
+
+      if (
+        direction.M15 ===
+        (side === "BUY"
+          ? "BULLISH"
+          : "BEARISH")
+      ) {
+        context += 15;
+        reasons.push(
+          `M15 ${side} structure`
+        );
+      }
+
+      // -------------------------------------------------------
+      // CMP LOCATION
+      // -------------------------------------------------------
+
+      if (
+        zoneDir === side
+      ) {
+        location += 25;
+        reasons.push(
+          `${side} zone at CMP`
+        );
+      }
+
+      if (
+        cmpLocation.state ===
+        "INSIDE_ZONE"
+      ) {
+        location += 10;
+      }
+
+      if (
+        cmpLocation.state ===
+        "APPROACHING_ZONE" &&
+        zoneDir === side
+      ) {
+        location += 7;
+      }
+
+      // -------------------------------------------------------
+      // LIQUIDITY
+      // -------------------------------------------------------
+
+      if (
+        side === "BUY" &&
+        liquidityM5.bullish
+      ) {
+        trigger += 18;
+        reasons.push(
+          "M5 bullish liquidity sweep"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        liquidityM5.bearish
+      ) {
+        trigger += 18;
+        reasons.push(
+          "M5 bearish liquidity sweep"
+        );
+      }
+
+      // -------------------------------------------------------
+      // DOUBLE
+      // -------------------------------------------------------
+
+      if (
+        side === "BUY" &&
+        doubleM5.type ===
+        "DOUBLE_BOTTOM"
+      ) {
+        pattern += 15;
+        reasons.push(
+          "M5 double bottom"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        doubleM5.type ===
+        "DOUBLE_TOP"
+      ) {
+        pattern += 15;
+        reasons.push(
+          "M5 double top"
+        );
+      }
+
+      // -------------------------------------------------------
+      // QM
+      // -------------------------------------------------------
+
+      if (
+        side === "BUY" &&
+        qmM5.type === "QM_BUY"
+      ) {
+        pattern += 15;
+        reasons.push(
+          "QM buy structure"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        qmM5.type === "QM_SELL"
+      ) {
+        pattern += 15;
+        reasons.push(
+          "QM sell structure"
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 TRIGGER
+      // -------------------------------------------------------
+
+      const sideTriggers =
+        side === "BUY"
+          ? m5Trigger.buy
+          : m5Trigger.sell;
+
+      if (sideTriggers.length) {
+        trigger +=
           Math.min(
-            ...candidates
-          )
+            35,
+            sideTriggers.length * 12
+          );
+
+        reasons.push(
+          ...sideTriggers
         );
       }
 
-      const candidates =
-        levels.filter(
-          v =>
-            v <
-            currentPrice
-        );
+      // -------------------------------------------------------
+      // REJECTION
+      // -------------------------------------------------------
 
       if (
-        !candidates.length
+        side === "BUY" &&
+        reaction ===
+          "REJECTING_DEMAND"
       ) {
-        return null;
+        trigger += 12;
+        reasons.push(
+          "CMP rejecting demand"
+        );
       }
 
-      return round(
-        Math.max(
-          ...candidates
+      if (
+        side === "SELL" &&
+        reaction ===
+          "REJECTING_SUPPLY"
+      ) {
+        trigger += 12;
+        reasons.push(
+          "CMP rejecting supply"
+        );
+      }
+
+      // -------------------------------------------------------
+      // BREAKOUT / RETEST
+      // -------------------------------------------------------
+
+      if (
+        side === "BUY" &&
+        m15Break.type ===
+          "BULLISH_BREAK"
+      ) {
+        trigger += 12;
+        reasons.push(
+          "M15 bullish breakout"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        m15Break.type ===
+          "BEARISH_BREAK"
+      ) {
+        trigger += 12;
+        reasons.push(
+          "M15 bearish breakout"
+        );
+      }
+
+      // -------------------------------------------------------
+      // EARLY M5 BREAK
+      // -------------------------------------------------------
+
+      if (
+        side === "SELL" &&
+        earlyBreak.bearish
+      ) {
+        pattern += 8;
+        reasons.push(
+          "M5 broke support early"
+        );
+      }
+
+      if (
+        side === "BUY" &&
+        earlyBreak.bullish
+      ) {
+        pattern += 8;
+        reasons.push(
+          "M5 broke resistance early"
+        );
+      }
+
+      // -------------------------------------------------------
+      // ZONE QUALITY
+      // -------------------------------------------------------
+
+      if (
+        cmpLocation.zone &&
+        zoneDir === side
+      ) {
+        quality =
+          Math.round(
+            cmpLocation.zone.quality *
+            0.25
+          );
+      }
+
+      // -------------------------------------------------------
+      // TREND CONTINUATION
+      // Allows more scalp signals
+      // -------------------------------------------------------
+
+      if (
+        side === "BUY" &&
+        marketRegime ===
+          "TRENDING_BULLISH"
+      ) {
+        context += 10;
+        reasons.push(
+          "bullish continuation environment"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        marketRegime ===
+          "TRENDING_BEARISH"
+      ) {
+        context += 10;
+        reasons.push(
+          "bearish continuation environment"
+        );
+      }
+
+      // -------------------------------------------------------
+      // REVERSAL
+      // -------------------------------------------------------
+
+      if (
+        side === "BUY" &&
+        marketRegime ===
+          "REVERSAL_BULLISH"
+      ) {
+        trigger += 15;
+        reasons.push(
+          "bullish reversal condition"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        marketRegime ===
+          "REVERSAL_BEARISH"
+      ) {
+        trigger += 15;
+        reasons.push(
+          "bearish reversal condition"
+        );
+      }
+
+      const total =
+        clamp(
+          context +
+          location +
+          trigger +
+          pattern +
+          quality,
+          0,
+          100
+        );
+
+      // -------------------------------------------------------
+      // ACTIVE SCALP THRESHOLDS
+      // -------------------------------------------------------
+
+      let status = "WATCH";
+
+      const hasLocation =
+        zoneDir === side ||
+        cmpLocation.state ===
+          "INSIDE_ZONE";
+
+      const hasTrigger =
+        sideTriggers.length > 0 ||
+        (
+          side === "BUY" &&
+          liquidityM5.bullish
+        ) ||
+        (
+          side === "SELL" &&
+          liquidityM5.bearish
+        ) ||
+        (
+          side === "BUY" &&
+          doubleM5.type ===
+            "DOUBLE_BOTTOM"
+        ) ||
+        (
+          side === "SELL" &&
+          doubleM5.type ===
+            "DOUBLE_TOP"
+        );
+
+      // Active setup
+      if (
+        total >= 34 &&
+        (
+          hasLocation ||
+          hasTrigger
         )
-      );
-    }
-
-    const sellPunca =
-      findPunca("SELL");
-
-    const buyPunca =
-      findPunca("BUY");
-
-    const punca =
-      dirH4 === "BEARISH"
-        ? sellPunca
-        : buyPunca;
-
-    // ==================================================
-    // SCORE ENGINE
-    // ==================================================
-
-    function scoreDirection(
-      direction,
-      type
-    ) {
-      let score = 0;
-
-      const scalping =
-        type === "SCALPING";
-
-      // =========================
-      // SCALPING
-      // =========================
-
-      if (
-        scalping
       ) {
-        // H1
-        if (
-          direction === "SELL" &&
-          dirH1 === "BEARISH"
-        ) {
-          score += 25;
-        }
-
-        if (
-          direction === "BUY" &&
-          dirH1 === "BULLISH"
-        ) {
-          score += 25;
-        }
-
-        // M15
-        if (
-          direction === "SELL" &&
-          dirM15 === "BEARISH"
-        ) {
-          score += 20;
-        }
-
-        if (
-          direction === "BUY" &&
-          dirM15 === "BULLISH"
-        ) {
-          score += 20;
-        }
-
-        // M5
-        if (
-          direction === "SELL" &&
-          dirM5 === "BEARISH"
-        ) {
-          score += 10;
-        }
-
-        if (
-          direction === "BUY" &&
-          dirM5 === "BULLISH"
-        ) {
-          score += 10;
-        }
-
-        // M15 structure
-        if (
-          direction === "SELL" &&
-          structureM15.direction ===
-            "BEARISH"
-        ) {
-          score += 10;
-        }
-
-        if (
-          direction === "BUY" &&
-          structureM15.direction ===
-            "BULLISH"
-        ) {
-          score += 10;
-        }
-
-        // Breakout
-        if (
-          direction === "SELL" &&
-          (
-            breakout.bearishBreakout ||
-            breakout.bearishRetest
-          )
-        ) {
-          score += 10;
-        }
-
-        if (
-          direction === "BUY" &&
-          (
-            breakout.bullishBreakout ||
-            breakout.bullishRetest
-          )
-        ) {
-          score += 10;
-        }
-
-        // M5 confirmation
-        if (
-          direction === "SELL" &&
-          m5Confirmation.direction ===
-            "SELL"
-        ) {
-          score += 15;
-        }
-
-        if (
-          direction === "BUY" &&
-          m5Confirmation.direction ===
-            "BUY"
-        ) {
-          score += 15;
-        }
+        status = "SETUP";
       }
 
-      // =========================
-      // INTRADAY
-      // =========================
-
-      else {
-        if (
-          direction === "SELL"
-        ) {
-          if (
-            dirH4 === "BEARISH"
-          ) {
-            score += 30;
-          }
-
-          if (
-            dirH1 === "BEARISH"
-          ) {
-            score += 25;
-          }
-
-          if (
-            dirM15 === "BEARISH"
-          ) {
-            score += 15;
-          }
-        }
-
-        else {
-          if (
-            dirH4 === "BULLISH"
-          ) {
-            score += 30;
-          }
-
-          if (
-            dirH1 === "BULLISH"
-          ) {
-            score += 25;
-          }
-
-          if (
-            dirM15 === "BULLISH"
-          ) {
-            score += 15;
-          }
-        }
-
-        if (
-          direction === "SELL" &&
-          structureM15.direction ===
-            "BEARISH"
-        ) {
-          score += 10;
-        }
-
-        if (
-          direction === "BUY" &&
-          structureM15.direction ===
-            "BULLISH"
-        ) {
-          score += 10;
-        }
-
-        if (
-          direction === "SELL" &&
-          (
-            breakout.bearishBreakout ||
-            breakout.bearishRetest
-          )
-        ) {
-          score += 10;
-        }
-
-        if (
-          direction === "BUY" &&
-          (
-            breakout.bullishBreakout ||
-            breakout.bullishRetest
-          )
-        ) {
-          score += 10;
-        }
-
-        if (
-          direction === "SELL" &&
-          m5Confirmation.direction ===
-            "SELL"
-        ) {
-          score += 15;
-        }
-
-        if (
-          direction === "BUY" &&
-          m5Confirmation.direction ===
-            "BUY"
-        ) {
-          score += 15;
-        }
-      }
-
-      // ==================================================
-      // PATTERN BOOST
-      // ==================================================
-
+      // Ready
       if (
-        direction === "BUY"
+        total >= 43 &&
+        hasLocation &&
+        hasTrigger
       ) {
-        if (
-          qm.qmBuy.detected
-        ) {
-          score +=
-            qm.qmBuy.active
-              ? 20
-              : 10;
-        }
-
-        if (
-          doublePatterns
-            .doubleBottom
-            .detected
-        ) {
-          score +=
-            doublePatterns
-              .doubleBottom
-              .active
-              ? 15
-              : 8;
-        }
-
-        if (
-          orderBlock
-            .bullishOB
-            .detected
-        ) {
-          score +=
-            orderBlock
-              .bullishOB
-              .active
-              ? 12
-              : 6;
-        }
-
-        if (
-          freshZones.buyZone
-        ) {
-          score +=
-            freshZones
-              .buyZone
-              .fresh
-              ? 10
-              : freshZones
-                  .buyZone
-                  .firstTouch
-              ? 7
-              : 4;
-        }
-
-        if (
-          liquiditySweep.bullish
-        ) {
-          score += 10;
-        }
-
-        if (
-          buyZoneNear
-        ) {
-          score += 8;
-        }
+        status = "READY";
       }
 
-      // =========================
-      // SELL PATTERNS
-      // =========================
-
+      // Signal
       if (
-        direction === "SELL"
+        total >= 50 &&
+        (
+          (
+            hasLocation &&
+            hasTrigger
+          ) ||
+          (
+            marketRegime ===
+              (
+                side === "BUY"
+                  ? "TRENDING_BULLISH"
+                  : "TRENDING_BEARISH"
+              ) &&
+            hasTrigger &&
+            context >= 20
+          )
+        )
       ) {
-        if (
-          qm.qmSell.detected
-        ) {
-          score +=
-            qm.qmSell.active
-              ? 20
-              : 10;
-        }
-
-        if (
-          doublePatterns
-            .doubleTop
-            .detected
-        ) {
-          score +=
-            doublePatterns
-              .doubleTop
-              .active
-              ? 15
-              : 8;
-        }
-
-        if (
-          orderBlock
-            .bearishOB
-            .detected
-        ) {
-          score +=
-            orderBlock
-              .bearishOB
-              .active
-              ? 12
-              : 6;
-        }
-
-        if (
-          freshZones.sellZone
-        ) {
-          score +=
-            freshZones
-              .sellZone
-              .fresh
-              ? 10
-              : freshZones
-                  .sellZone
-                  .firstTouch
-              ? 7
-              : 4;
-        }
-
-        if (
-          liquiditySweep.bearish
-        ) {
-          score += 10;
-        }
-
-        if (
-          sellZoneNear
-        ) {
-          score += 8;
-        }
-      }
-
-      return Math.min(
-        score,
-        100
-      );
-    }
-
-    const scalpingBuy =
-      scoreDirection(
-        "BUY",
-        "SCALPING"
-      );
-
-    const scalpingSell =
-      scoreDirection(
-        "SELL",
-        "SCALPING"
-      );
-
-    const intradayBuy =
-      scoreDirection(
-        "BUY",
-        "INTRADAY"
-      );
-
-    const intradaySell =
-      scoreDirection(
-        "SELL",
-        "INTRADAY"
-      );
-
-    // ==================================================
-    // FIXED STOP LOSS
-    // ==================================================
-
-    function chooseFixedStopLoss(
-      direction,
-      entry
-    ) {
-      const SL_POINTS =
-        500;
-
-      const slDistance =
-        pointsToPrice(
-          SL_POINTS
-        );
-
-      let sl;
-
-      if (
-        direction === "SELL"
-      ) {
-        sl =
-          round(
-            entry +
-              slDistance
-          );
-      }
-
-      else {
-        sl =
-          round(
-            entry -
-              slDistance
-          );
+        status = "SIGNAL";
       }
 
       return {
-        sl,
-
-        distance:
-          SL_POINTS,
-
-        source:
-          "FIXED_500_POINTS"
+        side,
+        status,
+        score: total,
+        contextScore: context,
+        locationScore: location,
+        triggerScore: trigger,
+        patternScore: pattern,
+        qualityScore: quality,
+        reasons: [
+          ...new Set(reasons)
+        ].slice(0, 10)
       };
     }
 
-    // ==================================================
+    const scalpBuy =
+      scalpSide("BUY");
+
+    const scalpSell =
+      scalpSide("SELL");
+
+    // =========================================================
+    // INTRADAY ENGINE
+    // MORE SELECTIVE
+    // =========================================================
+
+    function intradaySide(side) {
+      let score = 0;
+      const reasons = [];
+
+      const wanted =
+        side === "BUY"
+          ? "BULLISH"
+          : "BEARISH";
+
+      if (
+        direction.H4 === wanted
+      ) {
+        score += 30;
+        reasons.push(
+          `H4 ${side} bias`
+        );
+      }
+
+      if (
+        direction.H1 === wanted
+      ) {
+        score += 25;
+        reasons.push(
+          `H1 ${side} bias`
+        );
+      }
+
+      if (
+        direction.M15 === wanted
+      ) {
+        score += 20;
+        reasons.push(
+          `M15 ${side} structure`
+        );
+      }
+
+      if (
+        zoneDir === side
+      ) {
+        score += 15;
+        reasons.push(
+          `${side} MTF zone`
+        );
+      }
+
+      if (
+        side === "BUY" &&
+        m5Trigger.buy.length
+      ) {
+        score += 12;
+        reasons.push(
+          "M5 bullish confirmation"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        m5Trigger.sell.length
+      ) {
+        score += 12;
+        reasons.push(
+          "M5 bearish confirmation"
+        );
+      }
+
+      if (
+        side === "BUY" &&
+        liquidityM15.bullish
+      ) {
+        score += 8;
+        reasons.push(
+          "M15 bullish liquidity sweep"
+        );
+      }
+
+      if (
+        side === "SELL" &&
+        liquidityM15.bearish
+      ) {
+        score += 8;
+        reasons.push(
+          "M15 bearish liquidity sweep"
+        );
+      }
+
+      score =
+        clamp(score, 0, 100);
+
+      let status = "WAIT";
+
+      if (score >= 45) {
+        status = "SETUP";
+      }
+
+      if (
+        score >= 58 &&
+        direction.H4 === wanted &&
+        direction.H1 === wanted
+      ) {
+        status = "READY";
+      }
+
+      if (
+        score >= 65 &&
+        direction.H4 === wanted &&
+        direction.H1 === wanted &&
+        direction.M15 === wanted &&
+        (
+          side === "BUY"
+            ? m5Trigger.buy.length
+            : m5Trigger.sell.length
+        )
+      ) {
+        status = "SIGNAL";
+      }
+
+      return {
+        side,
+        status,
+        score,
+        reasons: [
+          ...new Set(reasons)
+        ].slice(0, 10)
+      };
+    }
+
+    const intraBuy =
+      intradaySide("BUY");
+
+    const intraSell =
+      intradaySide("SELL");
+
+    // =========================================================
     // TRADE PLAN
-    // ==================================================
+    // =========================================================
 
     function buildTradePlan(
-      direction,
-      type,
+      side,
+      mode,
       score
     ) {
-      const isScalping =
-        type === "SCALPING";
+      if (!side) return null;
 
-      const MAX_SL_POINTS =
-        500;
+      const isScalp =
+        mode === "SCALPING";
 
-      const minimumScore =
-        isScalping
-          ? 40
-          : 50;
-
-      if (
-        score <
-        minimumScore
-      ) {
-        return null;
-      }
-
-      const entry =
-        round(
-          currentPrice
-        );
-
-      // =========================
-      // TRIGGER LOGIC
-      // =========================
-
-      const matchingM5 =
-        m5Confirmation.direction ===
-        direction;
-
-      const matchingMomentum =
-        dirM5 ===
-        (
-          direction === "BUY"
-            ? "BULLISH"
-            : "BEARISH"
-        );
-
-      const matchingPattern =
-        direction === "BUY"
-          ? (
-              qm.qmBuy.active ||
-              doublePatterns
-                .doubleBottom
-                .active ||
-              orderBlock
-                .bullishOB
-                .active ||
-              buyZoneNear ||
-              liquiditySweep.bullish
-            )
-          : (
-              qm.qmSell.active ||
-              doublePatterns
-                .doubleTop
-                .active ||
-              orderBlock
-                .bearishOB
-                .active ||
-              sellZoneNear ||
-              liquiditySweep.bearish
-            );
-
-      // =========================
-      // SCALPING
-      // =========================
-
-      if (
-        isScalping
-      ) {
-        /*
-          Scalping tidak lagi terlalu ketat.
-
-          Trigger boleh datang daripada:
-
-          1. M5 confirmation
-          ATAU
-          2. Pattern/zone aktif + M5 momentum
-        */
-
-        if (
-          !matchingM5 &&
-          !(
-            matchingPattern &&
-            matchingMomentum
-          )
-        ) {
-          return null;
-        }
-      }
-
-      // =========================
-      // FIXED SL
-      // =========================
-
-      const stopData =
-        chooseFixedStopLoss(
-          direction,
-          entry
-        );
-
-      if (!stopData) {
-        return null;
-      }
-
-      const sl =
-        stopData.sl;
-
-      const risk =
-        priceToPoints(
-          sl - entry
-        );
-
-      if (
-        risk !==
-        MAX_SL_POINTS
-      ) {
-        return null;
-      }
-
-      // =========================
-      // TP
-      // =========================
+      const slPoints =
+        isScalp
+          ? SCALP_SL_POINTS
+          : INTRA_SL_POINTS;
 
       const tp1Points =
-        isScalping
-          ? 600
-          : 1600;
+        isScalp
+          ? SCALP_TP1_POINTS
+          : INTRA_TP1_POINTS;
 
       const tp2Points =
-        isScalping
-          ? 1200
-          : 2500;
+        isScalp
+          ? SCALP_TP2_POINTS
+          : INTRA_TP2_POINTS;
 
-      let tp1;
-      let tp2;
+      const entry =
+        round(currentPrice, 2);
 
-      if (
-        direction === "SELL"
-      ) {
-        tp1 =
-          round(
-            entry -
-              pointsToPrice(
-                tp1Points
-              )
-          );
+      const sl =
+        side === "BUY"
+          ? round(
+              entry -
+              pointsToPrice(slPoints),
+              2
+            )
+          : round(
+              entry +
+              pointsToPrice(slPoints),
+              2
+            );
 
-        tp2 =
-          round(
-            entry -
-              pointsToPrice(
-                tp2Points
-              )
-          );
-      }
+      const tp1 =
+        side === "BUY"
+          ? round(
+              entry +
+              pointsToPrice(tp1Points),
+              2
+            )
+          : round(
+              entry -
+              pointsToPrice(tp1Points),
+              2
+            );
 
-      else {
-        tp1 =
-          round(
-            entry +
-              pointsToPrice(
-                tp1Points
-              )
-          );
-
-        tp2 =
-          round(
-            entry +
-              pointsToPrice(
-                tp2Points
-              )
-          );
-      }
-
-      // =========================
-      // STATUS
-      // =========================
-
-      let status =
-        "SIGNAL";
-
-      let triggerType =
-        "M5_CONFIRMATION";
-
-      if (
-        !matchingM5 &&
-        matchingPattern &&
-        matchingMomentum
-      ) {
-        triggerType =
-          "PATTERN_ZONE_M5_MOMENTUM";
-      }
+      const tp2 =
+        side === "BUY"
+          ? round(
+              entry +
+              pointsToPrice(tp2Points),
+              2
+            )
+          : round(
+              entry -
+              pointsToPrice(tp2Points),
+              2
+            );
 
       return {
-        direction,
-        type,
-        status,
-
+        direction: side,
+        mode,
+        status: score >= (
+          isScalp ? 50 : 65
+        )
+          ? "SIGNAL"
+          : "SETUP",
         entry,
         sl,
-
         tp1,
         tp2,
-
-        risk,
-
-        maxAllowedRisk:
-          MAX_SL_POINTS,
-
-        slSource:
-          stopData.source,
-
+        slPoints,
         tp1Points,
         tp2Points,
-
-        tp1Pips:
-          tp1Points / 10,
-
-        tp2Pips:
-          tp2Points / 10,
-
-        confirmation:
-          matchingM5,
-
-        confirmationRequired:
-          isScalping,
-
-        confirmationReason:
-          matchingM5
-            ? m5Confirmation.reason
-            : matchingPattern &&
-              matchingMomentum
-            ? "PATTERN_ZONE_M5_MOMENTUM"
-            : "WAITING_FOR_TRIGGER",
-
-        triggerType
+        slPips: slPoints / 10,
+        tp1Pips: tp1Points / 10,
+        tp2Pips: tp2Points / 10
       };
     }
 
-    // ==================================================
-    // BUILD SETUP
-    // ==================================================
-
-    function buildSetup(
-      type
-    ) {
-      const isScalping =
-        type === "SCALPING";
-
-      const buyScore =
-        isScalping
-          ? scalpingBuy
-          : intradayBuy;
-
-      const sellScore =
-        isScalping
-          ? scalpingSell
-          : intradaySell;
-
-      let direction;
-
-      if (
-        sellScore >
-        buyScore
-      ) {
-        direction =
-          "SELL";
-      }
-
-      else if (
-        buyScore >
-        sellScore
-      ) {
-        direction =
-          "BUY";
-      }
-
-      else {
-        return null;
-      }
-
-      const score =
-        direction === "SELL"
-          ? sellScore
-          : buyScore;
-
-      const entryZone =
-        direction === "SELL"
-          ? sellEntryZone
-          : buyEntryZone;
-
-      const plan =
-        buildTradePlan(
-          direction,
-          type,
-          score
-        );
-
-      if (!plan) {
-        return null;
-      }
-
-      let reason =
-        "";
-
-      if (
-        direction === "SELL"
-      ) {
-        reason =
-          isScalping
-            ? "H1 bearish + M15 bearish"
-            : "H4/H1 bearish + M15 bearish";
-
-        if (
-          qm.qmSell.detected
-        ) {
-          reason +=
-            " + QM SELL";
-        }
-
-        if (
-          doublePatterns
-            .doubleTop
-            .detected
-        ) {
-          reason +=
-            " + DOUBLE TOP";
-        }
-
-        if (
-          orderBlock
-            .bearishOB
-            .detected
-        ) {
-          reason +=
-            " + BEARISH OB";
-        }
-
-        if (
-          freshZones.sellZone
-        ) {
-          reason +=
-            freshZones
-              .sellZone
-              .fresh
-              ? " + FRESH SUPPLY"
-              : " + SUPPLY ZONE";
-        }
-
-        if (
-          liquiditySweep.bearish
-        ) {
-          reason +=
-            " + LIQUIDITY SWEEP";
-        }
-      }
-
-      else {
-        reason =
-          isScalping
-            ? "H1 bullish + M15 bullish"
-            : "H4/H1 bullish + M15 bullish";
-
-        if (
-          qm.qmBuy.detected
-        ) {
-          reason +=
-            " + QM BUY";
-        }
-
-        if (
-          doublePatterns
-            .doubleBottom
-            .detected
-        ) {
-          reason +=
-            " + DOUBLE BOTTOM";
-        }
-
-        if (
-          orderBlock
-            .bullishOB
-            .detected
-        ) {
-          reason +=
-            " + BULLISH OB";
-        }
-
-        if (
-          freshZones.buyZone
-        ) {
-          reason +=
-            freshZones
-              .buyZone
-              .fresh
-              ? " + FRESH DEMAND"
-              : " + DEMAND ZONE";
-        }
-
-        if (
-          liquiditySweep.bullish
-        ) {
-          reason +=
-            " + LIQUIDITY SWEEP";
-        }
-      }
-
-      if (
-        breakout.bearishBreakout ||
-        breakout.bullishBreakout
-      ) {
-        reason +=
-          " + BREAKOUT";
-      }
-
-      if (
-        breakout.bearishRetest ||
-        breakout.bullishRetest
-      ) {
-        reason +=
-          " + RETEST";
-      }
-
-      if (
-        m5Confirmation.direction ===
-        direction
-      ) {
-        reason +=
-          ` + M5 ${m5Confirmation.reason}`;
-      }
-
-      else if (
-        entryZone
-      ) {
-        reason +=
-          " + ACTIVE ENTRY ZONE";
-      }
-
-      return {
-        ...plan,
-
-        score,
-
-        reason,
-
-        entryZone,
-
-        punca:
-          direction === "SELL"
-            ? sellPunca
-            : buyPunca
-      };
-    }
-
-    const scalping =
-      buildSetup(
-        "SCALPING"
-      );
-
-    const intraday =
-      buildSetup(
-        "INTRADAY"
-      );
-
-    // ==================================================
-    // PRIMARY SETUP
-    // ==================================================
-
-    const candidates =
-      [
-        scalping,
-        intraday
-      ].filter(Boolean);
-
-    const confirmed =
-      candidates
-        .filter(
-          s =>
-            s.status ===
-            "SIGNAL"
-        )
-        .sort(
-          (a, b) =>
-            b.score -
-            a.score
-        );
-
-    const primarySetup =
-      confirmed[0] ||
-      candidates.sort(
-        (a, b) =>
-          b.score -
-          a.score
-      )[0] ||
-      null;
-
-    // ==================================================
-    // TOP SIGNAL
-    // ==================================================
-
-    let signal =
-      "WAIT";
-
-    let signalStatus =
-      "WAIT";
-
-    let signalType =
-      null;
-
-    let entry =
-      null;
-
-    let sl =
-      null;
-
-    let tp1 =
-      null;
-
-    let tp2 =
-      null;
-
-    let risk =
-      null;
-
-    let maxAllowedRisk =
-      null;
-
-    if (
-      primarySetup
-    ) {
-      signal =
-        primarySetup.direction;
-
-      signalStatus =
-        primarySetup.status;
-
-      signalType =
-        primarySetup.type;
-
-      entry =
-        primarySetup.entry;
-
-      sl =
-        primarySetup.sl;
-
-      tp1 =
-        primarySetup.tp1;
-
-      tp2 =
-        primarySetup.tp2;
-
-      risk =
-        primarySetup.risk;
-
-      maxAllowedRisk =
-        primarySetup.maxAllowedRisk;
-    }
-
-    // ==================================================
-    // WAIT REASON
-    // ==================================================
-
-    let waitReason =
-      null;
-
-    if (
-      !primarySetup
-    ) {
-      const highestScore =
-        Math.max(
-          scalpingBuy,
-          scalpingSell,
-          intradayBuy,
-          intradaySell
-        );
-
-      if (
-        highestScore <
-        40
-      ) {
-        waitReason =
-          "No strong setup yet. Waiting for better market structure.";
-      }
-
-      else {
-        const strongestDirection =
-          scalpingSell >
-          scalpingBuy
-            ? "SELL"
-            : scalpingBuy >
-              scalpingSell
-            ? "BUY"
-            : intradaySell >
-              intradayBuy
-            ? "SELL"
-            : "BUY";
-
-        const patternFound =
-          strongestDirection ===
-          "SELL"
-            ? (
-                qm.qmSell.detected ||
-                doublePatterns
-                  .doubleTop
-                  .detected ||
-                orderBlock
-                  .bearishOB
-                  .detected
-              )
-            : (
-                qm.qmBuy.detected ||
-                doublePatterns
-                  .doubleBottom
-                  .detected ||
-                orderBlock
-                  .bullishOB
-                  .detected
-              );
-
-        if (
-          patternFound
-        ) {
-          waitReason =
-            `${strongestDirection} bias detected. Waiting for entry trigger / M5 momentum.`;
-        }
-
-        else {
-          waitReason =
-            `${strongestDirection} bias detected but entry zone is not active yet.`;
-        }
-      }
-    }
-
-    else if (
-      primarySetup.status ===
+    const scalpCandidate =
+      scalpBuy.score >= scalpSell.score
+        ? scalpBuy
+        : scalpSell;
+
+    const intraCandidate =
+      intraBuy.score >= intraSell.score
+        ? intraBuy
+        : intraSell;
+
+    const scalpingPlan =
+      scalpCandidate.status ===
       "SIGNAL"
+        ? buildTradePlan(
+            scalpCandidate.side,
+            "SCALPING",
+            scalpCandidate.score
+          )
+        : null;
+
+    const intradayPlan =
+      intraCandidate.status ===
+      "SIGNAL"
+        ? buildTradePlan(
+            intraCandidate.side,
+            "INTRADAY",
+            intraCandidate.score
+          )
+        : null;
+
+    // =========================================================
+    // SMART WAIT ENGINE
+    // =========================================================
+
+    function waitReason(
+      side,
+      mode
     ) {
-      waitReason =
-        null;
-    }
+      if (
+        mode === "SCALPING"
+      ) {
+        if (
+          m15Test.support &&
+          earlyBreak.bearish
+        ) {
+          return "M15 SUPPORT UNDER TEST — M5 BROKE SUPPORT EARLY";
+        }
 
-    // ==================================================
-    // SESSION
-    // ==================================================
+        if (
+          m15Test.resistance &&
+          earlyBreak.bullish
+        ) {
+          return "M15 RESISTANCE UNDER TEST — M5 BROKE RESISTANCE EARLY";
+        }
 
-    function getSession() {
-      const now =
-        new Date();
+        if (
+          m15Break.type.includes(
+            "FORMING"
+          )
+        ) {
+          return "M15 CANDLE NOT CLOSED — WAITING FOR CONFIRMATION";
+        }
 
-      const formatTime =
-        timeZone =>
-          new Intl.DateTimeFormat(
-            "en-GB",
-            {
-              timeZone,
+        if (
+          cmpLocation.state ===
+          "FAR_FROM_ZONE"
+        ) {
+          return "ZONE TOO FAR FROM CMP";
+        }
 
-              hour:
-                "2-digit",
+        if (
+          cmpLocation.state ===
+          "APPROACHING_ZONE"
+        ) {
+          return `WAITING FOR CMP TO ENTER ${zoneDir} ZONE`;
+        }
 
-              minute:
-                "2-digit",
+        if (
+          cmpLocation.state ===
+          "INSIDE_ZONE" &&
+          !(
+            side === "BUY"
+              ? m5Trigger.buy.length
+              : m5Trigger.sell.length
+          )
+        ) {
+          return `WAITING FOR M5 ${side} CONFIRMATION`;
+        }
 
-              hour12:
-                false
-            }
-          ).format(now);
+        if (
+          m15Break.confirmed
+        ) {
+          return "WAITING FOR RETEST";
+        }
 
-      const formatMalaysia =
-        new Intl.DateTimeFormat(
-          "en-GB",
-          {
-            timeZone:
-              "Asia/Kuala_Lumpur",
+        return `WAITING FOR ${side} SCALPING TRIGGER`;
+      }
 
-            dateStyle:
-              "short",
-
-            timeStyle:
-              "medium"
-          }
-        ).format(now);
-
-      const getHour =
-        timeZone =>
-          Number(
-            new Intl.DateTimeFormat(
-              "en-US",
-              {
-                timeZone,
-
-                hour:
-                  "2-digit",
-
-                hour12:
-                  false
-              }
-            ).format(now)
-          );
-
-      const tokyoHour =
-        getHour(
-          "Asia/Tokyo"
-        );
-
-      const londonHour =
-        getHour(
-          "Europe/London"
-        );
-
-      const newYorkHour =
-        getHour(
-          "America/New_York"
-        );
-
-      const asiaOpen =
-        tokyoHour >= 9 &&
-        tokyoHour < 18;
-
-      const londonOpen =
-        londonHour >= 8 &&
-        londonHour < 17;
-
-      const newYorkOpen =
-        newYorkHour >= 8 &&
-        newYorkHour < 17;
-
-      const overlap =
-        londonOpen &&
-        newYorkOpen;
-
-      let activeSession =
-        "MARKET CLOSED";
-
-      let activity =
-        "LOW";
+      // Intraday
+      if (
+        direction.H4 !==
+        (
+          side === "BUY"
+            ? "BULLISH"
+            : "BEARISH"
+        )
+      ) {
+        return "WAITING FOR H4 ALIGNMENT";
+      }
 
       if (
-        overlap
+        direction.H1 !==
+        (
+          side === "BUY"
+            ? "BULLISH"
+            : "BEARISH"
+        )
       ) {
-        activeSession =
-          "LONDON + NEW YORK OVERLAP";
-
-        activity =
-          "VERY HIGH";
+        return "WAITING FOR H1 ALIGNMENT";
       }
 
-      else if (
-        londonOpen
+      if (
+        zoneDir !== side
       ) {
-        activeSession =
-          "LONDON";
-
-        activity =
-          "HIGH";
+        return `WAITING FOR ${side} M15 ZONE`;
       }
 
-      else if (
-        newYorkOpen
-      ) {
-        activeSession =
-          "NEW YORK";
+      return `WAITING FOR M5 ${side} CONFIRMATION`;
+    }
 
-        activity =
-          "HIGH";
+    // =========================================================
+    // NARRATIVE
+    // =========================================================
+
+    function narrative(
+      side,
+      mode
+    ) {
+      const parts = [];
+
+      parts.push(
+        `H1 ${direction.H1.toLowerCase()}`
+      );
+
+      parts.push(
+        `M15 ${direction.M15.toLowerCase()}`
+      );
+
+      if (
+        cmpLocation.zone
+      ) {
+        parts.push(
+          `CMP ${cmpLocation.state.toLowerCase()} ${cmpLocation.zone.type.toLowerCase()}`
+        );
       }
 
-      else if (
-        asiaOpen
+      if (
+        m15Break.type !== "NONE"
       ) {
-        activeSession =
-          "ASIA / TOKYO";
-
-        activity =
-          "MODERATE";
+        parts.push(
+          m15Break.type
+        );
       }
 
-      return {
-        timezone:
-          "Asia/Kuala_Lumpur",
+      if (
+        side === "BUY" &&
+        m5Trigger.buy.length
+      ) {
+        parts.push(
+          `M5 ${m5Trigger.buy[0]}`
+        );
+      }
 
-        malaysiaTime:
-          formatMalaysia,
+      if (
+        side === "SELL" &&
+        m5Trigger.sell.length
+      ) {
+        parts.push(
+          `M5 ${m5Trigger.sell[0]}`
+        );
+      }
 
-        Asia: {
-          status:
-            asiaOpen
-              ? "OPEN"
-              : "CLOSED",
+      parts.push(
+        `${mode} ${side}`
+      );
 
-          localTime:
-            formatTime(
-              "Asia/Tokyo"
-            )
-        },
+      return parts.join(" → ");
+    }
 
-        London: {
-          status:
-            londonOpen
-              ? "OPEN"
-              : "CLOSED",
+    // =========================================================
+    // PRIMARY SETUP
+    // =========================================================
 
-          localTime:
-            formatTime(
-              "Europe/London"
-            )
-        },
+    let primarySetup = null;
 
-        NewYork: {
-          status:
-            newYorkOpen
-              ? "OPEN"
-              : "CLOSED",
-
-          localTime:
-            formatTime(
-              "America/New_York"
-            )
-        },
-
-        LondonNewYorkOverlap: {
-          status:
-            overlap
-              ? "ACTIVE"
-              : "INACTIVE"
-        },
-
-        activeSession,
-        activity
+    if (
+      scalpingPlan
+    ) {
+      primarySetup = {
+        ...scalpingPlan,
+        score: scalpCandidate.score,
+        reasons:
+          scalpCandidate.reasons,
+        narrative:
+          narrative(
+            scalpCandidate.side,
+            "SCALPING"
+          )
+      };
+    } else if (
+      intradayPlan
+    ) {
+      primarySetup = {
+        ...intradayPlan,
+        score: intraCandidate.score,
+        reasons:
+          intraCandidate.reasons,
+        narrative:
+          narrative(
+            intraCandidate.side,
+            "INTRADAY"
+          )
       };
     }
 
-    const session =
-      getSession();
+    // =========================================================
+    // SIGNAL COUNTER
+    // =========================================================
 
-    // ==================================================
+    const scalpSignals = [
+      scalpBuy,
+      scalpSell
+    ].filter(
+      x => x.status === "SIGNAL"
+    );
+
+    const scalpSetups = [
+      scalpBuy,
+      scalpSell
+    ].filter(
+      x =>
+        x.status === "SETUP" ||
+        x.status === "READY" ||
+        x.status === "SIGNAL"
+    );
+
+    // =========================================================
+    // SESSION
+    // =========================================================
+
+    const utcHour =
+      new Date().getUTCHours();
+
+    let session = "QUIET";
+
+    if (
+      utcHour >= 0 &&
+      utcHour < 7
+    ) {
+      session = "ASIA";
+    } else if (
+      utcHour >= 7 &&
+      utcHour < 13
+    ) {
+      session = "LONDON";
+    } else if (
+      utcHour >= 13 &&
+      utcHour < 21
+    ) {
+      session = "NEW_YORK";
+    }
+
+    // =========================================================
     // FINAL RESPONSE
-    // ==================================================
+    // =========================================================
 
-    const result = {
-      status:
-        "success",
+    const output = {
+      status: "success",
 
-      symbol:
-        PRICE_SYMBOL,
+      engine: {
+        name: "SINNCI MARKET ENGINE PRO",
+        version: "PRO-1.0",
+        mode: "CMP-FIRST MULTI-TF",
+        timeframeFlow:
+          "H4 → H1 → M15 → CMP → M5",
+        signalStyle:
+          "ACTIVE SCALPING / SELECTIVE INTRADAY"
+      },
 
-      signal,
-
-      signalStatus,
-
-      signalType,
-
-      currentPrice:
-        round(
-          currentPrice
-        ),
-
-      session,
+      market: {
+        symbol: PRICE_SYMBOL,
+        price: round(currentPrice, 2),
+        regime: marketRegime,
+        session
+      },
 
       direction: {
-        H4:
-          dirH4,
-
-        H1:
-          dirH1,
-
-        M15:
-          dirM15,
-
-        M5:
-          dirM5
+        H4: direction.H4,
+        H1: direction.H1,
+        M15: direction.M15,
+        M5: direction.M5
       },
 
       structure: {
-        H4:
-          structureH4,
-
-        H1:
-          structureH1,
-
-        M15:
-          structureM15
+        H4: structureH4.direction,
+        H1: structureH1.direction,
+        M15: structureM15.direction,
+        M5: structureM5.direction
       },
 
-      breakout,
+      levels: {
+        M15Support:
+          levelsM15.support
+            ? round(
+                levelsM15.support,
+                2
+              )
+            : null,
 
-      confirmation:
-        m5Confirmation,
+        M15Resistance:
+          levelsM15.resistance
+            ? round(
+                levelsM15.resistance,
+                2
+              )
+            : null,
 
-      punca,
+        M5Support:
+          levelsM5.support
+            ? round(
+                levelsM5.support,
+                2
+              )
+            : null,
 
-      // ==================================================
-      // PATTERNS
-      // ==================================================
+        M5Resistance:
+          levelsM5.resistance
+            ? round(
+                levelsM5.resistance,
+                2
+              )
+            : null
+      },
+
+      cmp: {
+        state:
+          cmpLocation.state,
+
+        reaction,
+
+        zone:
+          cmpLocation.zone
+            ? {
+                type:
+                  cmpLocation.zone.type,
+                source:
+                  cmpLocation.zone.source,
+                high:
+                  cmpLocation.zone.high,
+                low:
+                  cmpLocation.zone.low,
+                bodyHigh:
+                  cmpLocation.zone.bodyHigh,
+                bodyLow:
+                  cmpLocation.zone.bodyLow,
+                quality:
+                  cmpLocation.zone.quality
+              }
+            : null,
+
+        distancePoints:
+          cmpLocation.distancePoints
+      },
+
+      breakout: {
+        M15:
+          m15Break,
+
+        M5EarlyBreak:
+          earlyBreak,
+
+        flip
+      },
 
       patterns: {
-        qmBuy:
-          qm.qmBuy,
-
-        qmSell:
-          qm.qmSell,
-
-        doubleTop:
-          doublePatterns
-            .doubleTop,
-
-        doubleBottom:
-          doublePatterns
-            .doubleBottom,
-
-        liquiditySweep,
-
-        orderBlock
+        liquidityM5,
+        liquidityM15,
+        doubleM5,
+        qmM5
       },
 
-      // ==================================================
-      // ZONES
-      // ==================================================
+      confirmation: {
+        M5Buy:
+          m5Trigger.buy,
 
-      zones: {
-        buy:
-          buyEntryZone,
+        M5Sell:
+          m5Trigger.sell,
 
-        sell:
-          sellEntryZone,
-
-        freshBuy:
-          freshZones.buyZone,
-
-        freshSell:
-          freshZones.sellZone
+        strongest:
+          m5Trigger.strongest
       },
 
-      entryZone:
-        primarySetup
-          ? primarySetup.entryZone
-          : null,
+      scalping: {
+        buy: {
+          ...scalpBuy,
+          wait:
+            scalpBuy.status ===
+            "SIGNAL"
+              ? null
+              : waitReason(
+                  "BUY",
+                  "SCALPING"
+                )
+        },
 
-      // ==================================================
-      // SCORES
-      // ==================================================
+        sell: {
+          ...scalpSell,
+          wait:
+            scalpSell.status ===
+            "SIGNAL"
+              ? null
+              : waitReason(
+                  "SELL",
+                  "SCALPING"
+                )
+        },
 
-      scores: {
-        BUY:
-          Math.max(
-            scalpingBuy,
-            intradayBuy
-          ),
+        activeSetups:
+          scalpSetups.length,
 
-        SELL:
-          Math.max(
-            scalpingSell,
-            intradaySell
-          ),
+        activeSignals:
+          scalpSignals.length,
 
-        scalpingBuy,
+        plan:
+          scalpingPlan,
 
-        scalpingSell,
-
-        intradayBuy,
-
-        intradaySell
-      },
-
-      entry,
-
-      sl,
-
-      SL:
-        sl,
-
-      tp1,
-
-      TP1:
-        tp1,
-
-      tp2,
-
-      TP2:
-        tp2,
-
-      risk,
-
-      maxAllowedRisk,
-
-      waitReason,
-
-      scalping,
-
-      intraday,
-
-      primarySetup,
-
-      // ==================================================
-      // ATR
-      // ==================================================
-
-      ATR: {
-        H4:
-          round(
-            atrH4
-          ),
-
-        H1:
-          round(
-            atrH1
-          ),
-
-        M15:
-          round(
-            atrM15
-          ),
-
-        M5:
-          round(
-            atrM5
-          )
-      },
-
-      candles: {
-        H4:
-          h4.length,
-
-        H1:
-          h1.length,
-
-        M15:
-          m15.length,
-
-        M5:
-          m5.length
-      },
-
-      // ==================================================
-      // ENGINE
-      // ==================================================
-
-      engine: {
-        timeframes: [
-          "H4",
-          "H1",
-          "M15",
-          "M5"
-        ],
-
-        sessions: [
-          "ASIA / TOKYO",
-          "LONDON",
-          "NEW YORK",
-          "LONDON + NEW YORK OVERLAP"
-        ],
-
-        data:
-          "OHLC",
-
-        method:
-          "H4/H1 Market Structure + M15 SNR + QM + Double Top/Bottom + Order Block + Liquidity Sweep + Breakout Retest + M5 Trigger",
-
-        patterns: [
-          "QM BUY",
-          "QM SELL",
-          "DOUBLE TOP",
-          "DOUBLE BOTTOM",
-          "ORDER BLOCK",
-          "LIQUIDITY SWEEP",
-          "FRESH ZONE",
-          "FIRST TOUCH",
-          "BREAKOUT",
-          "RETEST",
-          "ENGULFING",
-          "REJECTION"
-        ],
-
-        riskRules: {
-          pointSize:
-            "0.01 price = 1 point",
-
-          fixedSL:
-            "500 points / 50 pips",
-
-          scalpingMode:
-            "AGGRESSIVE",
-
-          scalpingMinimumScore:
-            40,
-
-          scalpingSL:
-            "FIXED 500 POINTS / 50 PIPS",
-
-          scalpingTP:
-            "TP1 600 points / 60 pips / TP2 1200 points / 120 pips",
-
-          scalpingTrigger:
-            "M5 confirmation OR active pattern/zone + M5 momentum",
-
-          intradayMode:
-            "SELECTIVE",
-
-          intradayMinimumScore:
-            50,
-
-          intradaySL:
-            "FIXED 500 POINTS / 50 PIPS",
-
-          intradayTP:
-            "TP1 1600 points / 160 pips / TP2 2500 points / 250 pips",
-
-          intradayTrigger:
-            "M5 confirmation preferred"
+        fixedRisk: {
+          SL: "500 points / 50 pips",
+          TP1: "600 points / 60 pips",
+          TP2: "1200 points / 120 pips"
         }
       },
 
-      cached:
-        false,
+      intraday: {
+        buy: {
+          ...intraBuy,
+          wait:
+            intraBuy.status ===
+            "SIGNAL"
+              ? null
+              : waitReason(
+                  "BUY",
+                  "INTRADAY"
+                )
+        },
 
-      timestamp:
+        sell: {
+          ...intraSell,
+          wait:
+            intraSell.status ===
+            "SIGNAL"
+              ? null
+              : waitReason(
+                  "SELL",
+                  "INTRADAY"
+                )
+        },
+
+        plan:
+          intradayPlan,
+
+        fixedRisk: {
+          SL: "500 points / 50 pips",
+          TP1: "1600 points / 160 pips",
+          TP2: "2500 points / 250 pips"
+        }
+      },
+
+      primarySetup,
+
+      candleStatus: {
+        M15Current:
+          "FORMING",
+        M15Closed:
+          m15Closed.datetime,
+        M5Current:
+          M5[M5.length - 1].datetime
+      },
+
+      atr: {
+        H4: round(atr.H4, 2),
+        H1: round(atr.H1, 2),
+        M15: round(atr.M15, 2),
+        M5: round(atr.M5, 2)
+      },
+
+      candles: {
+        H4: H4.length,
+        H1: H1.length,
+        M15: M15.length,
+        M5: M5.length
+      },
+
+      generatedAt:
         new Date().toISOString()
     };
 
-    cache.data =
-      result;
+    // =========================================================
+    // CACHE
+    // =========================================================
 
-    cache.timestamp =
-      Date.now();
+    globalThis.__SINNCI_PRO_CACHE = {
+      data: output,
+      timestamp: Date.now()
+    };
 
-    return res
-      .status(200)
-      .json(result);
+    return res.status(200).json(output);
 
   } catch (error) {
     console.error(
-      "SINNCI ANALYZE ERROR:",
+      "SINNCI ENGINE ERROR:",
       error
     );
 
-    return res
-      .status(500)
-      .json({
-        status:
-          "error",
-
-        signal:
-          "WAIT",
-
-        error:
-          error.message ||
-          "Analysis failed"
-      });
-
-  } finally {
-    if (
-      globalThis.__SINNCI_ANALYZE_CACHE
-    ) {
-      globalThis
-        .__SINNCI_ANALYZE_CACHE
-        .running =
-        false;
-    }
+    return res.status(500).json({
+      status: "error",
+      engine:
+        "SINNCI MARKET ENGINE PRO",
+      error:
+        error?.message ||
+        "Market analysis failed"
+    });
   }
-      }
+        }

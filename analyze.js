@@ -4,6 +4,7 @@ export default async function handler(req, res) {
 
     if (!API_KEY) {
       return res.status(500).json({
+        status: "error",
         error: "API key not configured"
       });
     }
@@ -50,7 +51,7 @@ export default async function handler(req, res) {
       };
 
       // =========================
-      // GET OHLC DATA
+      // GET CANDLES
       // =========================
       async function getCandles(interval) {
         const url =
@@ -103,14 +104,15 @@ export default async function handler(req, res) {
       }
 
       // =========================
-      // FETCH ALL TF IN PARALLEL
+      // GET ALL TIMEFRAMES
       // =========================
-      const [h4, h1, m15, m5] = await Promise.all([
-        getCandles(TF.H4),
-        getCandles(TF.H1),
-        getCandles(TF.M15),
-        getCandles(TF.M5)
-      ]);
+      const [h4, h1, m15, m5] =
+        await Promise.all([
+          getCandles(TF.H4),
+          getCandles(TF.H1),
+          getCandles(TF.M15),
+          getCandles(TF.M5)
+        ]);
 
       if (
         h4.length < 30 ||
@@ -120,6 +122,23 @@ export default async function handler(req, res) {
       ) {
         throw new Error(
           "Insufficient candle data"
+        );
+      }
+
+      // =========================
+      // ROUND
+      // =========================
+      function roundPrice(value) {
+        if (
+          value === null ||
+          value === undefined ||
+          !Number.isFinite(Number(value))
+        ) {
+          return null;
+        }
+
+        return Number(
+          Number(value).toFixed(2)
         );
       }
 
@@ -150,20 +169,21 @@ export default async function handler(req, res) {
           const previous =
             candles[i - 1];
 
-          const tr = Math.max(
-            current.high -
-              current.low,
-
-            Math.abs(
+          const tr =
+            Math.max(
               current.high -
-              previous.close
-            ),
+                current.low,
 
-            Math.abs(
-              current.low -
-              previous.close
-            )
-          );
+              Math.abs(
+                current.high -
+                previous.close
+              ),
+
+              Math.abs(
+                current.low -
+                previous.close
+              )
+            );
 
           trs.push(tr);
         }
@@ -176,12 +196,13 @@ export default async function handler(req, res) {
             (sum, value) =>
               sum + value,
             0
-          ) / recent.length
+          ) /
+          recent.length
         );
       }
 
       // =========================
-      // SWING HIGH / LOW
+      // SWINGS
       // =========================
       function findSwings(
         candles,
@@ -250,7 +271,7 @@ export default async function handler(req, res) {
       }
 
       // =========================
-      // MARKET STRUCTURE
+      // STRUCTURE
       // =========================
       function getStructure(
         candles
@@ -322,9 +343,7 @@ export default async function handler(req, res) {
 
           pattern =
             "HH_HL";
-        } else if (
-          bearish >= 2
-        ) {
+        } else if (bearish >= 2) {
           direction =
             "BEARISH";
 
@@ -416,11 +435,15 @@ export default async function handler(req, res) {
           return "BEARISH";
         }
 
-        if (last > midpoint) {
+        if (
+          last > midpoint
+        ) {
           return "BULLISH";
         }
 
-        if (last < midpoint) {
+        if (
+          last < midpoint
+        ) {
           return "BEARISH";
         }
 
@@ -439,7 +462,7 @@ export default async function handler(req, res) {
             2
           );
 
-        const levels = [
+        return [
           ...swings.highs.map(
             x => ({
               price: x.price,
@@ -453,9 +476,7 @@ export default async function handler(req, res) {
               type: "SUPPORT"
             })
           )
-        ];
-
-        return levels.slice(-30);
+        ].slice(-30);
       }
 
       // =========================
@@ -481,7 +502,7 @@ export default async function handler(req, res) {
               x =>
                 Math.abs(
                   x.price -
-                    level.price
+                  level.price
                 ) <= tolerance
             );
 
@@ -510,7 +531,7 @@ export default async function handler(req, res) {
       }
 
       // =========================
-      // BREAKOUT + RETEST
+      // BREAKOUT / RETEST
       // =========================
       function detectBreakoutRetest(
         candles
@@ -522,7 +543,9 @@ export default async function handler(req, res) {
             bullishBreakout: false,
             bearishBreakout: false,
             bullishRetest: false,
-            bearishRetest: false
+            bearishRetest: false,
+            rangeHigh: null,
+            rangeLow: null
           };
         }
 
@@ -591,7 +614,7 @@ export default async function handler(req, res) {
       }
 
       // =========================
-      // BEST PUNCA / ZONE
+      // BEST PUNCA
       // =========================
       function findBestPunca(
         levels,
@@ -633,11 +656,11 @@ export default async function handler(req, res) {
           (a, b) =>
             Math.abs(
               a.price -
-                currentPrice
+              currentPrice
             ) -
             Math.abs(
               b.price -
-                currentPrice
+              currentPrice
             )
         );
 
@@ -647,11 +670,9 @@ export default async function handler(req, res) {
         const distance =
           Math.abs(
             best.price -
-              currentPrice
+            currentPrice
           );
 
-        // Wider than old 80
-        // to allow more setups
         if (
           distance > 120
         ) {
@@ -688,7 +709,7 @@ export default async function handler(req, res) {
         const body =
           Math.abs(
             last.close -
-              last.open
+            last.open
           );
 
         const range =
@@ -812,13 +833,10 @@ export default async function handler(req, res) {
         return {
           direction,
           reason,
-
           bullishEngulfing,
           bearishEngulfing,
-
           bullishRejection,
           bearishRejection,
-
           strongBullish,
           strongBearish
         };
@@ -838,7 +856,9 @@ export default async function handler(req, res) {
             minute: "2-digit",
             hour12: false
           }
-        ).format(new Date());
+        ).format(
+          new Date()
+        );
       }
 
       function getLocalMinutes(
@@ -897,7 +917,9 @@ export default async function handler(req, res) {
         const end =
           endHour * 60;
 
-        if (start < end) {
+        if (
+          start < end
+        ) {
           return (
             minutes >= start &&
             minutes < end
@@ -1047,6 +1069,9 @@ export default async function handler(req, res) {
         };
       }
 
+      // =========================
+      // SESSION
+      // =========================
       const session =
         getForexSessions();
 
@@ -1059,7 +1084,7 @@ export default async function handler(req, res) {
         ].close;
 
       // =========================
-      // DIRECTION
+      // DIRECTIONS
       // =========================
       const h4Direction =
         getDirection(h4);
@@ -1074,7 +1099,7 @@ export default async function handler(req, res) {
         getDirection(m5);
 
       // =========================
-      // STRUCTURE
+      // STRUCTURES
       // =========================
       const h4Structure =
         getStructure(h4);
@@ -1089,30 +1114,22 @@ export default async function handler(req, res) {
       // LEVELS
       // =========================
       const allLevels = [
-        ...findHistoricalLevels(h4),
-        ...findHistoricalLevels(h1),
-        ...findHistoricalLevels(m15)
+        ...findHistoricalLevels(
+          h4
+        ),
+
+        ...findHistoricalLevels(
+          h1
+        ),
+
+        ...findHistoricalLevels(
+          m15
+        )
       ];
 
       const levels =
         mergeLevels(
           allLevels
-        );
-
-      // =========================
-      // CONFIRMATION
-      // =========================
-      const confirmation =
-        getM5Confirmation(
-          m5
-        );
-
-      // =========================
-      // BREAKOUT
-      // =========================
-      const breakout =
-        detectBreakoutRetest(
-          m15
         );
 
       // =========================
@@ -1133,6 +1150,22 @@ export default async function handler(req, res) {
         );
 
       // =========================
+      // BREAKOUT
+      // =========================
+      const breakout =
+        detectBreakoutRetest(
+          m15
+        );
+
+      // =========================
+      // CONFIRMATION
+      // =========================
+      const confirmation =
+        getM5Confirmation(
+          m5
+        );
+
+      // =========================
       // ATR
       // =========================
       const atrH4 =
@@ -1147,28 +1180,33 @@ export default async function handler(req, res) {
       const atrM5 =
         calculateATR(m5);
 
+      const atr =
+        Math.max(
+          atrH1,
+          atrM15,
+          atrM5
+        );
+
       // =========================
       // BASE SCORE
       // =========================
       let buyScore = 0;
       let sellScore = 0;
 
-      // H4
       if (
         h4Direction ===
         "BULLISH"
       ) {
-        buyScore += 20;
+        buyScore += 30;
       }
 
       if (
         h4Direction ===
         "BEARISH"
       ) {
-        sellScore += 20;
+        sellScore += 30;
       }
 
-      // H1
       if (
         h1Direction ===
         "BULLISH"
@@ -1183,46 +1221,28 @@ export default async function handler(req, res) {
         sellScore += 25;
       }
 
-      // M15
       if (
         m15Direction ===
         "BULLISH"
       ) {
-        buyScore += 20;
+        buyScore += 15;
       }
 
       if (
         m15Direction ===
         "BEARISH"
       ) {
-        sellScore += 20;
+        sellScore += 15;
       }
 
-      // M5
-      if (
-        m5Direction ===
-        "BULLISH"
-      ) {
-        buyScore += 10;
-      }
-
-      if (
-        m5Direction ===
-        "BEARISH"
-      ) {
-        sellScore += 10;
-      }
-
-      // PUNCA
       if (buyPunca) {
-        buyScore += 10;
+        buyScore += 15;
       }
 
       if (sellPunca) {
-        sellScore += 10;
+        sellScore += 15;
       }
 
-      // BREAKOUT
       if (
         breakout.bullishBreakout ||
         breakout.bullishRetest
@@ -1237,7 +1257,6 @@ export default async function handler(req, res) {
         sellScore += 10;
       }
 
-      // CONFIRMATION
       if (
         confirmation.direction ===
         "BUY"
@@ -1253,60 +1272,52 @@ export default async function handler(req, res) {
       }
 
       // =========================
-      // SCALPING SCORE
-      // H1 + M15 + M5
+      // SETUP SCORE
       // =========================
       let scalpingBuyScore = 0;
       let scalpingSellScore = 0;
 
+      let intradayBuyScore = 0;
+      let intradaySellScore = 0;
+
+      // -------------------------
+      // SCALPING
+      // H1 → M15 → M5
+      // -------------------------
       if (
         h1Direction ===
+        "BULLISH"
+      ) {
+        scalpingBuyScore += 35;
+      }
+
+      if (
+        h1Direction ===
+        "BEARISH"
+      ) {
+        scalpingSellScore += 35;
+      }
+
+      if (
+        m15Direction ===
         "BULLISH"
       ) {
         scalpingBuyScore += 30;
       }
 
       if (
-        h1Direction ===
+        m15Direction ===
         "BEARISH"
       ) {
         scalpingSellScore += 30;
       }
 
-      if (
-        m15Direction ===
-        "BULLISH"
-      ) {
-        scalpingBuyScore += 25;
-      }
-
-      if (
-        m15Direction ===
-        "BEARISH"
-      ) {
-        scalpingSellScore += 25;
-      }
-
-      if (
-        m5Direction ===
-        "BULLISH"
-      ) {
+      if (buyPunca) {
         scalpingBuyScore += 15;
       }
 
-      if (
-        m5Direction ===
-        "BEARISH"
-      ) {
-        scalpingSellScore += 15;
-      }
-
-      if (buyPunca) {
-        scalpingBuyScore += 10;
-      }
-
       if (sellPunca) {
-        scalpingSellScore += 10;
+        scalpingSellScore += 15;
       }
 
       if (
@@ -1337,13 +1348,10 @@ export default async function handler(req, res) {
         scalpingSellScore += 15;
       }
 
-      // =========================
-      // INTRADAY SCORE
-      // H4 + H1 + M15 + M5
-      // =========================
-      let intradayBuyScore = 0;
-      let intradaySellScore = 0;
-
+      // -------------------------
+      // INTRADAY
+      // H4 → H1 → M15 → M5
+      // -------------------------
       if (
         h4Direction ===
         "BULLISH"
@@ -1386,20 +1394,6 @@ export default async function handler(req, res) {
         intradaySellScore += 20;
       }
 
-      if (
-        m5Direction ===
-        "BULLISH"
-      ) {
-        intradayBuyScore += 10;
-      }
-
-      if (
-        m5Direction ===
-        "BEARISH"
-      ) {
-        intradaySellScore += 10;
-      }
-
       if (buyPunca) {
         intradayBuyScore += 10;
       }
@@ -1437,362 +1431,687 @@ export default async function handler(req, res) {
       }
 
       // =========================
-      // SETUP DIRECTION
+      // SL BUILDER
       // =========================
-      let scalpingDirection =
-        "WAIT";
-
-      if (
-        scalpingBuyScore >= 45 &&
-        scalpingBuyScore >
-          scalpingSellScore
+      function buildTradePlan(
+        direction,
+        type
       ) {
-        scalpingDirection =
-          "BUY";
-      }
-
-      if (
-        scalpingSellScore >= 45 &&
-        scalpingSellScore >
-          scalpingBuyScore
-      ) {
-        scalpingDirection =
-          "SELL";
-      }
-
-      let intradayDirection =
-        "WAIT";
-
-      if (
-        intradayBuyScore >= 50 &&
-        intradayBuyScore >
-          intradaySellScore
-      ) {
-        intradayDirection =
-          "BUY";
-      }
-
-      if (
-        intradaySellScore >= 50 &&
-        intradaySellScore >
-          intradayBuyScore
-      ) {
-        intradayDirection =
-          "SELL";
-      }
-
-      // =========================
-      // SETUP OBJECTS
-      // =========================
-      const pipSize =
-        0.01;
-
-      function buildSetup(
-        type,
-        direction
-      ) {
-        if (
-          direction !== "BUY" &&
-          direction !== "SELL"
-        ) {
-          return {
-            type,
-            status: "WAIT",
-            direction: "WAIT",
-            entry: null,
-            SL: null,
-            TP1: null,
-            TP2: null,
-            score: 0
-          };
-        }
-
         const isScalping =
-          type ===
-          "SCALPING";
+          type === "SCALPING";
 
-        const selectedPunca =
+        const punca =
           direction === "BUY"
             ? buyPunca
             : sellPunca;
 
-        const selectedScore =
-          isScalping
-            ? direction === "BUY"
-              ? scalpingBuyScore
-              : scalpingSellScore
-            : direction === "BUY"
-              ? intradayBuyScore
-              : intradaySellScore;
-
-        const selectedATR =
-          isScalping
-            ? Math.max(
-                atrM15,
-                atrM5
+        const structure =
+          direction === "BUY"
+            ? (
+                isScalping
+                  ? m15Structure
+                  : h1Structure
               )
-            : Math.max(
-                atrH1,
-                atrM15
+            : (
+                isScalping
+                  ? m15Structure
+                  : h1Structure
               );
 
-        const entry =
-          currentPrice;
+        const swingHighs =
+          structure.swingHighs ||
+          [];
 
-        // Dynamic SL
-        const minimumRisk =
+        const swingLows =
+          structure.swingLows ||
+          [];
+
+        let sl = null;
+
+        // =====================
+        // BUY SL
+        // =====================
+        if (
+          direction === "BUY"
+        ) {
+          const candidates =
+            [];
+
+          if (punca) {
+            candidates.push(
+              punca.price
+            );
+          }
+
+          if (
+            swingLows.length
+          ) {
+            candidates.push(
+              Math.min(
+                ...swingLows
+              )
+            );
+          }
+
+          const atrBuffer =
+            isScalping
+              ? Math.max(
+                  atrM5 * 0.35,
+                  0.80
+                )
+              : Math.max(
+                  atrM15 * 0.30,
+                  1.20
+                );
+
+          if (
+            candidates.length
+          ) {
+            const support =
+              Math.min(
+                ...candidates
+              );
+
+            sl =
+              support -
+              atrBuffer;
+          } else {
+            sl =
+              currentPrice -
+              (
+                isScalping
+                  ? Math.max(
+                      atrM5 * 1.5,
+                      2.5
+                    )
+                  : Math.max(
+                      atrM15 * 1.5,
+                      5
+                    )
+              );
+          }
+
+          // SL mesti bawah Entry
+          if (
+            sl >= currentPrice
+          ) {
+            sl =
+              currentPrice -
+              (
+                isScalping
+                  ? Math.max(
+                      atrM5 * 1.5,
+                      2.5
+                    )
+                  : Math.max(
+                      atrM15 * 1.5,
+                      5
+                    )
+              );
+          }
+        }
+
+        // =====================
+        // SELL SL
+        // =====================
+        if (
+          direction === "SELL"
+        ) {
+          const candidates =
+            [];
+
+          if (punca) {
+            candidates.push(
+              punca.price
+            );
+          }
+
+          if (
+            swingHighs.length
+          ) {
+            candidates.push(
+              Math.max(
+                ...swingHighs
+              )
+            );
+          }
+
+          const atrBuffer =
+            isScalping
+              ? Math.max(
+                  atrM5 * 0.35,
+                  0.80
+                )
+              : Math.max(
+                  atrM15 * 0.30,
+                  1.20
+                );
+
+          if (
+            candidates.length
+          ) {
+            const resistance =
+              Math.max(
+                ...candidates
+              );
+
+            sl =
+              resistance +
+              atrBuffer;
+          } else {
+            sl =
+              currentPrice +
+              (
+                isScalping
+                  ? Math.max(
+                      atrM5 * 1.5,
+                      2.5
+                    )
+                  : Math.max(
+                      atrM15 * 1.5,
+                      5
+                    )
+              );
+          }
+
+          // SL mesti atas Entry
+          if (
+            sl <= currentPrice
+          ) {
+            sl =
+              currentPrice +
+              (
+                isScalping
+                  ? Math.max(
+                      atrM5 * 1.5,
+                      2.5
+                    )
+                  : Math.max(
+                      atrM15 * 1.5,
+                      5
+                    )
+              );
+          }
+        }
+
+        const risk =
+          Math.abs(
+            sl -
+            currentPrice
+          );
+
+        // =====================
+        // VALID SL
+        // =====================
+        const minRisk =
           isScalping
-            ? 35 * pipSize
-            : 80 * pipSize;
+            ? 1.5
+            : 3;
 
-        const atrRisk =
-          selectedATR > 0
-            ? selectedATR *
-              (isScalping
-                ? 0.7
-                : 0.9)
-            : minimumRisk;
+        const maxRisk =
+          isScalping
+            ? Math.max(
+                atrM15 * 2.5,
+                8
+              )
+            : Math.max(
+                atrH1 * 2.5,
+                20
+              );
 
-        const zoneRisk =
-          selectedPunca
-            ? Math.abs(
-                entry -
-                  selectedPunca.price
-              ) * 0.5
-            : 0;
+        if (
+          !Number.isFinite(risk) ||
+          risk <= 0
+        ) {
+          return null;
+        }
 
-        const risk = Math.max(
-          minimumRisk,
-          atrRisk,
-          zoneRisk
-        );
+        // Kalau SL terlalu jauh,
+        // setup tidak dikeluarkan.
+        if (
+          risk > maxRisk
+        ) {
+          return null;
+        }
 
-        let sl;
+        // Minimum SL distance
+        if (
+          risk < minRisk
+        ) {
+          if (
+            direction ===
+            "BUY"
+          ) {
+            sl =
+              currentPrice -
+              minRisk;
+          } else {
+            sl =
+              currentPrice +
+              minRisk;
+          }
+        }
+
+        const finalRisk =
+          Math.abs(
+            sl -
+            currentPrice
+          );
+
+        // =====================
+        // TP PIPS
+        // XAUUSD 0.01 = 1 pip
+        // =====================
+        const tp1Pips =
+          isScalping
+            ? 60
+            : 150;
+
+        const tp2Pips =
+          isScalping
+            ? 120
+            : 230;
+
+        const tp1Distance =
+          tp1Pips * 0.01;
+
+        const tp2Distance =
+          tp2Pips * 0.01;
+
         let tp1;
         let tp2;
 
         if (
-          direction === "BUY"
+          direction ===
+          "BUY"
         ) {
-          sl =
-            entry - risk;
-
           tp1 =
-            entry +
-            (isScalping
-              ? 60 * pipSize
-              : 150 * pipSize);
+            currentPrice +
+            tp1Distance;
 
           tp2 =
-            entry +
-            (isScalping
-              ? 120 * pipSize
-              : 230 * pipSize);
+            currentPrice +
+            tp2Distance;
         } else {
-          sl =
-            entry + risk;
-
           tp1 =
-            entry -
-            (isScalping
-              ? 60 * pipSize
-              : 150 * pipSize);
+            currentPrice -
+            tp1Distance;
 
           tp2 =
-            entry -
-            (isScalping
-              ? 120 * pipSize
-              : 230 * pipSize);
+            currentPrice -
+            tp2Distance;
+        }
+
+        return {
+          direction,
+          entry:
+            roundPrice(
+              currentPrice
+            ),
+
+          sl:
+            roundPrice(sl),
+
+          tp1:
+            roundPrice(tp1),
+
+          tp2:
+            roundPrice(tp2),
+
+          risk:
+            roundPrice(
+              finalRisk
+            ),
+
+          tp1Pips,
+          tp2Pips
+        };
+      }
+
+      // =========================
+      // BUILD SETUP
+      // =========================
+      function buildSetup(
+        type,
+        direction,
+        score
+      ) {
+        const plan =
+          buildTradePlan(
+            direction,
+            type
+          );
+
+        if (!plan) {
+          return null;
         }
 
         const confirmed =
           confirmation.direction ===
           direction;
 
+        const status =
+          confirmed
+            ? "SIGNAL"
+            : "SETUP";
+
+        let reason;
+
+        if (
+          confirmed
+        ) {
+          reason =
+            confirmation.reason;
+        } else {
+          reason =
+            direction === "SELL"
+              ? "Bearish structure detected. Waiting for M5 confirmation."
+              : "Bullish structure detected. Waiting for M5 confirmation.";
+        }
+
         return {
           type,
+          signalType: type,
 
-          status:
-            confirmed
-              ? "SIGNAL"
-              : "SETUP",
+          status,
 
           direction,
 
+          score,
+
           entry:
-            roundPrice(entry),
+            plan.entry,
 
-          SL:
-            roundPrice(sl),
+          sl:
+            plan.sl,
 
-          TP1:
-            roundPrice(tp1),
+          tp1:
+            plan.tp1,
 
-          TP2:
-            roundPrice(tp2),
+          tp2:
+            plan.tp2,
 
           risk:
-            roundPrice(risk),
+            plan.risk,
 
-          score:
-            selectedScore,
+          tp1Pips:
+            plan.tp1Pips,
+
+          tp2Pips:
+            plan.tp2Pips,
+
+          reason,
 
           confirmation:
             confirmed,
 
           confirmationReason:
-            confirmation.reason,
-
-          punca:
-            selectedPunca,
-
-          timeframe:
-            isScalping
-              ? "H1 → M15 → M5"
-              : "H4 → H1 → M15 → M5",
-
-          target:
-            isScalping
-              ? "60 / 120 pips"
-              : "150 / 230 pips"
+            confirmation.reason
         };
       }
 
       // =========================
-      // BUILD SETUPS
+      // DETERMINE SETUPS
       // =========================
-      const scalpingSetup =
-        buildSetup(
-          "SCALPING",
-          scalpingDirection
-        );
+      let scalping = null;
+      let intraday = null;
 
-      const intradaySetup =
-        buildSetup(
-          "INTRADAY",
-          intradayDirection
-        );
-
-      // =========================
-      // PRIMARY SIGNAL
-      // =========================
-      let signal =
-        "WAIT";
-
-      let signalType =
-        "NONE";
-
-      let primarySetup =
-        null;
-
-      const scalpingSignal =
-        scalpingSetup.status ===
-        "SIGNAL";
-
-      const intradaySignal =
-        intradaySetup.status ===
-        "SIGNAL";
-
+      // SCALPING BUY
       if (
-        scalpingSignal &&
-        intradaySignal
+        scalpingBuyScore >= 45 &&
+        h1Direction !==
+          "BEARISH" &&
+        m15Direction !==
+          "BEARISH"
       ) {
-        if (
-          scalpingSetup.score >=
-          intradaySetup.score
-        ) {
-          primarySetup =
-            scalpingSetup;
-        } else {
-          primarySetup =
-            intradaySetup;
-        }
-      } else if (
-        scalpingSignal
-      ) {
-        primarySetup =
-          scalpingSetup;
-      } else if (
-        intradaySignal
-      ) {
-        primarySetup =
-          intradaySetup;
+        scalping =
+          buildSetup(
+            "SCALPING",
+            "BUY",
+            scalpingBuyScore
+          );
       }
 
-      if (primarySetup) {
+      // SCALPING SELL
+      if (
+        scalpingSellScore >= 45 &&
+        h1Direction !==
+          "BULLISH" &&
+        m15Direction !==
+          "BULLISH" &&
+        scalpingSellScore >
+          scalpingBuyScore
+      ) {
+        scalping =
+          buildSetup(
+            "SCALPING",
+            "SELL",
+            scalpingSellScore
+          );
+      }
+
+      // INTRADAY BUY
+      if (
+        intradayBuyScore >= 50 &&
+        h4Direction !==
+          "BEARISH" &&
+        h1Direction !==
+          "BEARISH" &&
+        m15Direction !==
+          "BEARISH"
+      ) {
+        intraday =
+          buildSetup(
+            "INTRADAY",
+            "BUY",
+            intradayBuyScore
+          );
+      }
+
+      // INTRADAY SELL
+      if (
+        intradaySellScore >= 50 &&
+        h4Direction !==
+          "BULLISH" &&
+        h1Direction !==
+          "BULLISH" &&
+        intradaySellScore >
+          intradayBuyScore
+      ) {
+        intraday =
+          buildSetup(
+            "INTRADAY",
+            "SELL",
+            intradaySellScore
+          );
+      }
+
+      // =========================
+      // PRIMARY SETUP
+      // =========================
+      const availableSetups =
+        [
+          scalping,
+          intraday
+        ].filter(Boolean);
+
+      const confirmedSetups =
+        availableSetups.filter(
+          setup =>
+            setup.status ===
+            "SIGNAL"
+        );
+
+      const setupCandidates =
+        confirmedSetups.length
+          ? confirmedSetups
+          : availableSetups;
+
+      setupCandidates.sort(
+        (a, b) =>
+          Number(b.score || 0) -
+          Number(a.score || 0)
+      );
+
+      const primarySetup =
+        setupCandidates[0] ||
+        null;
+
+      // =========================
+      // MAIN SIGNAL
+      // =========================
+      let signal = "WAIT";
+      let entry = null;
+      let sl = null;
+      let tp1 = null;
+      let tp2 = null;
+      let punca = null;
+      let risk = null;
+
+      if (
+        primarySetup
+      ) {
         signal =
           primarySetup.direction;
 
-        signalType =
-          primarySetup.type;
+        entry =
+          primarySetup.entry;
+
+        sl =
+          primarySetup.sl;
+
+        tp1 =
+          primarySetup.tp1;
+
+        tp2 =
+          primarySetup.tp2;
+
+        risk =
+          primarySetup.risk;
+
+        punca =
+          primarySetup.direction ===
+          "BUY"
+            ? buyPunca
+            : sellPunca;
+      } else {
+
+        // Fallback hanya jika
+        // memang ada confirmation
+        const confirmedDirection =
+          confirmation.direction;
+
+        if (
+          confirmedDirection ===
+          "BUY" &&
+          buyScore >= 60
+        ) {
+          const plan =
+            buildTradePlan(
+              "BUY",
+              "INTRADAY"
+            );
+
+          if (plan) {
+            signal = "BUY";
+            entry =
+              plan.entry;
+            sl =
+              plan.sl;
+            tp1 =
+              plan.tp1;
+            tp2 =
+              plan.tp2;
+            risk =
+              plan.risk;
+            punca =
+              buyPunca;
+          }
+        }
+
+        if (
+          confirmedDirection ===
+          "SELL" &&
+          sellScore >= 60
+        ) {
+          const plan =
+            buildTradePlan(
+              "SELL",
+              "INTRADAY"
+            );
+
+          if (plan) {
+            signal = "SELL";
+            entry =
+              plan.entry;
+            sl =
+              plan.sl;
+            tp1 =
+              plan.tp1;
+            tp2 =
+              plan.tp2;
+            risk =
+              plan.risk;
+            punca =
+              sellPunca;
+          }
+        }
       }
 
       // =========================
-      // FALLBACK SETUP
+      // WAIT REASON
       // =========================
+      let waitReason =
+        null;
+
       if (
         signal === "WAIT"
       ) {
         if (
-          scalpingSetup.status ===
-          "SETUP"
+          sellScore >
+          buyScore
         ) {
-          primarySetup =
-            scalpingSetup;
+          waitReason =
+            "Bearish bias detected but no valid trade plan.";
         } else if (
-          intradaySetup.status ===
-          "SETUP"
+          buyScore >
+          sellScore
         ) {
-          primarySetup =
-            intradaySetup;
+          waitReason =
+            "Bullish bias detected but no valid trade plan.";
+        } else {
+          waitReason =
+            "No valid scalping or intraday setup.";
         }
-      }
-
-      // =========================
-      // ROUND PRICE
-      // =========================
-      function roundPrice(
-        value
-      ) {
-        if (
-          value === null ||
-          value === undefined
-        ) {
-          return null;
-        }
-
-        return Number(
-          value.toFixed(2)
-        );
       }
 
       // =========================
       // RESULT
       // =========================
       const result = {
-        status:
-          "success",
+        status: "success",
 
-        symbol:
-          "XAUUSD",
+        symbol: "XAUUSD",
 
         signal,
 
-        signalType,
+        signalStatus:
+          primarySetup
+            ? primarySetup.status
+            : "WAIT",
+
+        signalType:
+          primarySetup
+            ? primarySetup.type
+            : null,
 
         currentPrice:
           roundPrice(
             currentPrice
           ),
 
-        // =========================
-        // SESSION
-        // =========================
         session,
 
-        // =========================
-        // DIRECTION
-        // =========================
         direction: {
           H4:
             h4Direction,
@@ -1807,9 +2126,6 @@ export default async function handler(req, res) {
             m5Direction
         },
 
-        // =========================
-        // STRUCTURE
-        // =========================
         structure: {
           H4:
             h4Structure,
@@ -1821,9 +2137,6 @@ export default async function handler(req, res) {
             m15Structure
         },
 
-        // =========================
-        // BREAKOUT
-        // =========================
         breakout: {
           bullishBreakout:
             breakout.bullishBreakout,
@@ -1848,21 +2161,10 @@ export default async function handler(req, res) {
             )
         },
 
-        // =========================
-        // CONFIRMATION
-        // =========================
         confirmation,
 
-        // =========================
-        // PUNCA
-        // =========================
-        punca:
-          primarySetup?.punca ||
-          null,
+        punca,
 
-        // =========================
-        // ALL SCORES
-        // =========================
         scores: {
           BUY:
             buyScore,
@@ -1870,57 +2172,78 @@ export default async function handler(req, res) {
           SELL:
             sellScore,
 
-          SCALPING_BUY:
+          scalpingBuy:
             scalpingBuyScore,
 
-          SCALPING_SELL:
+          scalpingSell:
             scalpingSellScore,
 
-          INTRADAY_BUY:
+          intradayBuy:
             intradayBuyScore,
 
-          INTRADAY_SELL:
+          intradaySell:
             intradaySellScore
         },
 
-        // =========================
-        // PRIMARY ENTRY
-        // =========================
         entry:
-          primarySetup?.entry ||
-          null,
+          roundPrice(entry),
+
+        sl:
+          roundPrice(sl),
 
         SL:
-          primarySetup?.SL ||
-          null,
+          roundPrice(sl),
+
+        tp1:
+          roundPrice(tp1),
 
         TP1:
-          primarySetup?.TP1 ||
-          null,
+          roundPrice(tp1),
+
+        tp2:
+          roundPrice(tp2),
 
         TP2:
-          primarySetup?.TP2 ||
-          null,
+          roundPrice(tp2),
 
         risk:
-          primarySetup?.risk ||
-          null,
+          roundPrice(risk),
 
-        // =========================
+        maxAllowedRisk:
+          primarySetup
+            ? primarySetup.type ===
+              "SCALPING"
+              ? roundPrice(
+                  Math.max(
+                    atrM15 * 2.5,
+                    8
+                  )
+                )
+              : roundPrice(
+                  Math.max(
+                    atrH1 * 2.5,
+                    20
+                  )
+                )
+            : null,
+
+        waitReason,
+
+        // =====================
         // SCALPING
-        // =========================
-        scalping:
-          scalpingSetup,
+        // =====================
+        scalping,
 
-        // =========================
+        // =====================
         // INTRADAY
-        // =========================
-        intraday:
-          intradaySetup,
+        // =====================
+        intraday,
 
-        // =========================
-        // ATR
-        // =========================
+        // =====================
+        // PRIMARY SETUP
+        // =====================
+        primarySetup,
+
         ATR: {
           H4:
             roundPrice(
@@ -1943,9 +2266,6 @@ export default async function handler(req, res) {
             )
         },
 
-        // =========================
-        // CANDLES
-        // =========================
         candles: {
           H4:
             h4.length,
@@ -1960,9 +2280,6 @@ export default async function handler(req, res) {
             m5.length
         },
 
-        // =========================
-        // ENGINE
-        // =========================
         engine: {
           timeframes: [
             "H4",
@@ -1971,17 +2288,6 @@ export default async function handler(req, res) {
             "M5"
           ],
 
-          setups: [
-            "SCALPING",
-            "INTRADAY"
-          ],
-
-          scalping:
-            "H1 + M15 + M5",
-
-          intraday:
-            "H4 + H1 + M15 + M5",
-
           sessions: [
             "ASIA / TOKYO",
             "LONDON",
@@ -1989,31 +2295,29 @@ export default async function handler(req, res) {
             "LONDON + NEW YORK OVERLAP"
           ],
 
-          data:
-            "OHLC",
+          data: "OHLC",
 
           method:
-            "Market Structure + S/R + Breakout Retest + M5 Confirmation + Scalping + Intraday Setup Engine"
+            "Market Structure + S/R + Breakout Retest + Scalping + Intraday Setup Engine + M5 Confirmation"
         },
 
-        cached:
-          false,
+        cached: false,
 
         timestamp:
           new Date().toISOString()
       };
 
       // =========================
-      // SAVE CACHE
+      // CACHE
       // =========================
       globalThis.sinnciAnalysisCache = {
         data: result,
         time: Date.now()
       };
 
-      return res.status(200).json(
-        result
-      );
+      return res
+        .status(200)
+        .json(result);
 
     })();
 
@@ -2025,6 +2329,7 @@ export default async function handler(req, res) {
     }
 
   } catch (error) {
+
     console.error(
       "SINNCI ANALYZE ERROR:",
       error
@@ -2037,4 +2342,4 @@ export default async function handler(req, res) {
         "Analysis failed"
     });
   }
-    }
+          }

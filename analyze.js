@@ -52,8 +52,7 @@ export default async function handler(req, res) {
         symbol: PRICE_SYMBOL,
         signal: "WAIT",
         signalStatus: "WAIT",
-        waitReason:
-          "Analysis is already running."
+        waitReason: "Analysis is already running."
       });
     }
 
@@ -979,82 +978,170 @@ export default async function handler(req, res) {
       const scalping =
         type === "SCALPING";
 
-      // Higher timeframe bias
+      // =========================
+      // SCALPING
+      // More sensitive
+      // =========================
+
+      if (
+        scalping
+      ) {
+        // H1 bias
+        if (
+          direction === "SELL" &&
+          dirH1 === "BEARISH"
+        ) {
+          score += 25;
+        }
+
+        if (
+          direction === "BUY" &&
+          dirH1 === "BULLISH"
+        ) {
+          score += 25;
+        }
+
+        // M15 direction
+        if (
+          direction === "SELL" &&
+          dirM15 === "BEARISH"
+        ) {
+          score += 25;
+        }
+
+        if (
+          direction === "BUY" &&
+          dirM15 === "BULLISH"
+        ) {
+          score += 25;
+        }
+
+        // M5 direction
+        if (
+          direction === "SELL" &&
+          dirM5 === "BEARISH"
+        ) {
+          score += 10;
+        }
+
+        if (
+          direction === "BUY" &&
+          dirM5 === "BULLISH"
+        ) {
+          score += 10;
+        }
+
+        // M15 structure
+        if (
+          direction === "SELL" &&
+          structureM15.direction ===
+            "BEARISH"
+        ) {
+          score += 10;
+        }
+
+        if (
+          direction === "BUY" &&
+          structureM15.direction ===
+            "BULLISH"
+        ) {
+          score += 10;
+        }
+
+        // Breakout / retest
+        if (
+          direction === "SELL" &&
+          (
+            breakout.bearishBreakout ||
+            breakout.bearishRetest
+          )
+        ) {
+          score += 10;
+        }
+
+        if (
+          direction === "BUY" &&
+          (
+            breakout.bullishBreakout ||
+            breakout.bullishRetest
+          )
+        ) {
+          score += 10;
+        }
+
+        // M5 confirmation bonus
+        if (
+          direction === "SELL" &&
+          m5Confirmation.direction ===
+            "SELL"
+        ) {
+          score += 15;
+        }
+
+        if (
+          direction === "BUY" &&
+          m5Confirmation.direction ===
+            "BUY"
+        ) {
+          score += 15;
+        }
+
+        return Math.min(
+          score,
+          100
+        );
+      }
+
+      // =========================
+      // INTRADAY
+      // More selective
+      // =========================
+
       if (
         direction === "SELL"
       ) {
-        if (scalping) {
-          if (
-            dirH1 ===
-            "BEARISH"
-          ) {
-            score += 30;
-          }
-
-          if (
-            dirM15 ===
-            "BEARISH"
-          ) {
-            score += 25;
-          }
-        } else {
-          if (
-            dirH4 ===
-            "BEARISH"
-          ) {
-            score += 30;
-          }
-
-          if (
-            dirH1 ===
-            "BEARISH"
-          ) {
-            score += 25;
-          }
-
-          if (
-            dirM15 ===
-            "BEARISH"
-          ) {
-            score += 15;
-          }
+        if (
+          dirH4 ===
+          "BEARISH"
+        ) {
+          score += 30;
         }
-      } else {
-        if (scalping) {
-          if (
-            dirH1 ===
-            "BULLISH"
-          ) {
-            score += 30;
-          }
 
-          if (
-            dirM15 ===
-            "BULLISH"
-          ) {
-            score += 25;
-          }
-        } else {
-          if (
-            dirH4 ===
-            "BULLISH"
-          ) {
-            score += 30;
-          }
+        if (
+          dirH1 ===
+          "BEARISH"
+        ) {
+          score += 25;
+        }
 
-          if (
-            dirH1 ===
-            "BULLISH"
-          ) {
-            score += 25;
-          }
+        if (
+          dirM15 ===
+          "BEARISH"
+        ) {
+          score += 15;
+        }
+      }
 
-          if (
-            dirM15 ===
-            "BULLISH"
-          ) {
-            score += 15;
-          }
+      else {
+        if (
+          dirH4 ===
+          "BULLISH"
+        ) {
+          score += 30;
+        }
+
+        if (
+          dirH1 ===
+          "BULLISH"
+        ) {
+          score += 25;
+        }
+
+        if (
+          dirM15 ===
+          "BULLISH"
+        ) {
+          score += 15;
         }
       }
 
@@ -1146,7 +1233,6 @@ export default async function handler(req, res) {
     // =========================
     // SL SELECTION
     // SAME SNR LOGIC
-    // SCALPING + INTRADAY
     // M5 + M15
     // MAX 600 POINTS
     // =========================
@@ -1194,42 +1280,32 @@ export default async function handler(req, res) {
           return null;
         }
 
-        let selected =
-          candidates[0];
-
-        // Avoid level terlalu dekat
-        if (
-          selected - entry <
-            Math.max(
-              atrM15 * 0.25,
-              0.50
-            ) &&
-          candidates.length > 1
+        // Cari SNR paling dekat
+        // yang masih valid
+        for (
+          const level of candidates
         ) {
-          selected =
-            candidates[1];
+          const sl =
+            round(
+              level +
+                buffer
+            );
+
+          const distance =
+            priceToPoints(
+              sl - entry
+            );
+
+          if (
+            distance >= 10 &&
+            distance <=
+              MAX_SL_POINTS
+          ) {
+            return sl;
+          }
         }
 
-        const sl =
-          round(
-            selected +
-              buffer
-          );
-
-        const distance =
-          priceToPoints(
-            sl - entry
-          );
-
-        // HARD MAX 600 POINTS
-        if (
-          distance >
-          MAX_SL_POINTS
-        ) {
-          return null;
-        }
-
-        return sl;
+        return null;
       }
 
       // =========================
@@ -1257,42 +1333,32 @@ export default async function handler(req, res) {
         return null;
       }
 
-      let selected =
-        candidates[0];
-
-      // Avoid level terlalu dekat
-      if (
-        entry - selected <
-          Math.max(
-            atrM15 * 0.25,
-            0.50
-          ) &&
-        candidates.length > 1
+      // Cari SNR paling dekat
+      // yang masih valid
+      for (
+        const level of candidates
       ) {
-        selected =
-          candidates[1];
+        const sl =
+          round(
+            level -
+              buffer
+          );
+
+        const distance =
+          priceToPoints(
+            entry - sl
+          );
+
+        if (
+          distance >= 10 &&
+          distance <=
+            MAX_SL_POINTS
+        ) {
+          return sl;
+        }
       }
 
-      const sl =
-        round(
-          selected -
-            buffer
-        );
-
-      const distance =
-        priceToPoints(
-          entry - sl
-        );
-
-      // HARD MAX 600 POINTS
-      if (
-        distance >
-        MAX_SL_POINTS
-      ) {
-        return null;
-      }
-
-      return sl;
+      return null;
     }
 
     // =========================
@@ -1310,9 +1376,23 @@ export default async function handler(req, res) {
       const MAX_SL_POINTS =
         600;
 
-      // Minimum score
+      // =========================
+      // DIFFERENT THRESHOLD
+      // =========================
+
+      // Scalping lebih mudah
+      // dapat peluang.
+      //
+      // Intraday lebih ketat.
+
+      const minimumScore =
+        isScalping
+          ? 45
+          : 55;
+
       if (
-        score < 55
+        score <
+        minimumScore
       ) {
         return null;
       }
@@ -1322,8 +1402,7 @@ export default async function handler(req, res) {
           currentPrice
         );
 
-      // SAME SNR SL
-      // FOR BOTH MODES
+      // SNR M5/M15
       const sl =
         chooseStopLoss(
           direction,
@@ -1339,11 +1418,8 @@ export default async function handler(req, res) {
           sl - entry
         );
 
-      const minRisk =
-        10;
-
       if (
-        risk < minRisk ||
+        risk < 10 ||
         risk >
           MAX_SL_POINTS
       ) {
@@ -1353,14 +1429,6 @@ export default async function handler(req, res) {
       // =========================
       // TP SETTINGS
       // =========================
-
-      // SCALPING
-      // TP1 = 600 points
-      // TP2 = 1200 points
-
-      // INTRADAY
-      // TP1 = 1600 points
-      // TP2 = 2500 points
 
       const tp1Points =
         isScalping
@@ -1376,7 +1444,7 @@ export default async function handler(req, res) {
       let tp2;
 
       // =========================
-      // SELL TP
+      // SELL
       // =========================
 
       if (
@@ -1400,7 +1468,7 @@ export default async function handler(req, res) {
       }
 
       // =========================
-      // BUY TP
+      // BUY
       // =========================
 
       else {
@@ -1421,16 +1489,45 @@ export default async function handler(req, res) {
           );
       }
 
+      // =========================
+      // STATUS
+      // =========================
+
+      let status =
+        "SIGNAL";
+
+      let confirmationRequired =
+        false;
+
+      // INTRADAY wajib M5 confirmation
+      if (
+        !isScalping
+      ) {
+        confirmationRequired =
+          true;
+
+        if (
+          m5Confirmation.direction !==
+          direction
+        ) {
+          status =
+            "SETUP";
+        }
+      }
+
+      // SCALPING:
+      // tak wajib confirmation
+      // supaya signal lebih kerap.
+      //
+      // Kalau confirmation ada,
+      // signal lebih kuat.
+
       return {
         direction,
 
         type,
 
-        status:
-          m5Confirmation.direction ===
-          direction
-            ? "SIGNAL"
-            : "SETUP",
+        status,
 
         entry,
 
@@ -1450,7 +1547,6 @@ export default async function handler(req, res) {
 
         tp2Points,
 
-        // Compatibility
         tp1Pips:
           tp1Points / 10,
 
@@ -1461,11 +1557,13 @@ export default async function handler(req, res) {
           m5Confirmation.direction ===
           direction,
 
+        confirmationRequired,
+
         confirmationReason:
           m5Confirmation.direction ===
           direction
             ? m5Confirmation.reason
-            : "WAITING_M5_CONFIRMATION"
+            : "NO_M5_CONFIRMATION"
       };
     }
 
@@ -1530,21 +1628,24 @@ export default async function handler(req, res) {
       let reason =
         "";
 
+      // =========================
+      // REASON
+      // =========================
+
       if (
-        direction ===
-        "SELL"
+        direction === "SELL"
       ) {
         reason =
           isScalping
-            ? "H1 bearish bias + M15 bearish structure"
-            : "H4/H1 bearish bias + M15 bearish structure";
+            ? "H1 bearish + M15 bearish + M5 momentum"
+            : "H4/H1 bearish + M15 bearish";
       }
 
       else {
         reason =
           isScalping
-            ? "H1 bullish bias + M15 bullish structure"
-            : "H4/H1 bullish bias + M15 bullish structure";
+            ? "H1 bullish + M15 bullish + M5 momentum"
+            : "H4/H1 bullish + M15 bullish";
       }
 
       if (
@@ -1569,6 +1670,13 @@ export default async function handler(req, res) {
       ) {
         reason +=
           ` + M5 ${m5Confirmation.reason}`;
+      }
+
+      else if (
+        isScalping
+      ) {
+        reason +=
+          " + M5 momentum";
       }
 
       else {
@@ -1613,6 +1721,7 @@ export default async function handler(req, res) {
         Boolean
       );
 
+    // Utamakan SIGNAL
     const confirmed =
       candidates
         .filter(
@@ -1707,13 +1816,17 @@ export default async function handler(req, res) {
     if (
       !primarySetup
     ) {
-      if (
+      const highestScore =
         Math.max(
           scalpingBuy,
           scalpingSell,
           intradayBuy,
           intradaySell
-        ) < 55
+        );
+
+      if (
+        highestScore <
+        45
       ) {
         waitReason =
           "Market structure is not strong enough for a valid setup.";
@@ -1721,7 +1834,7 @@ export default async function handler(req, res) {
 
       else {
         waitReason =
-          "Bias detected but no valid trade plan. SNR SL is too far.";
+          "Bias detected but no valid SNR setup within 600 points.";
       }
     }
 
@@ -1730,7 +1843,7 @@ export default async function handler(req, res) {
       "SETUP"
     ) {
       waitReason =
-        "Setup detected. Waiting for M5 confirmation.";
+        "Intraday setup detected. Waiting for M5 confirmation.";
     }
 
     // =========================
@@ -2099,23 +2212,41 @@ export default async function handler(req, res) {
           "OHLC",
 
         method:
-          "Market Structure + S/R + Breakout Retest + Scalping + Intraday Setup Engine + M5 Confirmation",
+          "Market Structure + S/R + Breakout Retest + Aggressive Scalping + Selective Intraday",
 
         riskRules: {
           pointSize:
             "0.01 price = 1 point",
 
-          scalpingSL:
-            "SNR M5/M15, maximum 600 points",
+          scalpingMode:
+            "AGGRESSIVE",
 
-          intradaySL:
+          scalpingMinimumScore:
+            45,
+
+          scalpingSL:
             "SNR M5/M15, maximum 600 points",
 
           scalpingTP:
             "TP1 600 points / TP2 1200 points",
 
+          scalpingConfirmation:
+            "M5 confirmation is preferred but not mandatory",
+
+          intradayMode:
+            "SELECTIVE",
+
+          intradayMinimumScore:
+            55,
+
+          intradaySL:
+            "SNR M5/M15, maximum 600 points",
+
           intradayTP:
-            "TP1 1600 points / TP2 2500 points"
+            "TP1 1600 points / TP2 2500 points",
+
+          intradayConfirmation:
+            "M5 confirmation required"
         }
       },
 
@@ -2166,4 +2297,4 @@ export default async function handler(req, res) {
         false;
     }
   }
-        }
+             }

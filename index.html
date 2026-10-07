@@ -75,7 +75,7 @@ body::after{
 
 
 /* =========================================================
-   SINNCI AI — 7 SECOND CINEMATIC INTRO
+   SINNCI AI — INTRO
    ========================================================= */
 
 #sinnciIntro{
@@ -87,21 +87,9 @@ body::after{
   justify-content:center;
   overflow:hidden;
   background:
-    radial-gradient(
-      circle at 50% 50%,
-      rgba(216,180,90,.12),
-      transparent 28%
-    ),
-    radial-gradient(
-      circle at 10% 50%,
-      rgba(255,82,104,.09),
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 90% 50%,
-      rgba(32,217,139,.07),
-      transparent 30%
-    ),
+    radial-gradient(circle at 50% 50%,rgba(216,180,90,.12),transparent 28%),
+    radial-gradient(circle at 10% 50%,rgba(255,82,104,.09),transparent 30%),
+    radial-gradient(circle at 90% 50%,rgba(32,217,139,.07),transparent 30%),
     #030405;
   animation:sinnciIntroExit .7s ease 6.3s forwards;
 }
@@ -129,26 +117,11 @@ body::after{
   inset:0;
   opacity:.13;
   background-image:
-    linear-gradient(
-      rgba(255,255,255,.05) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      rgba(255,255,255,.05) 1px,
-      transparent 1px
-    );
+    linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
   background-size:45px 45px;
-  mask-image:
-    radial-gradient(
-      circle,
-      black,
-      transparent 75%
-    );
+  mask-image:radial-gradient(circle,black,transparent 75%);
 }
-
-
-/* cinematic particles */
 
 .intro-particles{
   position:absolute;
@@ -167,56 +140,14 @@ body::after{
   animation:introParticle 4s linear infinite;
 }
 
-.intro-particles span:nth-child(1){
-  left:12%;
-  top:30%;
-  animation-delay:.2s;
-}
-
-.intro-particles span:nth-child(2){
-  left:21%;
-  top:70%;
-  animation-delay:1s;
-}
-
-.intro-particles span:nth-child(3){
-  left:34%;
-  top:22%;
-  animation-delay:1.5s;
-}
-
-.intro-particles span:nth-child(4){
-  left:48%;
-  top:78%;
-  animation-delay:.7s;
-}
-
-.intro-particles span:nth-child(5){
-  left:61%;
-  top:24%;
-  animation-delay:1.8s;
-}
-
-.intro-particles span:nth-child(6){
-  left:73%;
-  top:68%;
-  animation-delay:.4s;
-}
-
-.intro-particles span:nth-child(7){
-  left:84%;
-  top:34%;
-  animation-delay:1.2s;
-}
-
-.intro-particles span:nth-child(8){
-  left:91%;
-  top:76%;
-  animation-delay:2s;
-}
-
-
-/* center */
+.intro-particles span:nth-child(1){left:12%;top:30%;animation-delay:.2s}
+.intro-particles span:nth-child(2){left:21%;top:70%;animation-delay:1s}
+.intro-particles span:nth-child(3){left:34%;top:22%;animation-delay:1.5s}
+.intro-particles span:nth-child(4){left:48%;top:78%;animation-delay:.7s}
+.intro-particles span:nth-child(5){left:61%;top:24%;animation-delay:1.8s}
+.intro-particles span:nth-child(6){left:73%;top:68%;animation-delay:.4s}
+.intro-particles span:nth-child(7){left:84%;top:34%;animation-delay:1.2s}
+.intro-particles span:nth-child(8){left:91%;top:76%;animation-delay:2s}
 
 .intro-center{
   position:relative;
@@ -228,18 +159,13 @@ body::after{
   justify-content:center;
 }
 
-
-/* combined realistic bull + bear image */
-
 .intro-beasts{
   position:absolute;
   left:50%;
   top:50%;
   width:min(1100px,110vw);
   max-width:none;
-  transform:
-    translate(-50%,-50%)
-    scale(.72);
+  transform:translate(-50%,-50%) scale(.72);
   opacity:0;
   filter:
     contrast(1.18)
@@ -250,9 +176,6 @@ body::after{
   pointer-events:none;
   animation:introBeasts 1.4s cubic-bezier(.16,.8,.25,1) .9s forwards;
 }
-
-
-/* dark cinematic overlay on animals */
 
 .intro-beast-overlay{
   position:absolute;
@@ -267,16 +190,11 @@ body::after{
   pointer-events:none;
 }
 
-
-/* VS */
-
 .intro-vs{
   position:absolute;
   top:50%;
   left:50%;
-  transform:
-    translate(-50%,-50%)
-    scale(.3);
+  transform:translate(-50%,-50%) scale(.3);
   font-size:13px;
   font-weight:900;
   letter-spacing:5px;
@@ -285,9 +203,6 @@ body::after{
   text-shadow:0 0 15px rgba(255,255,255,.15);
   animation:introVS .8s ease 1.55s forwards;
 }
-
-
-/* welcome */
 
 .intro-welcome{
   position:absolute;
@@ -313,9 +228,7 @@ body::after{
 .intro-welcome span{
   display:inline-block;
   opacity:0;
-  transform:
-    translateX(-25px)
-    translateY(-8px);
+  transform:translateX(-25px) translateY(-8px);
   animation:introWelcomeLetter .42s cubic-bezier(.16,.8,.25,1) forwards;
 }
 
@@ -335,17 +248,14 @@ body::after{
 .intro-welcome span:nth-child(14){animation-delay:3.33s}
 .intro-welcome span:nth-child(15){animation-delay:3.39s}
 .intro-welcome span:nth-child(16){animation-delay:3.45s}
-
-
-/* SINNCI AI */
+.intro-welcome span:nth-child(17){animation-delay:3.51s}
+.intro-welcome span:nth-child(18){animation-delay:3.57s}
 
 .intro-title{
   position:absolute;
   top:51%;
   left:50%;
-  transform:
-    translate(-50%,-50%)
-    scale(.55);
+  transform:translate(-50%,-50%) scale(.55);
   width:100%;
   text-align:center;
   font-size:clamp(46px,11vw,105px);
@@ -359,9 +269,6 @@ body::after{
   opacity:0;
   animation:introTitle 1.15s cubic-bezier(.16,.8,.25,1) 3.65s forwards;
 }
-
-
-/* title flash */
 
 .intro-flash{
   position:absolute;
@@ -380,9 +287,6 @@ body::after{
   animation:introFlash .7s ease 3.65s forwards;
 }
 
-
-/* line */
-
 .intro-line{
   position:absolute;
   left:50%;
@@ -390,18 +294,10 @@ body::after{
   width:0;
   height:1px;
   transform:translateX(-50%);
-  background:linear-gradient(
-    90deg,
-    transparent,
-    var(--gold),
-    transparent
-  );
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
   box-shadow:0 0 15px rgba(216,180,90,.5);
   animation:introLine 1.2s ease 4s forwards;
 }
-
-
-/* loading */
 
 .intro-loading{
   position:absolute;
@@ -415,273 +311,127 @@ body::after{
   animation:introLoading 1s ease 4.35s forwards;
 }
 
-
-/* animations */
-
 @keyframes introBeasts{
-
   0%{
     opacity:0;
-    transform:
-      translate(-50%,-50%)
-      scale(.72)
-      translateY(18px);
-    filter:
-      contrast(1.1)
-      saturate(.5)
-      brightness(.38)
-      blur(2px)
+    transform:translate(-50%,-50%) scale(.72) translateY(18px);
+    filter:contrast(1.1) saturate(.5) brightness(.38) blur(2px)
       drop-shadow(0 0 20px rgba(216,180,90,.05));
   }
-
-  22%{
-    opacity:1;
-  }
-
+  22%{opacity:1}
   65%{
-    transform:
-      translate(-50%,-50%)
-      scale(.91)
-      translateY(0);
-    filter:
-      contrast(1.2)
-      saturate(.75)
-      brightness(.76)
-      blur(0)
+    transform:translate(-50%,-50%) scale(.91) translateY(0);
+    filter:contrast(1.2) saturate(.75) brightness(.76) blur(0)
       drop-shadow(0 0 50px rgba(216,180,90,.14));
   }
-
   100%{
     opacity:.78;
-    transform:
-      translate(-50%,-50%)
-      scale(.98)
-      translateY(-3px);
-    filter:
-      contrast(1.2)
-      saturate(.8)
-      brightness(.72)
-      blur(0)
+    transform:translate(-50%,-50%) scale(.98) translateY(-3px);
+    filter:contrast(1.2) saturate(.8) brightness(.72) blur(0)
       drop-shadow(0 0 55px rgba(216,180,90,.12));
   }
-
 }
-
 
 @keyframes introVS{
-
-  0%{
-    opacity:0;
-    transform:
-      translate(-50%,-50%)
-      scale(.3);
-  }
-
-  50%{
-    opacity:1;
-  }
-
-  100%{
-    opacity:1;
-    transform:
-      translate(-50%,-50%)
-      scale(1);
-  }
-
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+  50%{opacity:1}
+  100%{opacity:1;transform:translate(-50%,-50%) scale(1)}
 }
-
 
 @keyframes introWelcome{
-
-  from{
-    opacity:0;
-  }
-
-  to{
-    opacity:1;
-  }
-
+  from{opacity:0}
+  to{opacity:1}
 }
-
 
 @keyframes introWelcomeLetter{
-
   0%{
     opacity:0;
-    transform:
-      translateX(-25px)
-      translateY(-8px);
+    transform:translateX(-25px) translateY(-8px);
   }
-
-  65%{
-    opacity:1;
-  }
-
+  65%{opacity:1}
   100%{
     opacity:1;
-    transform:
-      translateX(0)
-      translateY(0);
+    transform:translateX(0) translateY(0);
   }
-
 }
-
 
 @keyframes introTitle{
-
   0%{
     opacity:0;
-    transform:
-      translate(-50%,-50%)
-      scale(.55);
+    transform:translate(-50%,-50%) scale(.55);
     filter:blur(14px);
   }
-
   45%{
     opacity:1;
-    transform:
-      translate(-50%,-50%)
-      scale(1.12);
+    transform:translate(-50%,-50%) scale(1.12);
     filter:blur(0);
   }
-
-  65%{
-    transform:
-      translate(-50%,-50%)
-      scale(.96);
-  }
-
+  65%{transform:translate(-50%,-50%) scale(.96)}
   100%{
     opacity:1;
-    transform:
-      translate(-50%,-50%)
-      scale(1);
+    transform:translate(-50%,-50%) scale(1);
     filter:blur(0);
   }
-
 }
-
 
 @keyframes introFlash{
-
   0%{
     opacity:0;
-    transform:
-      translate(-50%,-50%)
-      scale(0);
+    transform:translate(-50%,-50%) scale(0);
   }
-
   25%{
     opacity:.9;
-    transform:
-      translate(-50%,-50%)
-      scale(1);
+    transform:translate(-50%,-50%) scale(1);
   }
-
   55%{
     opacity:.12;
-    transform:
-      translate(-50%,-50%)
-      scale(22);
+    transform:translate(-50%,-50%) scale(22);
   }
-
   100%{
     opacity:0;
-    transform:
-      translate(-50%,-50%)
-      scale(35);
+    transform:translate(-50%,-50%) scale(35);
   }
-
 }
-
 
 @keyframes introLine{
-
-  0%{
-    width:0;
-  }
-
-  100%{
-    width:min(430px,70%);
-  }
-
+  0%{width:0}
+  100%{width:min(430px,70%)}
 }
-
 
 @keyframes introLoading{
-
-  from{
-    opacity:0;
-  }
-
-  to{
-    opacity:1;
-  }
-
+  from{opacity:0}
+  to{opacity:1}
 }
-
 
 @keyframes introLight{
-
-  0%{
-    background-position:-100% 0;
-  }
-
-  100%{
-    background-position:200% 0;
-  }
-
+  0%{background-position:-100% 0}
+  100%{background-position:200% 0}
 }
 
-
 @keyframes introParticle{
-
   0%{
     opacity:0;
     transform:translateY(25px) scale(.5);
   }
-
-  20%{
-    opacity:.8;
-  }
-
-  80%{
-    opacity:.35;
-  }
-
+  20%{opacity:.8}
+  80%{opacity:.35}
   100%{
     opacity:0;
     transform:translateY(-70px) scale(1.3);
   }
-
 }
 
-
 @keyframes sinnciIntroExit{
-
-  0%{
-    opacity:1;
-    visibility:visible;
-  }
-
-  70%{
-    opacity:1;
-    visibility:visible;
-  }
-
+  0%{opacity:1;visibility:visible}
+  70%{opacity:1;visibility:visible}
   100%{
     opacity:0;
     visibility:hidden;
     pointer-events:none;
   }
-
 }
 
-
-/* mobile intro */
-
 @media(max-width:600px){
-
   .intro-beasts{
     width:145vw;
     max-width:none;
@@ -706,9 +456,7 @@ body::after{
     letter-spacing:5px;
   }
 
-  .intro-line{
-    bottom:20%;
-  }
+  .intro-line{bottom:20%}
 
   .intro-loading{
     bottom:13%;
@@ -717,52 +465,23 @@ body::after{
   }
 
   @keyframes introBeastsMobile{
-
     0%{
       opacity:0;
-      transform:
-        translate(-50%,-50%)
-        scale(.65)
-        translateY(20px);
-      filter:
-        contrast(1.1)
-        saturate(.5)
-        brightness(.35)
-        blur(2px);
+      transform:translate(-50%,-50%) scale(.65) translateY(20px);
+      filter:contrast(1.1) saturate(.5) brightness(.35) blur(2px);
     }
-
-    25%{
-      opacity:1;
-    }
-
+    25%{opacity:1}
     70%{
       opacity:.82;
-      transform:
-        translate(-50%,-50%)
-        scale(.91)
-        translateY(0);
-      filter:
-        contrast(1.2)
-        saturate(.75)
-        brightness(.72)
-        blur(0);
+      transform:translate(-50%,-50%) scale(.91) translateY(0);
+      filter:contrast(1.2) saturate(.75) brightness(.72) blur(0);
     }
-
     100%{
       opacity:.76;
-      transform:
-        translate(-50%,-50%)
-        scale(.97)
-        translateY(-2px);
-      filter:
-        contrast(1.2)
-        saturate(.8)
-        brightness(.7)
-        blur(0);
+      transform:translate(-50%,-50%) scale(.97) translateY(-2px);
+      filter:contrast(1.2) saturate(.8) brightness(.7) blur(0);
     }
-
   }
-
 }
 
 
@@ -789,14 +508,8 @@ body::after{
   padding:30px;
   border:1px solid rgba(216,180,90,.18);
   border-radius:24px;
-  background:linear-gradient(
-    145deg,
-    rgba(22,24,29,.97),
-    rgba(9,11,14,.96)
-  );
-  box-shadow:
-    0 25px 80px rgba(0,0,0,.6),
-    inset 0 1px 0 rgba(255,255,255,.025);
+  background:linear-gradient(145deg,rgba(22,24,29,.97),rgba(9,11,14,.96));
+  box-shadow:0 25px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.025);
 }
 
 .auth-logo{
@@ -851,9 +564,7 @@ body::after{
   border-color:var(--gold);
 }
 
-.auth-form{
-  margin-top:18px;
-}
+.auth-form{margin-top:18px}
 
 .auth-input{
   width:100%;
@@ -912,11 +623,7 @@ body::after{
   text-align:center;
   border:1px solid rgba(216,180,90,.18);
   border-radius:24px;
-  background:linear-gradient(
-    145deg,
-    rgba(22,24,29,.97),
-    rgba(9,11,14,.96)
-  );
+  background:linear-gradient(145deg,rgba(22,24,29,.97),rgba(9,11,14,.96));
 }
 
 .pending-icon{
@@ -951,9 +658,7 @@ body::after{
    MAIN
    ============================== */
 
-#app{
-  display:none;
-}
+#app{display:none}
 
 .topbar{
   position:relative;
@@ -1036,15 +741,9 @@ body::after{
 
 .card{
   border:1px solid var(--line);
-  background:linear-gradient(
-    145deg,
-    rgba(22,24,29,.94),
-    rgba(9,11,14,.9)
-  );
+  background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));
   border-radius:22px;
-  box-shadow:
-    0 18px 60px rgba(0,0,0,.35),
-    inset 0 1px 0 rgba(255,255,255,.025);
+  box-shadow:0 18px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.025);
   backdrop-filter:blur(14px);
 }
 
@@ -1294,16 +993,9 @@ body::after{
   overflow:hidden;
   padding:20px;
   border-radius:19px;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(22,24,29,.96),
-      rgba(9,11,14,.92)
-    );
+  background:linear-gradient(145deg,rgba(22,24,29,.96),rgba(9,11,14,.92));
   border:1px solid var(--line);
-  box-shadow:
-    0 14px 45px rgba(0,0,0,.25),
-    inset 0 1px 0 rgba(255,255,255,.025);
+  box-shadow:0 14px 45px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.025);
 }
 
 .setup-card.buy{
@@ -1378,6 +1070,12 @@ body::after{
   border:1px solid rgba(216,180,90,.16);
 }
 
+.setup-status.ready{
+  color:#9ff5ce;
+  background:rgba(32,217,139,.06);
+  border:1px solid rgba(32,217,139,.13);
+}
+
 .setup-status.wait{
   color:#e5c96c;
   background:rgba(242,201,76,.06);
@@ -1386,14 +1084,10 @@ body::after{
 
 .setup-status.buy{
   color:#9ff5ce;
-  background:rgba(32,217,139,.08);
-  border:1px solid rgba(32,217,139,.16);
 }
 
 .setup-status.sell{
   color:#ff9aa6;
-  background:rgba(255,82,104,.08);
-  border:1px solid rgba(255,82,104,.14);
 }
 
 .setup-direction{
@@ -1523,11 +1217,7 @@ body::after{
   padding:15px 38px;
   border-radius:14px;
   color:#111;
-  background:linear-gradient(
-    135deg,
-    var(--gold2),
-    var(--gold)
-  );
+  background:linear-gradient(135deg,var(--gold2),var(--gold));
   font-weight:900;
   letter-spacing:.5px;
   box-shadow:0 10px 35px rgba(216,180,90,.18);
@@ -1677,7 +1367,7 @@ body::after{
 
 
 /* ==============================
-   ECONOMIC NEWS
+   NEWS
    ============================== */
 
 .news-list{
@@ -1796,9 +1486,7 @@ body::after{
   font-weight:900;
 }
 
-.news-live{
-  color:var(--red);
-}
+.news-live{color:var(--red)}
 
 .news-data{
   display:grid;
@@ -2038,27 +1726,19 @@ const supabaseClient =
 
 <body>
 
-
 <!-- =====================================================
-     SINNCI AI — 7 SECOND INTRO
+     SINNCI INTRO
      ===================================================== -->
 
 <div id="sinnciIntro">
 
   <div class="intro-particles">
-    <span></span>
-    <span></span>
-    <span></span>
-    <span></span>
-    <span></span>
-    <span></span>
-    <span></span>
-    <span></span>
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
   </div>
 
   <div class="intro-center">
 
-    <!-- REALISTIC 3D BULL + BEAR -->
     <img
       class="intro-beasts"
       src="1791359272050.jpg"
@@ -2088,6 +1768,7 @@ const supabaseClient =
       <span>&nbsp;</span>
       <span>K</span>
       <span>E</span>
+      <span>!</span>
     </div>
 
     <div class="intro-flash"></div>
@@ -2107,7 +1788,7 @@ const supabaseClient =
 </div>
 
 
-<!-- AUTH SCREEN -->
+<!-- AUTH -->
 
 <div id="authScreen">
 
@@ -2180,15 +1861,13 @@ const supabaseClient =
 </div>
 
 
-<!-- PENDING APPROVAL -->
+<!-- PENDING -->
 
 <div id="pendingScreen">
 
   <div class="pending-box">
 
-    <div class="pending-icon">
-      ⏳
-    </div>
+    <div class="pending-icon">⏳</div>
 
     <div class="pending-title">
       PENDING APPROVAL
@@ -2241,749 +1920,792 @@ const supabaseClient =
 
 <main class="container">
 
-  <section class="hero">
+<section class="hero">
 
-    <div class="card price-card">
+  <div class="card price-card">
 
-      <div class="market-label">
-        PRECIOUS METAL
+    <div class="market-label">
+      PRECIOUS METAL
+    </div>
+
+    <div class="symbol">
+      XAUUSD
+      <span>GOLD / U.S. DOLLAR</span>
+    </div>
+
+    <div id="price" class="price">
+      ---
+    </div>
+
+    <div id="priceStatus" class="price-change">
+      Connecting to market...
+    </div>
+
+    <div class="market-status">
+      ● REAL DATA
+    </div>
+
+    <div class="timeframe">
+      <div class="tf">H4</div>
+      <div class="tf">H1</div>
+      <div class="tf">M15</div>
+      <div class="tf active">M5</div>
+    </div>
+
+  </div>
+
+
+  <div class="card ai-card">
+
+    <div class="ai-head">
+
+      <div class="ai-title">
+        SINNCI MARKET ENGINE
       </div>
 
-      <div class="symbol">
-        XAUUSD
-        <span>GOLD / U.S. DOLLAR</span>
-      </div>
-
-      <div id="price" class="price">
-        ---
-      </div>
-
-      <div id="priceStatus" class="price-change">
-        Connecting to market...
-      </div>
-
-      <div class="market-status">
-        ● REAL DATA
-      </div>
-
-      <div class="timeframe">
-        <div class="tf">H4</div>
-        <div class="tf">H1</div>
-        <div class="tf">M15</div>
-        <div class="tf active">M5</div>
+      <div class="ai-badge">
+        AI ACTIVE
       </div>
 
     </div>
 
+    <div class="ai-icon">
+      ✦
+    </div>
 
-    <div class="card ai-card">
+    <div>
 
-      <div class="ai-head">
-
-        <div class="ai-title">
-          SINNCI MARKET ENGINE
-        </div>
-
-        <div class="ai-badge">
-          AI ACTIVE
-        </div>
-
+      <div id="aiStatus" class="ai-status">
+        WAIT
       </div>
 
-      <div class="ai-icon">
-        ✦
+      <div id="aiDescription" class="ai-desc">
+        Waiting for high-quality market structure.
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- MAIN SIGNAL -->
+
+<section
+  id="signalCard"
+  class="card signal-card wait">
+
+  <div class="signal-top">
+
+    <div class="signal-main">
+
+      <div
+        id="signalIcon"
+        class="signal-icon">
+        ⏳
       </div>
 
       <div>
 
-        <div id="aiStatus" class="ai-status">
+        <div
+          id="signalName"
+          class="signal-name">
           WAIT
         </div>
 
-        <div id="aiDescription" class="ai-desc">
-          Waiting for high-quality market structure.
-        </div>
-
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- MAIN SIGNAL -->
-
-  <section
-    id="signalCard"
-    class="card signal-card wait">
-
-    <div class="signal-top">
-
-      <div class="signal-main">
-
         <div
-          id="signalIcon"
-          class="signal-icon">
-          ⏳
+          id="signalSub"
+          class="signal-sub">
+          No high-quality setup
         </div>
-
-        <div>
-
-          <div
-            id="signalName"
-            class="signal-name">
-            WAIT
-          </div>
-
-          <div
-            id="signalSub"
-            class="signal-sub">
-            No high-quality setup
-          </div>
-
-        </div>
-
-      </div>
-
-      <div
-        id="score"
-        class="score">
-        BUY 0 • SELL 0
-      </div>
-
-    </div>
-
-
-    <div class="signal-grid">
-
-      <div class="metric">
-        <div class="metric-label">ENTRY</div>
-        <div id="entry" class="metric-value">---</div>
-      </div>
-
-      <div class="metric">
-        <div class="metric-label">STRUCTURE SL</div>
-        <div id="sl" class="metric-value">---</div>
-      </div>
-
-      <div class="metric">
-        <div class="metric-label">TP1</div>
-        <div id="tp1" class="metric-value">---</div>
-      </div>
-
-      <div class="metric">
-        <div class="metric-label">TP2</div>
-        <div id="tp2" class="metric-value">---</div>
-      </div>
-
-      <div class="metric">
-        <div class="metric-label">PUNCA</div>
-        <div id="punca" class="metric-value">---</div>
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- SCALPING / INTRADAY SETUPS -->
-
-  <div class="section-title">
-    SINNCI TRADING SETUPS
-  </div>
-
-  <section class="setup-section">
-
-    <div class="setup-grid">
-
-      <div
-        id="scalpingCard"
-        class="setup-card wait">
-
-        <div class="setup-head">
-
-          <div>
-
-            <div class="setup-title">
-              ⚡ SCALPING
-            </div>
-
-            <div class="setup-path">
-              H1 → M15 → M5
-            </div>
-
-          </div>
-
-          <div
-            id="scalpingStatus"
-            class="setup-status wait">
-            WAIT
-          </div>
-
-        </div>
-
-        <div
-          id="scalpingDirection"
-          class="setup-direction wait">
-
-          <div
-            id="scalpingArrow"
-            class="setup-arrow">
-            ⏳
-          </div>
-
-          <div
-            id="scalpingDirectionText"
-            class="setup-direction-text">
-            WAIT
-          </div>
-
-          <div
-            id="scalpingScore"
-            class="setup-score">
-            SCORE 0
-          </div>
-
-        </div>
-
-        <div class="setup-metrics">
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              ENTRY
-            </div>
-
-            <div
-              id="scalpingEntry"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              SL
-            </div>
-
-            <div
-              id="scalpingSL"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              TP1 • 60
-            </div>
-
-            <div
-              id="scalpingTP1"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              TP2 • 120
-            </div>
-
-            <div
-              id="scalpingTP2"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-        </div>
-
-        <div
-          id="scalpingReason"
-          class="setup-reason">
-          Waiting for a valid H1 → M15 → M5 scalping setup.
-        </div>
-
-        <div
-          id="scalpingConfirm"
-          class="setup-confirm">
-          M5 confirmation pending
-        </div>
-
-      </div>
-
-
-      <div
-        id="intradayCard"
-        class="setup-card wait">
-
-        <div class="setup-head">
-
-          <div>
-
-            <div class="setup-title">
-              📈 INTRADAY
-            </div>
-
-            <div class="setup-path">
-              H4 → H1 → M15 → M5
-            </div>
-
-          </div>
-
-          <div
-            id="intradayStatus"
-            class="setup-status wait">
-            WAIT
-          </div>
-
-        </div>
-
-        <div
-          id="intradayDirection"
-          class="setup-direction wait">
-
-          <div
-            id="intradayArrow"
-            class="setup-arrow">
-            ⏳
-          </div>
-
-          <div
-            id="intradayDirectionText"
-            class="setup-direction-text">
-            WAIT
-          </div>
-
-          <div
-            id="intradayScore"
-            class="setup-score">
-            SCORE 0
-          </div>
-
-        </div>
-
-        <div class="setup-metrics">
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              ENTRY
-            </div>
-
-            <div
-              id="intradayEntry"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              SL
-            </div>
-
-            <div
-              id="intradaySL"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              TP1 • 150
-            </div>
-
-            <div
-              id="intradayTP1"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-          <div class="setup-metric">
-            <div class="setup-metric-label">
-              TP2 • 230
-            </div>
-
-            <div
-              id="intradayTP2"
-              class="setup-metric-value">
-              ---
-            </div>
-          </div>
-
-        </div>
-
-        <div
-          id="intradayReason"
-          class="setup-reason">
-          Waiting for a valid H4 → H1 → M15 → M5 intraday setup.
-        </div>
-
-        <div
-          id="intradayConfirm"
-          class="setup-confirm">
-          M5 confirmation pending
-        </div>
-
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <div class="analyze-wrap">
-
-    <button
-      id="analyzeBtn"
-      class="analyze-btn">
-
-      ✦ ANALYZE MARKET
-
-    </button>
-
-  </div>
-
-
-  <!-- FOREX SESSIONS -->
-
-  <div class="section-title">
-    FOREX SESSIONS • MALAYSIA TIME
-  </div>
-
-  <section class="session-grid">
-
-    <div id="asiaSession" class="session-card">
-
-      <div class="session-head">
-
-        <div class="session-name">
-          🇯🇵 ASIA / TOKYO
-        </div>
-
-        <div
-          id="asiaStatus"
-          class="session-status closed">
-          CLOSED
-        </div>
-
-      </div>
-
-      <div
-        id="asiaTime"
-        class="session-time">
-        08:00 — 17:00 MYT
-      </div>
-
-      <div class="session-zone">
-        TOKYO TIME • AUTO
-      </div>
-
-      <div
-        id="asiaActivity"
-        class="session-activity">
-        MODERATE
-      </div>
-
-      <div class="session-live"></div>
-
-    </div>
-
-
-    <div id="londonSession" class="session-card">
-
-      <div class="session-head">
-
-        <div class="session-name">
-          🇬🇧 LONDON
-        </div>
-
-        <div
-          id="londonStatus"
-          class="session-status closed">
-          CLOSED
-        </div>
-
-      </div>
-
-      <div
-        id="londonTime"
-        class="session-time">
-        AUTO
-      </div>
-
-      <div class="session-zone">
-        LONDON TIME • AUTO DST
-      </div>
-
-      <div
-        id="londonActivity"
-        class="session-activity">
-        HIGH
-      </div>
-
-      <div class="session-live"></div>
-
-    </div>
-
-
-    <div id="newYorkSession" class="session-card">
-
-      <div class="session-head">
-
-        <div class="session-name">
-          🇺🇸 NEW YORK
-        </div>
-
-        <div
-          id="newyorkStatus"
-          class="session-status closed">
-          CLOSED
-        </div>
-
-      </div>
-
-      <div
-        id="newyorkTime"
-        class="session-time">
-        AUTO
-      </div>
-
-      <div class="session-zone">
-        NEW YORK TIME • AUTO DST
-      </div>
-
-      <div
-        id="newyorkActivity"
-        class="session-activity">
-        HIGH
-      </div>
-
-      <div class="session-live"></div>
-
-    </div>
-
-
-    <div id="overlapSession" class="session-card overlap">
-
-      <div class="session-head">
-
-        <div class="session-name">
-          🔥 LONDON × NEW YORK
-        </div>
-
-        <div
-          id="overlapStatus"
-          class="session-status closed">
-          INACTIVE
-        </div>
-
-      </div>
-
-      <div
-        id="overlapTime"
-        class="session-time">
-        AUTO
-      </div>
-
-      <div class="session-zone">
-        OVERLAP • MALAYSIA TIME
-      </div>
-
-      <div
-        id="overlapActivity"
-        class="session-activity">
-        VERY HIGH
-      </div>
-
-      <div class="session-live"></div>
-
-    </div>
-
-  </section>
-
-
-  <!-- ECONOMIC NEWS -->
-
-  <div class="section-title">
-    ECONOMIC NEWS • XAUUSD
-  </div>
-
-  <section class="news-card">
-
-    <div class="news-header">
-
-      <div>
-        <div class="news-heading">
-          MARKET-MOVING EVENTS
-        </div>
-
-        <div class="news-subheading">
-          US • HIGH & MEDIUM IMPACT • MALAYSIA TIME
-        </div>
-      </div>
-
-      <div class="news-filters">
-
-        <button
-          id="newsAllBtn"
-          class="news-filter active"
-          onclick="filterNews('all')">
-          ALL
-        </button>
-
-        <button
-          id="newsHighBtn"
-          class="news-filter"
-          onclick="filterNews('high')">
-          HIGH
-        </button>
-
-        <button
-          id="newsMediumBtn"
-          class="news-filter"
-          onclick="filterNews('medium')">
-          MEDIUM
-        </button>
 
       </div>
 
     </div>
 
     <div
-      id="newsList"
-      class="news-list">
-
-      <div class="news-empty">
-        Scanning US economic calendar...
-      </div>
-
+      id="score"
+      class="score">
+      BUY 0 • SELL 0
     </div>
 
-    <div class="news-source">
-      Economic data by
-      <a
-        href="https://www.financecalendar.com/"
-        target="_blank"
-        rel="noopener noreferrer">
-        FinanceCalendar.com
-      </a>
-    </div>
-
-  </section>
-
-
-  <div class="section-title">
-    MULTI-TIMEFRAME DIRECTION
   </div>
 
-  <section class="direction-grid">
 
-    <div class="direction">
-      <div class="tf-name">H4</div>
-      <div id="h4" class="dir neutral">---</div>
+  <div class="signal-grid">
+
+    <div class="metric">
+      <div class="metric-label">ENTRY</div>
+      <div id="entry" class="metric-value">---</div>
     </div>
 
-    <div class="direction">
-      <div class="tf-name">H1</div>
-      <div id="h1" class="dir neutral">---</div>
+    <div class="metric">
+      <div class="metric-label">STRUCTURE SL</div>
+      <div id="sl" class="metric-value">---</div>
     </div>
 
-    <div class="direction">
-      <div class="tf-name">M15</div>
-      <div id="m15" class="dir neutral">---</div>
+    <div class="metric">
+      <div class="metric-label">TP1</div>
+      <div id="tp1" class="metric-value">---</div>
     </div>
 
-    <div class="direction">
-      <div class="tf-name">M5</div>
-      <div id="m5" class="dir neutral">---</div>
+    <div class="metric">
+      <div class="metric-label">TP2</div>
+      <div id="tp2" class="metric-value">---</div>
     </div>
 
-  </section>
+    <div class="metric">
+      <div class="metric-label">PUNCA</div>
+      <div id="punca" class="metric-value">---</div>
+    </div>
 
-
-  <div class="section-title">
-    MARKET INTELLIGENCE
   </div>
 
-  <section class="data-grid">
+</section>
 
-    <div class="data-card">
 
-      <div class="data-label">
-        PUNCA SOURCE
+<!-- SETUPS -->
+
+<div class="section-title">
+  SINNCI TRADING SETUPS
+</div>
+
+<section class="setup-section">
+
+<div class="setup-grid">
+
+
+<!-- SCALPING -->
+
+<div
+  id="scalpingCard"
+  class="setup-card wait">
+
+  <div class="setup-head">
+
+    <div>
+
+      <div class="setup-title">
+        ⚡ SCALPING
       </div>
 
-      <div id="puncaSource" class="data-value">
+      <div class="setup-path">
+        H1 → M15 → M5
+      </div>
+
+    </div>
+
+    <div
+      id="scalpingStatus"
+      class="setup-status wait">
+      WAIT
+    </div>
+
+  </div>
+
+
+  <div
+    id="scalpingDirection"
+    class="setup-direction wait">
+
+    <div
+      id="scalpingArrow"
+      class="setup-arrow">
+      ⏳
+    </div>
+
+    <div
+      id="scalpingDirectionText"
+      class="setup-direction-text">
+      WAIT
+    </div>
+
+    <div
+      id="scalpingScore"
+      class="setup-score">
+      SCORE 0
+    </div>
+
+  </div>
+
+
+  <div class="setup-metrics">
+
+    <div class="setup-metric">
+
+      <div class="setup-metric-label">
+        ENTRY
+      </div>
+
+      <div
+        id="scalpingEntry"
+        class="setup-metric-value">
         ---
-      </div>
-
-      <div class="data-small">
-        Historical structure
       </div>
 
     </div>
 
 
-    <div class="data-card">
+    <div class="setup-metric">
 
-      <div class="data-label">
-        RISK
+      <div class="setup-metric-label">
+        SL
       </div>
 
-      <div id="risk" class="data-value">
+      <div
+        id="scalpingSL"
+        class="setup-metric-value">
         ---
-      </div>
-
-      <div class="data-small">
-        Structure-based
       </div>
 
     </div>
 
 
-    <div class="data-card">
+    <div class="setup-metric">
 
-      <div class="data-label">
-        MAX RISK
+      <div class="setup-metric-label">
+        TP1 • 60
       </div>
 
-      <div id="maxRisk" class="data-value">
+      <div
+        id="scalpingTP1"
+        class="setup-metric-value">
         ---
-      </div>
-
-      <div class="data-small">
-        Dynamic volatility
       </div>
 
     </div>
 
 
-    <div class="data-card">
+    <div class="setup-metric">
 
-      <div class="data-label">
-        REASON
+      <div class="setup-metric-label">
+        TP2 • 120
       </div>
 
-      <div id="reason" class="data-value">
+      <div
+        id="scalpingTP2"
+        class="setup-metric-value">
         ---
-      </div>
-
-      <div class="data-small">
-        AI decision filter
       </div>
 
     </div>
 
-  </section>
+  </div>
 
 
-  <footer class="footer">
-    <strong>SINNCI AI</strong>
-    • XAUUSD MARKET INTELLIGENCE
-  </footer>
+  <div
+    id="scalpingReason"
+    class="setup-reason">
+    Waiting for a valid H1 → M15 → M5 scalping setup.
+  </div>
+
+
+  <div
+    id="scalpingConfirm"
+    class="setup-confirm">
+    M5 confirmation pending
+  </div>
+
+</div>
+
+
+<!-- INTRADAY -->
+
+<div
+  id="intradayCard"
+  class="setup-card wait">
+
+  <div class="setup-head">
+
+    <div>
+
+      <div class="setup-title">
+        📈 INTRADAY
+      </div>
+
+      <div class="setup-path">
+        H4 → H1 → M15 → M5
+      </div>
+
+    </div>
+
+    <div
+      id="intradayStatus"
+      class="setup-status wait">
+      WAIT
+    </div>
+
+  </div>
+
+
+  <div
+    id="intradayDirection"
+    class="setup-direction wait">
+
+    <div
+      id="intradayArrow"
+      class="setup-arrow">
+      ⏳
+    </div>
+
+    <div
+      id="intradayDirectionText"
+      class="setup-direction-text">
+      WAIT
+    </div>
+
+    <div
+      id="intradayScore"
+      class="setup-score">
+      SCORE 0
+    </div>
+
+  </div>
+
+
+  <div class="setup-metrics">
+
+    <div class="setup-metric">
+
+      <div class="setup-metric-label">
+        ENTRY
+      </div>
+
+      <div
+        id="intradayEntry"
+        class="setup-metric-value">
+        ---
+      </div>
+
+    </div>
+
+
+    <div class="setup-metric">
+
+      <div class="setup-metric-label">
+        SL
+      </div>
+
+      <div
+        id="intradaySL"
+        class="setup-metric-value">
+        ---
+      </div>
+
+    </div>
+
+
+    <div class="setup-metric">
+
+      <div class="setup-metric-label">
+        TP1 • 150
+      </div>
+
+      <div
+        id="intradayTP1"
+        class="setup-metric-value">
+        ---
+      </div>
+
+    </div>
+
+
+    <div class="setup-metric">
+
+      <div class="setup-metric-label">
+        TP2 • 230
+      </div>
+
+      <div
+        id="intradayTP2"
+        class="setup-metric-value">
+        ---
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div
+    id="intradayReason"
+    class="setup-reason">
+    Waiting for a valid H4 → H1 → M15 → M5 intraday setup.
+  </div>
+
+
+  <div
+    id="intradayConfirm"
+    class="setup-confirm">
+    M5 confirmation pending
+  </div>
+
+</div>
+
+</div>
+
+</section>
+
+
+<div class="analyze-wrap">
+
+  <button
+    id="analyzeBtn"
+    class="analyze-btn">
+
+    ✦ ANALYZE MARKET
+
+  </button>
+
+</div>
+
+
+<!-- FOREX SESSIONS -->
+
+<div class="section-title">
+  FOREX SESSIONS • MALAYSIA TIME
+</div>
+
+<section class="session-grid">
+
+  <div id="asiaSession" class="session-card">
+
+    <div class="session-head">
+
+      <div class="session-name">
+        🇯🇵 ASIA / TOKYO
+      </div>
+
+      <div
+        id="asiaStatus"
+        class="session-status closed">
+        CLOSED
+      </div>
+
+    </div>
+
+    <div
+      id="asiaTime"
+      class="session-time">
+      08:00 — 17:00 MYT
+    </div>
+
+    <div class="session-zone">
+      TOKYO TIME • AUTO
+    </div>
+
+    <div
+      id="asiaActivity"
+      class="session-activity">
+      MODERATE
+    </div>
+
+    <div class="session-live"></div>
+
+  </div>
+
+
+  <div id="londonSession" class="session-card">
+
+    <div class="session-head">
+
+      <div class="session-name">
+        🇬🇧 LONDON
+      </div>
+
+      <div
+        id="londonStatus"
+        class="session-status closed">
+        CLOSED
+      </div>
+
+    </div>
+
+    <div
+      id="londonTime"
+      class="session-time">
+      AUTO
+    </div>
+
+    <div class="session-zone">
+      LONDON TIME • AUTO DST
+    </div>
+
+    <div
+      id="londonActivity"
+      class="session-activity">
+      HIGH
+    </div>
+
+    <div class="session-live"></div>
+
+  </div>
+
+
+  <div id="newYorkSession" class="session-card">
+
+    <div class="session-head">
+
+      <div class="session-name">
+        🇺🇸 NEW YORK
+      </div>
+
+      <div
+        id="newyorkStatus"
+        class="session-status closed">
+        CLOSED
+      </div>
+
+    </div>
+
+    <div
+      id="newyorkTime"
+      class="session-time">
+      AUTO
+    </div>
+
+    <div class="session-zone">
+      NEW YORK TIME • AUTO DST
+    </div>
+
+    <div
+      id="newyorkActivity"
+      class="session-activity">
+      HIGH
+    </div>
+
+    <div class="session-live"></div>
+
+  </div>
+
+
+  <div id="overlapSession" class="session-card overlap">
+
+    <div class="session-head">
+
+      <div class="session-name">
+        🔥 LONDON × NEW YORK
+      </div>
+
+      <div
+        id="overlapStatus"
+        class="session-status closed">
+        INACTIVE
+      </div>
+
+    </div>
+
+    <div
+      id="overlapTime"
+      class="session-time">
+      AUTO
+    </div>
+
+    <div class="session-zone">
+      OVERLAP • MALAYSIA TIME
+    </div>
+
+    <div
+      id="overlapActivity"
+      class="session-activity">
+      VERY HIGH
+    </div>
+
+    <div class="session-live"></div>
+
+  </div>
+
+</section>
+
+
+<!-- NEWS -->
+
+<div class="section-title">
+  ECONOMIC NEWS • XAUUSD
+</div>
+
+<section class="news-card">
+
+  <div class="news-header">
+
+    <div>
+
+      <div class="news-heading">
+        MARKET-MOVING EVENTS
+      </div>
+
+      <div class="news-subheading">
+        US • HIGH & MEDIUM IMPACT • MALAYSIA TIME
+      </div>
+
+    </div>
+
+    <div class="news-filters">
+
+      <button
+        id="newsAllBtn"
+        class="news-filter active"
+        onclick="filterNews('all')">
+        ALL
+      </button>
+
+      <button
+        id="newsHighBtn"
+        class="news-filter"
+        onclick="filterNews('high')">
+        HIGH
+      </button>
+
+      <button
+        id="newsMediumBtn"
+        class="news-filter"
+        onclick="filterNews('medium')">
+        MEDIUM
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <div
+    id="newsList"
+    class="news-list">
+
+    <div class="news-empty">
+      Scanning US economic calendar...
+    </div>
+
+  </div>
+
+
+  <div class="news-source">
+    Economic data by
+    <a
+      href="https://www.financecalendar.com/"
+      target="_blank"
+      rel="noopener noreferrer">
+      FinanceCalendar.com
+    </a>
+  </div>
+
+</section>
+
+
+<!-- DIRECTION -->
+
+<div class="section-title">
+  MULTI-TIMEFRAME DIRECTION
+</div>
+
+<section class="direction-grid">
+
+  <div class="direction">
+    <div class="tf-name">H4</div>
+    <div id="h4" class="dir neutral">---</div>
+  </div>
+
+  <div class="direction">
+    <div class="tf-name">H1</div>
+    <div id="h1" class="dir neutral">---</div>
+  </div>
+
+  <div class="direction">
+    <div class="tf-name">M15</div>
+    <div id="m15" class="dir neutral">---</div>
+  </div>
+
+  <div class="direction">
+    <div class="tf-name">M5</div>
+    <div id="m5" class="dir neutral">---</div>
+  </div>
+
+</section>
+
+
+<!-- INTELLIGENCE -->
+
+<div class="section-title">
+  MARKET INTELLIGENCE
+</div>
+
+<section class="data-grid">
+
+  <div class="data-card">
+
+    <div class="data-label">
+      PUNCA SOURCE
+    </div>
+
+    <div id="puncaSource" class="data-value">
+      ---
+    </div>
+
+    <div class="data-small">
+      Historical structure
+    </div>
+
+  </div>
+
+
+  <div class="data-card">
+
+    <div class="data-label">
+      RISK
+    </div>
+
+    <div id="risk" class="data-value">
+      ---
+    </div>
+
+    <div class="data-small">
+      Structure-based
+    </div>
+
+  </div>
+
+
+  <div class="data-card">
+
+    <div class="data-label">
+      MAX RISK
+    </div>
+
+    <div id="maxRisk" class="data-value">
+      ---
+    </div>
+
+    <div class="data-small">
+      Dynamic volatility
+    </div>
+
+  </div>
+
+
+  <div class="data-card">
+
+    <div class="data-label">
+      REASON
+    </div>
+
+    <div id="reason" class="data-value">
+      ---
+    </div>
+
+    <div class="data-small">
+      AI decision filter
+    </div>
+
+  </div>
+
+</section>
+
+
+<footer class="footer">
+  <strong>SINNCI AI</strong>
+  • XAUUSD MARKET INTELLIGENCE
+</footer>
 
 </main>
 
@@ -2993,7 +2715,7 @@ const supabaseClient =
 <script>
 
 /* =========================================================
-   SINNCI INTRO SOUND ENGINE
+   INTRO SOUND
    ========================================================= */
 
 let sinnciIntroAudioStarted = false;
@@ -3009,12 +2731,12 @@ whooshSound.preload = "auto";
 impactSound.preload = "auto";
 
 
-function playSINNCISound(audio, volume = 1){
+function playSINNCISound(audio,volume=1){
 
-  audio.currentTime = 0;
-  audio.volume = volume;
+  audio.currentTime=0;
+  audio.volume=volume;
 
-  audio.play().catch(() => {});
+  audio.play().catch(()=>{});
 
 }
 
@@ -3024,155 +2746,69 @@ function startSINNCIIntroSound(){
   if(sinnciIntroAudioStarted)
     return;
 
-  sinnciIntroAudioStarted = true;
+  sinnciIntroAudioStarted=true;
 
+  setTimeout(()=>{
+    playSINNCISound(bullSound,1);
+  },1000);
 
-  /* 🐂 BULL — 1.0s */
+  setTimeout(()=>{
+    playSINNCISound(bearSound,1);
+  },1700);
 
-  setTimeout(() => {
+  setTimeout(()=>{
+    playSINNCISound(whooshSound,.8);
+  },2500);
 
-    playSINNCISound(
-      bullSound,
-      1
-    );
-
-  }, 1000);
-
-
-  /* 🐻 BEAR — 1.7s */
-
-  setTimeout(() => {
-
-    playSINNCISound(
-      bearSound,
-      1
-    );
-
-  }, 1700);
-
-
-  /* 🌪️ WHOOSH — 2.5s */
-
-  setTimeout(() => {
-
-    playSINNCISound(
-      whooshSound,
-      0.8
-    );
-
-  }, 2500);
-
-
-  /* 💥 IMPACT — 3.8s */
-
-  setTimeout(() => {
-
-    playSINNCISound(
-      impactSound,
-      1
-    );
-
-  }, 3800);
+  setTimeout(()=>{
+    playSINNCISound(impactSound,1);
+  },3800);
 
 }
 
 
-/* ==============================
-   START INTRO AUDIO
-   ============================== */
-
 window.addEventListener(
   "load",
-  () => {
-
+  ()=>{
     startSINNCIIntroSound();
-
   }
 );
 
-
-/*
-  Browser biasanya block autoplay.
-  Tap pertama akan cuba aktifkan audio.
-*/
 
 document.addEventListener(
   "pointerdown",
-  () => {
-
+  ()=>{
     startSINNCIIntroSound();
-
   },
-  {
-    once:true
-  }
-);
-
-
-/* ==============================
-   START INTRO AUDIO
-   ============================== */
-
-window.addEventListener(
-  "load",
-  () => {
-
-    startSINNCIIntroSound();
-
-  }
-);
-
-
-/*
-  Browser biasanya block autoplay.
-  Tap pertama akan cuba aktifkan audio.
-*/
-
-document.addEventListener(
-  "pointerdown",
-  () => {
-
-    startSINNCIIntroSound();
-
-  },
-  {
-    once:true
-  }
+  {once:true}
 );
 
 
 /* =========================================================
-   AUTH STATE
+   AUTH
    ========================================================= */
 
-let authMode = "login";
+let authMode="login";
 
 
 function showAuthMode(mode){
 
-  authMode = mode;
+  authMode=mode;
 
-  const loginTab =
-    document.getElementById("loginTab");
+  const loginTab=document.getElementById("loginTab");
+  const registerTab=document.getElementById("registerTab");
+  const authBtn=document.getElementById("authBtn");
+  const message=document.getElementById("authMessage");
 
-  const registerTab =
-    document.getElementById("registerTab");
+  message.textContent="";
+  message.className="auth-message";
 
-  const authBtn =
-    document.getElementById("authBtn");
-
-  const message =
-    document.getElementById("authMessage");
-
-  message.textContent = "";
-  message.className = "auth-message";
-
-  if(mode === "login"){
+  if(mode==="login"){
 
     loginTab.classList.add("active");
     registerTab.classList.remove("active");
 
-    authBtn.textContent = "LOGIN";
+    authBtn.textContent="LOGIN";
 
   }
 
@@ -3181,58 +2817,42 @@ function showAuthMode(mode){
     loginTab.classList.remove("active");
     registerTab.classList.add("active");
 
-    authBtn.textContent = "CREATE ACCOUNT";
+    authBtn.textContent="CREATE ACCOUNT";
 
   }
 
 }
 
 
-/* ==============================
-   AUTH MESSAGE
-   ============================== */
+function showAuthMessage(message,type=""){
 
-function showAuthMessage(
-  message,
-  type = ""
-){
+  const el=document.getElementById("authMessage");
 
-  const el =
-    document.getElementById("authMessage");
-
-  el.textContent =
-    message;
-
-  el.className =
-    "auth-message " + type;
+  el.textContent=message;
+  el.className="auth-message "+type;
 
 }
 
-
-/* ==============================
-   LOGIN / REGISTER
-   ============================== */
 
 async function handleAuth(event){
 
   event.preventDefault();
 
-  const email =
-    document.getElementById("authEmail")
-      .value
-      .trim();
+  const email=document
+    .getElementById("authEmail")
+    .value
+    .trim();
 
-  const password =
-    document.getElementById("authPassword")
-      .value;
+  const password=document
+    .getElementById("authPassword")
+    .value;
 
-  const button =
-    document.getElementById("authBtn");
+  const button=document.getElementById("authBtn");
 
-  button.disabled = true;
+  button.disabled=true;
 
-  button.textContent =
-    authMode === "login"
+  button.textContent=
+    authMode==="login"
       ? "LOGGING IN..."
       : "CREATING ACCOUNT...";
 
@@ -3240,13 +2860,10 @@ async function handleAuth(event){
 
   try{
 
-    if(authMode === "login"){
+    if(authMode==="login"){
 
-      const {
-        error
-      } =
-      await supabaseClient.auth
-        .signInWithPassword({
+      const {error}=
+        await supabaseClient.auth.signInWithPassword({
           email,
           password
         });
@@ -3260,12 +2877,8 @@ async function handleAuth(event){
 
     else{
 
-      const {
-        data,
-        error
-      } =
-      await supabaseClient.auth
-        .signUp({
+      const {data,error}=
+        await supabaseClient.auth.signUp({
           email,
           password
         });
@@ -3303,10 +2916,10 @@ async function handleAuth(event){
 
   finally{
 
-    button.disabled = false;
+    button.disabled=false;
 
-    button.textContent =
-      authMode === "login"
+    button.textContent=
+      authMode==="login"
         ? "LOGIN"
         : "CREATE ACCOUNT";
 
@@ -3315,27 +2928,17 @@ async function handleAuth(event){
 }
 
 
-/* ==============================
-   CHECK USER ACCESS
-   ============================== */
-
 async function checkUserAccess(){
 
   try{
 
     const {
-      data: {
-        user
-      },
-      error: userError
-    } = await supabaseClient.auth.getUser();
+      data:{user},
+      error:userError
+    }=
+      await supabaseClient.auth.getUser();
 
     if(userError){
-
-      console.error(
-        "AUTH USER ERROR:",
-        userError
-      );
 
       showAuthMessage(
         userError.message ||
@@ -3344,7 +2947,6 @@ async function checkUserAccess(){
       );
 
       showAuthScreen();
-
       return;
 
     }
@@ -3352,29 +2954,24 @@ async function checkUserAccess(){
     if(!user){
 
       showAuthScreen();
-
       return;
 
     }
 
     const {
-      data: profile,
-      error: profileError
-    } = await supabaseClient
-      .from("profiles")
-      .select("id,approved,email")
-      .eq("id",user.id)
-      .maybeSingle();
+      data:profile,
+      error:profileError
+    }=
+      await supabaseClient
+        .from("profiles")
+        .select("id,approved,email")
+        .eq("id",user.id)
+        .maybeSingle();
 
     if(profileError){
 
-      console.error(
-        "PROFILE ERROR:",
-        profileError
-      );
-
       showAuthMessage(
-        "PROFILE ERROR: " +
+        "PROFILE ERROR: "+
         (
           profileError.message ||
           "Unable to check account approval."
@@ -3383,7 +2980,6 @@ async function checkUserAccess(){
       );
 
       showAuthScreen();
-
       return;
 
     }
@@ -3396,12 +2992,11 @@ async function checkUserAccess(){
       );
 
       showAuthScreen();
-
       return;
 
     }
 
-    if(profile.approved === true){
+    if(profile.approved===true){
 
       showApp();
 
@@ -3417,13 +3012,8 @@ async function checkUserAccess(){
 
   catch(error){
 
-    console.error(
-      "CHECK USER ACCESS ERROR:",
-      error
-    );
-
     showAuthMessage(
-      "SYSTEM ERROR: " +
+      "SYSTEM ERROR: "+
       (
         error.message ||
         "Unable to check account approval."
@@ -3438,70 +3028,36 @@ async function checkUserAccess(){
 }
 
 
-/* ==============================
-   SCREEN CONTROL
-   ============================== */
-
 function showAuthScreen(){
 
-  document.getElementById(
-    "authScreen"
-  ).style.display = "flex";
-
-  document.getElementById(
-    "pendingScreen"
-  ).style.display = "none";
-
-  document.getElementById(
-    "app"
-  ).style.display = "none";
+  document.getElementById("authScreen").style.display="flex";
+  document.getElementById("pendingScreen").style.display="none";
+  document.getElementById("app").style.display="none";
 
 }
 
 
 function showPending(){
 
-  document.getElementById(
-    "authScreen"
-  ).style.display = "none";
-
-  document.getElementById(
-    "pendingScreen"
-  ).style.display = "flex";
-
-  document.getElementById(
-    "app"
-  ).style.display = "none";
+  document.getElementById("authScreen").style.display="none";
+  document.getElementById("pendingScreen").style.display="flex";
+  document.getElementById("app").style.display="none";
 
 }
 
 
 function showApp(){
 
-  document.getElementById(
-    "authScreen"
-  ).style.display = "none";
-
-  document.getElementById(
-    "pendingScreen"
-  ).style.display = "none";
-
-  document.getElementById(
-    "app"
-  ).style.display = "block";
+  document.getElementById("authScreen").style.display="none";
+  document.getElementById("pendingScreen").style.display="none";
+  document.getElementById("app").style.display="block";
 
   getLivePrice();
-
   updateSessionDisplay();
-
   loadEconomicNews();
 
 }
 
-
-/* ==============================
-   LOGOUT
-   ============================== */
 
 async function logout(){
 
@@ -3512,43 +3068,29 @@ async function logout(){
 }
 
 
-/* ==============================
-   AUTH SESSION LISTENER
-   ============================== */
-
 supabaseClient.auth.onAuthStateChange(
-  async (event, session) => {
+  async(event,session)=>{
 
-    if(event === "SIGNED_OUT"){
-
+    if(event==="SIGNED_OUT"){
       showAuthScreen();
-
     }
 
   }
 );
 
 
-/* ==============================
-   INITIAL AUTH CHECK
-   ============================== */
-
 (async function(){
 
   try{
 
     const {
-      data: {
-        session
-      }
-    } =
-    await supabaseClient.auth
-      .getSession();
+      data:{session}
+    }=
+      await supabaseClient.auth.getSession();
 
     if(!session){
 
       showAuthScreen();
-
       return;
 
     }
@@ -3568,46 +3110,32 @@ supabaseClient.auth.onAuthStateChange(
 })();
 
 
-/* ==============================
-   LIVE PRICE
-   ============================== */
+/* =========================================================
+   PRICE
+   ========================================================= */
 
-const priceEl =
-  document.getElementById("price");
+const priceEl=document.getElementById("price");
+const priceStatus=document.getElementById("priceStatus");
 
-const priceStatus =
-  document.getElementById("priceStatus");
+const analyzeBtn=document.getElementById("analyzeBtn");
 
-const analyzeBtn =
-  document.getElementById("analyzeBtn");
+const signalCard=document.getElementById("signalCard");
+const signalIcon=document.getElementById("signalIcon");
+const signalName=document.getElementById("signalName");
+const signalSub=document.getElementById("signalSub");
 
-const signalCard =
-  document.getElementById("signalCard");
-
-const signalIcon =
-  document.getElementById("signalIcon");
-
-const signalName =
-  document.getElementById("signalName");
-
-const signalSub =
-  document.getElementById("signalSub");
-
-const aiStatus =
-  document.getElementById("aiStatus");
-
-const aiDescription =
-  document.getElementById("aiDescription");
+const aiStatus=document.getElementById("aiStatus");
+const aiDescription=document.getElementById("aiDescription");
 
 
 async function getLivePrice(){
 
   try{
 
-    const response =
+    const response=
       await fetch("/api/price");
 
-    const data =
+    const data=
       await response.json();
 
     if(!response.ok || data.error){
@@ -3619,37 +3147,33 @@ async function getLivePrice(){
 
     }
 
-    const price =
-      Number(data.price);
+    const price=Number(data.price);
 
     if(!Number.isFinite(price)){
 
-      throw new Error(
-        "Invalid price"
-      );
+      throw new Error("Invalid price");
 
     }
 
-    priceEl.textContent =
+    priceEl.textContent=
       price.toFixed(2);
 
-    priceStatus.textContent =
+    priceStatus.textContent=
       "● Live XAUUSD market price";
 
-    priceStatus.style.color =
+    priceStatus.style.color=
       "var(--green)";
 
   }
 
   catch(error){
 
-    priceEl.textContent =
-      "Unavailable";
+    priceEl.textContent="Unavailable";
 
-    priceStatus.textContent =
-      "API: " + error.message;
+    priceStatus.textContent=
+      "API: "+error.message;
 
-    priceStatus.style.color =
+    priceStatus.style.color=
       "var(--red)";
 
   }
@@ -3657,13 +3181,13 @@ async function getLivePrice(){
 }
 
 
-/* ==============================
-   FOREX SESSION ENGINE
-   ============================== */
+/* =========================================================
+   SESSION ENGINE
+   ========================================================= */
 
 function getTimeParts(timeZone){
 
-  const parts =
+  const parts=
     new Intl.DateTimeFormat(
       "en-GB",
       {
@@ -3675,10 +3199,10 @@ function getTimeParts(timeZone){
       }
     ).formatToParts(new Date());
 
-  const result = {};
+  const result={};
 
-  parts.forEach(part => {
-    result[part.type] = part.value;
+  parts.forEach(part=>{
+    result[part.type]=part.value;
   });
 
   return {
@@ -3692,41 +3216,27 @@ function getTimeParts(timeZone){
 
 function minutesNow(timeZone){
 
-  const parts =
-    getTimeParts(timeZone);
+  const parts=getTimeParts(timeZone);
 
-  return (
-    parts.hour * 60 +
-    parts.minute
-  );
+  return parts.hour*60+parts.minute;
 
 }
 
 
-function isSessionOpen(
-  timeZone,
-  startHour,
-  endHour
-){
+function isSessionOpen(timeZone,startHour,endHour){
 
-  const now =
-    minutesNow(timeZone);
+  const now=minutesNow(timeZone);
 
-  const start =
-    startHour * 60;
+  const start=startHour*60;
+  const end=endHour*60;
 
-  const end =
-    endHour * 60;
+  if(start<end){
 
-  if(start < end){
-
-    return now >= start &&
-           now < end;
+    return now>=start && now<end;
 
   }
 
-  return now >= start ||
-         now < end;
+  return now>=start || now<end;
 
 }
 
@@ -3737,15 +3247,11 @@ function formatMalaysiaSessionTime(
   endHour
 ){
 
-  function convert(
-    hour,
-    minute
-  ){
+  function convert(hour,minute){
 
-    const now =
-      new Date();
+    const now=new Date();
 
-    const base =
+    const base=
       new Date(
         now.toLocaleString(
           "en-US",
@@ -3753,32 +3259,24 @@ function formatMalaysiaSessionTime(
         )
       );
 
-    base.setHours(
-      hour,
-      minute,
-      0,
-      0
-    );
+    base.setHours(hour,minute,0,0);
 
-    const myt =
-      new Intl.DateTimeFormat(
-        "en-GB",
-        {
-          timeZone:"Asia/Kuala_Lumpur",
-          hour:"2-digit",
-          minute:"2-digit",
-          hour12:false
-        }
-      ).format(base);
-
-    return myt;
+    return new Intl.DateTimeFormat(
+      "en-GB",
+      {
+        timeZone:"Asia/Kuala_Lumpur",
+        hour:"2-digit",
+        minute:"2-digit",
+        hour12:false
+      }
+    ).format(base);
 
   }
 
-  return (
-    convert(startHour,0) +
-    " — " +
-    convert(endHour,0) +
+  return(
+    convert(startHour,0)+
+    " — "+
+    convert(endHour,0)+
     " MYT"
   );
 
@@ -3795,68 +3293,42 @@ function updateSessionCard(
   time
 ){
 
-  const card =
-    document.getElementById(cardId);
-
-  const status =
-    document.getElementById(statusId);
-
-  const timeEl =
-    document.getElementById(timeId);
-
-  const activityEl =
-    document.getElementById(activityId);
+  const card=document.getElementById(cardId);
+  const status=document.getElementById(statusId);
+  const timeEl=document.getElementById(timeId);
+  const activityEl=document.getElementById(activityId);
 
   if(!card || !status)
     return;
 
-  card.classList.toggle(
-    "open",
-    open
-  );
+  card.classList.toggle("open",open);
 
-  status.className =
-    "session-status " +
-    (open ? "open" : "closed");
+  status.className=
+    "session-status "+
+    (open ? "open":"closed");
 
-  status.textContent =
-    open ? "OPEN" : "CLOSED";
+  status.textContent=
+    open ? "OPEN":"CLOSED";
 
-  timeEl.textContent =
-    time;
-
-  activityEl.textContent =
-    activity;
+  timeEl.textContent=time;
+  activityEl.textContent=activity;
 
 }
 
 
 function updateSessionDisplay(){
 
-  const tokyoOpen =
-    isSessionOpen(
-      "Asia/Tokyo",
-      9,
-      18
-    );
+  const tokyoOpen=
+    isSessionOpen("Asia/Tokyo",9,18);
 
-  const londonOpen =
-    isSessionOpen(
-      "Europe/London",
-      8,
-      17
-    );
+  const londonOpen=
+    isSessionOpen("Europe/London",8,17);
 
-  const newYorkOpen =
-    isSessionOpen(
-      "America/New_York",
-      8,
-      17
-    );
+  const newYorkOpen=
+    isSessionOpen("America/New_York",8,17);
 
-  const overlapOpen =
-    londonOpen &&
-    newYorkOpen;
+  const overlapOpen=
+    londonOpen && newYorkOpen;
 
 
   updateSessionCard(
@@ -3904,41 +3376,34 @@ function updateSessionDisplay(){
   );
 
 
-  const overlapCard =
-    document.getElementById(
-      "overlapSession"
-    );
+  const overlapCard=
+    document.getElementById("overlapSession");
 
-  const overlapStatus =
-    document.getElementById(
-      "overlapStatus"
-    );
+  const overlapStatus=
+    document.getElementById("overlapStatus");
 
-  const overlapTime =
-    document.getElementById(
-      "overlapTime"
-    );
+  const overlapTime=
+    document.getElementById("overlapTime");
 
-  const overlapActivity =
-    document.getElementById(
-      "overlapActivity"
-    );
+  const overlapActivity=
+    document.getElementById("overlapActivity");
+
 
   overlapCard.classList.toggle(
     "open",
     overlapOpen
   );
 
-  overlapStatus.className =
-    "session-status " +
-    (overlapOpen ? "open" : "closed");
+  overlapStatus.className=
+    "session-status "+
+    (overlapOpen ? "open":"closed");
 
-  overlapStatus.textContent =
+  overlapStatus.textContent=
     overlapOpen
       ? "ACTIVE"
       : "INACTIVE";
 
-  overlapTime.textContent =
+  overlapTime.textContent=
     overlapOpen
       ? "LONDON × NEW YORK • MYT"
       : formatMalaysiaSessionTime(
@@ -3947,7 +3412,7 @@ function updateSessionDisplay(){
           17
         );
 
-  overlapActivity.textContent =
+  overlapActivity.textContent=
     "VERY HIGH";
 
 }
@@ -3959,34 +3424,34 @@ setInterval(
 );
 
 
-/* ==============================
-   US ECONOMIC NEWS ENGINE
-   ============================== */
+/* =========================================================
+   NEWS
+   ========================================================= */
 
-let sinnciNews = [];
-let newsFilter = "all";
+let sinnciNews=[];
+let newsFilter="all";
 
 
 function isUSGoldNews(event){
 
-  const text =
+  const text=
     `${event.name || ""} ${event.title || ""}`
       .toLowerCase()
       .trim();
 
-  const impact =
+  const impact=
     String(
       event.impact || ""
     ).toLowerCase();
 
   if(
-    impact !== "high" &&
-    impact !== "medium"
+    impact!=="high" &&
+    impact!=="medium"
   ){
     return false;
   }
 
-  const category =
+  const category=
     String(
       event.category || ""
     ).toLowerCase();
@@ -3998,13 +3463,13 @@ function isUSGoldNews(event){
     return false;
   }
 
-  const explicitUS =
+  const explicitUS=
     text.includes("us ") ||
     text.includes("u.s.") ||
     text.includes("united states") ||
     text.includes("united states of america");
 
-  const usSpecific =
+  const usSpecific=
     text.includes("fomc") ||
     text.includes("federal reserve") ||
     text.includes("fed ") ||
@@ -4016,17 +3481,14 @@ function isUSGoldNews(event){
     text.includes("jobless claims") ||
     text.includes("beige book");
 
-  return (
-    explicitUS ||
-    usSpecific
-  );
+  return explicitUS || usSpecific;
 
 }
 
 
 async function loadEconomicNews(){
 
-  const newsList =
+  const newsList=
     document.getElementById("newsList");
 
   if(!newsList)
@@ -4034,16 +3496,16 @@ async function loadEconomicNews(){
 
   try{
 
-    newsList.innerHTML = `
+    newsList.innerHTML=`
       <div class="news-empty">
         Scanning US economic calendar...
       </div>
     `;
 
-    const response =
+    const response=
       await fetch("/api/news");
 
-    const data =
+    const data=
       await response.json();
 
     if(
@@ -4058,7 +3520,7 @@ async function loadEconomicNews(){
 
     }
 
-    sinnciNews =
+    sinnciNews=
       data.events.filter(
         isUSGoldNews
       );
@@ -4074,7 +3536,7 @@ async function loadEconomicNews(){
       error
     );
 
-    newsList.innerHTML = `
+    newsList.innerHTML=`
       <div class="news-empty">
         US economic news temporarily unavailable
       </div>
@@ -4087,13 +3549,13 @@ async function loadEconomicNews(){
 
 function filterNews(type){
 
-  newsFilter = type;
+  newsFilter=type;
 
   [
     "newsAllBtn",
     "newsHighBtn",
     "newsMediumBtn"
-  ].forEach(id => {
+  ].forEach(id=>{
 
     document
       .getElementById(id)
@@ -4101,10 +3563,10 @@ function filterNews(type){
 
   });
 
-  const buttonId =
-    type === "all"
+  const buttonId=
+    type==="all"
       ? "newsAllBtn"
-      : type === "high"
+      : type==="high"
         ? "newsHighBtn"
         : "newsMediumBtn";
 
@@ -4136,70 +3598,70 @@ function formatNewsMYT(date){
 
 function newsCountdown(date){
 
-  const difference =
-    new Date(date).getTime() -
+  const difference=
+    new Date(date).getTime()-
     Date.now();
 
   if(
-    difference <= 0 &&
-    difference > -3600000
+    difference<=0 &&
+    difference>-3600000
   ){
 
-    return {
+    return{
       text:"LIVE NOW",
       live:true
     };
 
   }
 
-  if(difference <= -3600000){
+  if(difference<=-3600000){
 
-    return {
+    return{
       text:"PASSED",
       live:false
     };
 
   }
 
-  const totalSeconds =
+  const totalSeconds=
     Math.floor(
-      difference / 1000
+      difference/1000
     );
 
-  const days =
+  const days=
     Math.floor(
-      totalSeconds / 86400
+      totalSeconds/86400
     );
 
-  const hours =
+  const hours=
     Math.floor(
-      (totalSeconds % 86400) / 3600
+      (totalSeconds%86400)/3600
     );
 
-  const minutes =
+  const minutes=
     Math.floor(
-      (totalSeconds % 3600) / 60
+      (totalSeconds%3600)/60
     );
 
-  if(days > 0){
+  if(days>0){
 
-    return {
+    return{
       text:`IN ${days}D ${hours}H`,
       live:false
     };
 
   }
 
-  if(hours > 0){
+  if(hours>0){
 
-    return {
+    return{
       text:`IN ${hours}H ${minutes}M`,
       live:false
     };
 
   }
 
-  return {
+  return{
     text:`IN ${Math.max(0,minutes)}M`,
     live:false
   };
@@ -4210,13 +3672,11 @@ function newsCountdown(date){
 function newsValue(value){
 
   if(
-    value === null ||
-    value === undefined ||
-    value === ""
+    value===null ||
+    value===undefined ||
+    value===""
   ){
-
     return "—";
-
   }
 
   return value;
@@ -4226,49 +3686,45 @@ function newsValue(value){
 
 function renderEconomicNews(){
 
-  const newsList =
-    document.getElementById(
-      "newsList"
-    );
+  const newsList=
+    document.getElementById("newsList");
 
   if(!newsList)
     return;
 
-  let list =
-    sinnciNews.filter(event => {
+  let list=
+    sinnciNews.filter(event=>{
 
-      if(newsFilter === "all")
+      if(newsFilter==="all")
         return true;
 
-      return (
+      return(
         String(
           event.impact || ""
-        ).toLowerCase() ===
-        newsFilter
+        ).toLowerCase()===newsFilter
       );
 
     });
 
-  list =
+
+  list=
     list
-      .filter(
-        event => event.time_utc
-      )
+      .filter(event=>event.time_utc)
       .sort(
-        (a,b) =>
-          new Date(a.time_utc) -
+        (a,b)=>
+          new Date(a.time_utc)-
           new Date(b.time_utc)
       )
-      .filter(event => {
+      .filter(event=>{
 
-        const eventTime =
+        const eventTime=
           new Date(
             event.time_utc
           ).getTime();
 
-        return (
-          eventTime >=
-          Date.now() - 3600000
+        return(
+          eventTime>=
+          Date.now()-3600000
         );
 
       })
@@ -4277,7 +3733,7 @@ function renderEconomicNews(){
 
   if(!list.length){
 
-    newsList.innerHTML = `
+    newsList.innerHTML=`
       <div class="news-empty">
         No US HIGH / MEDIUM impact news available.
       </div>
@@ -4288,29 +3744,29 @@ function renderEconomicNews(){
   }
 
 
-  newsList.innerHTML =
-    list.map(event => {
+  newsList.innerHTML=
+    list.map(event=>{
 
-      const impact =
+      const impact=
         String(
           event.impact || "medium"
         ).toLowerCase();
 
-      const time =
+      const time=
         new Date(
           event.time_utc
         );
 
-      const countdown =
+      const countdown=
         newsCountdown(time);
 
-      const name =
+      const name=
         event.name ||
         event.title ||
         "US Economic News";
 
 
-      return `
+      return`
 
         <div
           class="news-item ${impact}"
@@ -4343,7 +3799,7 @@ function renderEconomicNews(){
             <div
               class="news-impact ${impact}">
               ${
-                impact === "high"
+                impact==="high"
                   ? "HIGH"
                   : "MEDIUM"
               }
@@ -4420,7 +3876,7 @@ function renderEconomicNews(){
 
 
           ${
-            impact === "high"
+            impact==="high"
               ? `
                 <div class="news-warning">
                   ⚠ High volatility potential on XAUUSD
@@ -4441,17 +3897,15 @@ function renderEconomicNews(){
 function updateNewsCountdowns(){
 
   document
-    .querySelectorAll(
-      "[data-news-time]"
-    )
-    .forEach(item => {
+    .querySelectorAll("[data-news-time]")
+    .forEach(item=>{
 
-      const date =
+      const date=
         new Date(
           item.dataset.newsTime
         );
 
-      const countdown =
+      const countdown=
         item.querySelector(
           ".news-countdown"
         );
@@ -4459,23 +3913,23 @@ function updateNewsCountdowns(){
       if(!countdown)
         return;
 
-      const result =
+      const result=
         newsCountdown(date);
 
-      countdown.className =
-        "news-countdown " +
+      countdown.className=
+        "news-countdown "+
         (
           result.live
             ? "news-live"
             : ""
         );
 
-      countdown.textContent =
+      countdown.textContent=
         (
           result.live
             ? "🔴 "
             : "⏳ "
-        ) +
+        )+
         result.text;
 
     });
@@ -4494,31 +3948,30 @@ setInterval(
 );
 
 
-/* ==============================
+/* =========================================================
    DIRECTION
-   ============================== */
+   ========================================================= */
 
 function setDirection(id,value){
 
-  const el =
+  const el=
     document.getElementById(id);
 
   if(!el)
     return;
 
-  el.textContent =
+  el.textContent=
     value || "---";
 
-  el.className =
-    "dir";
+  el.className="dir";
 
-  if(value === "BULLISH"){
+  if(value==="BULLISH"){
 
     el.classList.add("bullish");
 
   }
 
-  else if(value === "BEARISH"){
+  else if(value==="BEARISH"){
 
     el.classList.add("bearish");
 
@@ -4533,18 +3986,18 @@ function setDirection(id,value){
 }
 
 
-/* ==============================
+/* =========================================================
    TEXT
-   ============================== */
+   ========================================================= */
 
 function setText(id,value){
 
-  const el =
+  const el=
     document.getElementById(id);
 
   if(el){
 
-    el.textContent =
+    el.textContent=
       value ?? "---";
 
   }
@@ -4552,16 +4005,16 @@ function setText(id,value){
 }
 
 
-/* ==============================
+/* =========================================================
    PRICE FORMAT
-   ============================== */
+   ========================================================= */
 
 function formatSetupPrice(value){
 
   if(
-    value === null ||
-    value === undefined ||
-    value === "" ||
+    value===null ||
+    value===undefined ||
+    value==="" ||
     !Number.isFinite(Number(value))
   ){
 
@@ -4574,75 +4027,186 @@ function formatSetupPrice(value){
 }
 
 
-/* ==============================
-   SETUP RENDER
-   ============================== */
+/* =========================================================
+   GET BEST SIDE FROM MODE
+   ========================================================= */
 
-function renderSetup(type,setup){
+/*
+  IMPORTANT:
 
-  const prefix =
-    type === "scalping"
+  API structure:
+
+  data.scalping.buy
+  data.scalping.sell
+
+  data.intraday.buy
+  data.intraday.sell
+
+  Jadi frontend mesti pilih side dahulu.
+*/
+
+function getBestModeSide(modeData){
+
+  if(!modeData)
+    return null;
+
+
+  const buy=
+    modeData.buy || null;
+
+  const sell=
+    modeData.sell || null;
+
+
+  const candidates=
+    [buy,sell]
+      .filter(Boolean);
+
+
+  if(!candidates.length)
+    return null;
+
+
+  /*
+    Priority:
+
+    SIGNAL
+    READY
+    SETUP
+    WAITING
+  */
+
+  const priority={
+    SIGNAL:4,
+    READY:3,
+    SETUP:2,
+    WAITING:1,
+    WAIT:0
+  };
+
+
+  candidates.sort((a,b)=>{
+
+    const statusA=
+      String(
+        a.status || "WAIT"
+      ).toUpperCase();
+
+    const statusB=
+      String(
+        b.status || "WAIT"
+      ).toUpperCase();
+
+
+    const priorityDiff=
+      (priority[statusB] || 0)-
+      (priority[statusA] || 0);
+
+
+    /*
+      Kalau status sama,
+      pilih score tertinggi.
+    */
+
+    if(priorityDiff!==0)
+      return priorityDiff;
+
+
+    return(
+      Number(b.score || 0)-
+      Number(a.score || 0)
+    );
+
+  });
+
+
+  return candidates[0];
+
+}
+
+
+/* =========================================================
+   RENDER SETUP
+   ========================================================= */
+
+function renderSetup(type,modeData){
+
+  const prefix=
+    type==="scalping"
       ? "scalping"
       : "intraday";
 
-  const card =
+
+  /*
+    FIX:
+
+    Jangan terus render modeData.
+
+    Cari BUY/SELL terbaik dahulu.
+  */
+
+  const setup=
+    getBestModeSide(modeData);
+
+
+  const card=
     document.getElementById(
-      prefix + "Card"
+      prefix+"Card"
     );
 
-  const statusEl =
+  const statusEl=
     document.getElementById(
-      prefix + "Status"
+      prefix+"Status"
     );
 
-  const directionEl =
+  const directionEl=
     document.getElementById(
-      prefix + "Direction"
+      prefix+"Direction"
     );
 
-  const arrowEl =
+  const arrowEl=
     document.getElementById(
-      prefix + "Arrow"
+      prefix+"Arrow"
     );
 
-  const directionTextEl =
+  const directionTextEl=
     document.getElementById(
-      prefix + "DirectionText"
+      prefix+"DirectionText"
     );
 
-  const scoreEl =
+  const scoreEl=
     document.getElementById(
-      prefix + "Score"
+      prefix+"Score"
     );
 
-  const entryEl =
+  const entryEl=
     document.getElementById(
-      prefix + "Entry"
+      prefix+"Entry"
     );
 
-  const slEl =
+  const slEl=
     document.getElementById(
-      prefix + "SL"
+      prefix+"SL"
     );
 
-  const tp1El =
+  const tp1El=
     document.getElementById(
-      prefix + "TP1"
+      prefix+"TP1"
     );
 
-  const tp2El =
+  const tp2El=
     document.getElementById(
-      prefix + "TP2"
+      prefix+"TP2"
     );
 
-  const reasonEl =
+  const reasonEl=
     document.getElementById(
-      prefix + "Reason"
+      prefix+"Reason"
     );
 
-  const confirmEl =
+  const confirmEl=
     document.getElementById(
-      prefix + "Confirm"
+      prefix+"Confirm"
     );
 
 
@@ -4650,47 +4214,39 @@ function renderSetup(type,setup){
     return;
 
 
+  /*
+    NO DATA
+  */
+
   if(!setup){
 
-    card.className =
-      "setup-card wait";
+    card.className="setup-card wait";
 
-    statusEl.className =
-      "setup-status wait";
+    statusEl.className="setup-status wait";
+    statusEl.textContent="WAIT";
 
-    statusEl.textContent =
-      "WAIT";
-
-    directionEl.className =
+    directionEl.className=
       "setup-direction wait";
 
-    arrowEl.textContent =
-      "⏳";
+    arrowEl.textContent="⏳";
 
-    directionTextEl.textContent =
-      "WAIT";
+    directionTextEl.textContent="WAIT";
 
-    scoreEl.textContent =
-      "SCORE 0";
+    scoreEl.textContent="SCORE 0";
 
-    entryEl.textContent =
-      "---";
+    entryEl.textContent="---";
+    slEl.textContent="---";
+    tp1El.textContent="---";
+    tp2El.textContent="---";
 
-    slEl.textContent =
-      "---";
 
-    tp1El.textContent =
-      "---";
-
-    tp2El.textContent =
-      "---";
-
-    reasonEl.textContent =
-      type === "scalping"
+    reasonEl.textContent=
+      type==="scalping"
         ? "Waiting for a valid H1 → M15 → M5 scalping setup."
         : "Waiting for a valid H4 → H1 → M15 → M5 intraday setup.";
 
-    confirmEl.textContent =
+
+    confirmEl.textContent=
       "M5 confirmation pending";
 
     return;
@@ -4698,187 +4254,255 @@ function renderSetup(type,setup){
   }
 
 
-  const direction =
+  /*
+    DIRECTION
+  */
+
+  const direction=
     String(
       setup.direction ||
       setup.signal ||
       "WAIT"
     ).toUpperCase();
 
-  let status =
+
+  /*
+    STATUS
+
+    Keep READY as READY.
+  */
+
+  let status=
     String(
       setup.status ||
-      ""
+      "WAIT"
     ).toUpperCase();
 
 
   if(
-    status !== "SIGNAL" &&
-    status !== "SETUP"
+    status!=="SIGNAL" &&
+    status!=="READY" &&
+    status!=="SETUP" &&
+    status!=="WAITING"
   ){
 
-    status =
-      direction === "BUY" ||
-      direction === "SELL"
+    status=
+      direction==="BUY" ||
+      direction==="SELL"
         ? "SETUP"
         : "WAIT";
 
   }
 
 
-  let cardClass =
-    "setup-card";
+  /*
+    CARD COLOR
+  */
 
-  if(direction === "BUY")
-    cardClass += " buy";
+  let cardClass="setup-card";
 
-  else if(direction === "SELL")
-    cardClass += " sell";
+  if(direction==="BUY")
+    cardClass+=" buy";
 
-  else
-    cardClass += " wait";
-
-
-  card.className =
-    cardClass;
-
-
-  let statusClass =
-    "setup-status ";
-
-  if(status === "SIGNAL")
-    statusClass += "signal";
-
-  else if(status === "SETUP")
-    statusClass += "setup";
+  else if(direction==="SELL")
+    cardClass+=" sell";
 
   else
-    statusClass += "wait";
+    cardClass+=" wait";
 
 
-  if(direction === "BUY")
-    statusClass += " buy";
-
-  else if(direction === "SELL")
-    statusClass += " sell";
+  card.className=cardClass;
 
 
-  statusEl.className =
-    statusClass;
+  /*
+    STATUS COLOR
+  */
 
-  statusEl.textContent =
-    status;
+  let statusClass="setup-status ";
 
 
-  let directionClass =
+  if(status==="SIGNAL")
+    statusClass+="signal";
+
+  else if(status==="READY")
+    statusClass+="ready";
+
+  else if(status==="SETUP")
+    statusClass+="setup";
+
+  else
+    statusClass+="wait";
+
+
+  if(direction==="BUY")
+    statusClass+=" buy";
+
+  else if(direction==="SELL")
+    statusClass+=" sell";
+
+
+  statusEl.className=statusClass;
+  statusEl.textContent=status;
+
+
+  /*
+    DIRECTION
+  */
+
+  let directionClass=
     "setup-direction ";
 
-  if(direction === "BUY")
-    directionClass += "buy";
 
-  else if(direction === "SELL")
-    directionClass += "sell";
+  if(direction==="BUY")
+    directionClass+="buy";
+
+  else if(direction==="SELL")
+    directionClass+="sell";
 
   else
-    directionClass += "wait";
+    directionClass+="wait";
 
 
-  directionEl.className =
+  directionEl.className=
     directionClass;
 
 
-  if(direction === "BUY"){
+  if(direction==="BUY"){
 
-    arrowEl.textContent =
-      "↑";
-
-    directionTextEl.textContent =
-      "BUY";
+    arrowEl.textContent="↑";
+    directionTextEl.textContent="BUY";
 
   }
 
-  else if(direction === "SELL"){
+  else if(direction==="SELL"){
 
-    arrowEl.textContent =
-      "↓";
-
-    directionTextEl.textContent =
-      "SELL";
+    arrowEl.textContent="↓";
+    directionTextEl.textContent="SELL";
 
   }
 
   else{
 
-    arrowEl.textContent =
-      "⏳";
-
-    directionTextEl.textContent =
-      "WAIT";
+    arrowEl.textContent="⏳";
+    directionTextEl.textContent="WAIT";
 
   }
 
 
-  const score =
+  /*
+    SCORE
+  */
+
+  const score=
     setup.score ??
     setup.buyScore ??
     setup.sellScore ??
     0;
 
-  scoreEl.textContent =
-    "SCORE " + score;
+
+  scoreEl.textContent=
+    "SCORE "+score;
 
 
-  entryEl.textContent =
-    formatSetupPrice(
-      setup.entry
-    );
+  /*
+    TRADE PLAN
 
-  slEl.textContent =
-    formatSetupPrice(
-      setup.sl
-    );
+    Untuk SIGNAL biasanya API ada:
 
-  tp1El.textContent =
-    formatSetupPrice(
-      setup.tp1
-    );
+    setup.plan.entry
+    setup.plan.sl
+    setup.plan.tp1
+    setup.plan.tp2
 
-  tp2El.textContent =
-    formatSetupPrice(
-      setup.tp2
-    );
+    Kalau API letak terus pada setup,
+    kita support kedua-duanya.
+  */
+
+  const plan=
+    setup.plan || null;
 
 
-  reasonEl.textContent =
+  const entry=
+    plan?.entry ??
+    setup.entry ??
+    null;
+
+  const sl=
+    plan?.sl ??
+    setup.sl ??
+    null;
+
+  const tp1=
+    plan?.tp1 ??
+    setup.tp1 ??
+    null;
+
+  const tp2=
+    plan?.tp2 ??
+    setup.tp2 ??
+    null;
+
+
+  entryEl.textContent=
+    formatSetupPrice(entry);
+
+  slEl.textContent=
+    formatSetupPrice(sl);
+
+  tp1El.textContent=
+    formatSetupPrice(tp1);
+
+  tp2El.textContent=
+    formatSetupPrice(tp2);
+
+
+  /*
+    REASON
+  */
+
+  reasonEl.textContent=
     setup.reason ||
     setup.waitReason ||
     setup.description ||
     (
-      status === "SIGNAL"
-        ? "M5 confirmation aligned with the higher timeframe setup."
-        : status === "SETUP"
-          ? "Setup detected. Waiting for M5 confirmation."
-          : "No valid setup."
+      status==="SIGNAL"
+        ? "M5 confirmation aligned with the setup."
+        : status==="READY"
+          ? "Setup is ready. Monitor M5 confirmation."
+          : status==="SETUP"
+            ? "Setup detected. Waiting for M5 confirmation."
+            : "No valid setup."
     );
 
 
-  if(status === "SIGNAL"){
+  /*
+    CONFIRMATION MESSAGE
+  */
 
-    confirmEl.textContent =
+  if(status==="SIGNAL"){
+
+    confirmEl.textContent=
       "✓ M5 confirmation CONFIRMED";
 
   }
 
-  else if(status === "SETUP"){
+  else if(status==="READY"){
 
-    confirmEl.textContent =
+    confirmEl.textContent=
+      "⚡ READY • M5 confirmation aligned";
+
+  }
+
+  else if(status==="SETUP"){
+
+    confirmEl.textContent=
       "⏳ M5 confirmation pending";
 
   }
 
   else{
 
-    confirmEl.textContent =
+    confirmEl.textContent=
       "No valid setup yet";
 
   }
@@ -4886,9 +4510,9 @@ function renderSetup(type,setup){
 }
 
 
-/* ==============================
+/* =========================================================
    RESET
-   ============================== */
+   ========================================================= */
 
 function resetSignal(){
 
@@ -4898,72 +4522,66 @@ function resetSignal(){
   setText("tp2","---");
   setText("punca","---");
 
-  renderSetup(
-    "scalping",
-    null
-  );
-
-  renderSetup(
-    "intraday",
-    null
-  );
+  renderSetup("scalping",null);
+  renderSetup("intraday",null);
 
 }
 
 
-/* ==============================
+/* =========================================================
    APPLY PRIMARY SETUP
-   ============================== */
+   ========================================================= */
 
 function applyPrimarySetup(setup){
 
   if(!setup)
     return;
 
-  const direction =
+
+  const direction=
     String(
       setup.direction ||
       setup.signal ||
       "WAIT"
     ).toUpperCase();
 
-  const status =
+
+  const status=
     String(
       setup.status ||
       ""
     ).toUpperCase();
 
 
-  if(direction === "BUY"){
+  if(direction==="BUY"){
 
-    signalCard.className =
+    signalCard.className=
       "card signal-card buy";
 
-    signalIcon.textContent =
-      "↑";
+    signalIcon.textContent="↑";
 
-    signalName.textContent =
-      status === "SIGNAL"
+    signalName.textContent=
+      status==="SIGNAL"
         ? "BUY SIGNAL"
         : "BUY SETUP";
 
-    signalSub.textContent =
-      status === "SIGNAL"
+    signalSub.textContent=
+      status==="SIGNAL"
         ? "M5 confirmed bullish setup"
         : "Bullish setup detected";
 
-    aiStatus.textContent =
-      status === "SIGNAL"
+    aiStatus.textContent=
+      status==="SIGNAL"
         ? "BUY"
         : "BUY SETUP";
 
-    aiStatus.style.color =
+    aiStatus.style.color=
       "var(--green)";
 
-    aiDescription.textContent =
+    aiDescription.textContent=
       setup.reason ||
       (
-        status === "SIGNAL"
+        status==="SIGNAL"
           ? "M5 confirmation aligns with the setup."
           : "Setup detected. Waiting for M5 confirmation."
       );
@@ -4971,36 +4589,35 @@ function applyPrimarySetup(setup){
   }
 
 
-  else if(direction === "SELL"){
+  else if(direction==="SELL"){
 
-    signalCard.className =
+    signalCard.className=
       "card signal-card sell";
 
-    signalIcon.textContent =
-      "↓";
+    signalIcon.textContent="↓";
 
-    signalName.textContent =
-      status === "SIGNAL"
+    signalName.textContent=
+      status==="SIGNAL"
         ? "SELL SIGNAL"
         : "SELL SETUP";
 
-    signalSub.textContent =
-      status === "SIGNAL"
+    signalSub.textContent=
+      status==="SIGNAL"
         ? "M5 confirmed bearish setup"
         : "Bearish setup detected";
 
-    aiStatus.textContent =
-      status === "SIGNAL"
+    aiStatus.textContent=
+      status==="SIGNAL"
         ? "SELL"
         : "SELL SETUP";
 
-    aiStatus.style.color =
+    aiStatus.style.color=
       "var(--red)";
 
-    aiDescription.textContent =
+    aiDescription.textContent=
       setup.reason ||
       (
-        status === "SIGNAL"
+        status==="SIGNAL"
           ? "M5 confirmation aligns with the setup."
           : "Setup detected. Waiting for M5 confirmation."
       );
@@ -5010,26 +4627,23 @@ function applyPrimarySetup(setup){
 
   else{
 
-    signalCard.className =
+    signalCard.className=
       "card signal-card wait";
 
-    signalIcon.textContent =
-      "⏳";
+    signalIcon.textContent="⏳";
 
-    signalName.textContent =
-      "WAIT";
+    signalName.textContent="WAIT";
 
-    signalSub.textContent =
+    signalSub.textContent=
       setup.reason ||
       "No high-quality setup";
 
-    aiStatus.textContent =
-      "WAIT";
+    aiStatus.textContent="WAIT";
 
-    aiStatus.style.color =
+    aiStatus.style.color=
       "var(--yellow)";
 
-    aiDescription.textContent =
+    aiDescription.textContent=
       "Waiting for a cleaner market structure.";
 
   }
@@ -5066,11 +4680,17 @@ function applyPrimarySetup(setup){
 }
 
 
-/* ==============================
-   FIND BEST FRONTEND SETUP
-   ============================== */
+/* =========================================================
+   CHOOSE PRIMARY SETUP
+   ========================================================= */
 
 function chooseBestSetup(data){
+
+  /*
+    PrimarySetup dari API ialah confirmed plan.
+
+    Kalau ada, gunakan terus.
+  */
 
   if(data.primarySetup){
 
@@ -5079,107 +4699,140 @@ function chooseBestSetup(data){
   }
 
 
-  const scalping =
-    data.scalping;
+  const modes=[
+    data.scalping,
+    data.intraday
+  ]
+  .filter(Boolean);
 
-  const intraday =
-    data.intraday;
+
+  const candidates=[];
 
 
-  const candidates =
-    [
-      scalping,
-      intraday
-    ]
-    .filter(Boolean);
+  /*
+    Ambil BUY dan SELL
+    dari setiap mode.
+  */
+
+  modes.forEach(mode=>{
+
+    if(mode.buy)
+      candidates.push(mode.buy);
+
+    if(mode.sell)
+      candidates.push(mode.sell);
+
+  });
 
 
   if(!candidates.length)
     return null;
 
 
-  const signals =
-    candidates.filter(
-      setup =>
-        String(
-          setup.status || ""
-        ).toUpperCase() === "SIGNAL"
+  const priority={
+    SIGNAL:4,
+    READY:3,
+    SETUP:2,
+    WAITING:1,
+    WAIT:0
+  };
+
+
+  candidates.sort((a,b)=>{
+
+    const statusA=
+      String(
+        a.status || "WAIT"
+      ).toUpperCase();
+
+    const statusB=
+      String(
+        b.status || "WAIT"
+      ).toUpperCase();
+
+
+    const diff=
+      (priority[statusB] || 0)-
+      (priority[statusA] || 0);
+
+
+    if(diff!==0)
+      return diff;
+
+
+    return(
+      Number(b.score || 0)-
+      Number(a.score || 0)
     );
 
-
-  if(signals.length){
-
-    return signals.sort(
-      (a,b) =>
-        Number(b.score || 0) -
-        Number(a.score || 0)
-    )[0];
-
-  }
+  });
 
 
-  const setups =
-    candidates.filter(
-      setup =>
+  /*
+    Jangan jadikan WAIT sebagai
+    primary setup.
+  */
+
+  const valid=
+    candidates.find(item=>{
+
+      const status=
         String(
-          setup.status || ""
-        ).toUpperCase() === "SETUP"
-    );
+          item.status || "WAIT"
+        ).toUpperCase();
+
+      return(
+        status==="SIGNAL" ||
+        status==="READY" ||
+        status==="SETUP"
+      );
+
+    });
 
 
-  if(setups.length){
-
-    return setups.sort(
-      (a,b) =>
-        Number(b.score || 0) -
-        Number(a.score || 0)
-    )[0];
-
-  }
-
-
-  return null;
+  return valid || null;
 
 }
 
 
-/* ==============================
-   ANALYZE
-   ============================== */
+/* =========================================================
+   ANALYZE MARKET
+   ========================================================= */
 
 async function analyze(){
 
-  analyzeBtn.disabled =
-    true;
+  analyzeBtn.disabled=true;
 
-  analyzeBtn.textContent =
+  analyzeBtn.textContent=
     "◌ ANALYZING MARKET...";
 
-  aiStatus.textContent =
+
+  aiStatus.textContent=
     "SCANNING";
 
-  aiStatus.style.color =
+  aiStatus.style.color=
     "var(--gold)";
 
-  aiDescription.textContent =
+
+  aiDescription.textContent=
     "Scanning H4 → H1 → M15 → M5 structure...";
 
-  signalCard.className =
+
+  signalCard.className=
     "card signal-card wait";
 
-  signalIcon.textContent =
-    "◌";
+  signalIcon.textContent="◌";
 
-  signalName.textContent =
+  signalName.textContent=
     "ANALYZING";
 
-  signalSub.textContent =
+  signalSub.textContent=
     "Searching scalping & intraday setups...";
 
 
   try{
 
-    const response =
+    const response=
       await fetch(
         "/api/analyze",
         {
@@ -5187,7 +4840,8 @@ async function analyze(){
         }
       );
 
-    const data =
+
+    const data=
       await response.json();
 
 
@@ -5203,6 +4857,10 @@ async function analyze(){
 
     }
 
+
+    /*
+      MULTI-TIMEFRAME
+    */
 
     setDirection(
       "h4",
@@ -5225,8 +4883,22 @@ async function analyze(){
     );
 
 
+    /*
+      RESET
+    */
+
     resetSignal();
 
+
+    /*
+      IMPORTANT FIX:
+
+      data.scalping ada BUY + SELL.
+      data.intraday ada BUY + SELL.
+
+      renderSetup sekarang akan
+      pilih side terbaik secara automatik.
+    */
 
     renderSetup(
       "scalping",
@@ -5239,11 +4911,15 @@ async function analyze(){
     );
 
 
-    const selectedSetup =
+    /*
+      PRIMARY
+    */
+
+    const selectedSetup=
       chooseBestSetup(data);
 
 
-    const topSignal =
+    const topSignal=
       String(
         data.signal ||
         "WAIT"
@@ -5252,59 +4928,60 @@ async function analyze(){
 
     if(selectedSetup){
 
+      /*
+        Untuk main card sahaja.
+      */
+
       applyPrimarySetup(
         selectedSetup
       );
 
     }
 
-    else if(topSignal === "BUY"){
 
-      signalCard.className =
+    else if(topSignal==="BUY"){
+
+      signalCard.className=
         "card signal-card buy";
 
-      signalIcon.textContent =
-        "↑";
+      signalIcon.textContent="↑";
 
-      signalName.textContent =
+      signalName.textContent=
         "BUY SIGNAL";
 
-      signalSub.textContent =
+      signalSub.textContent=
         "High-quality bullish setup";
 
-      aiStatus.textContent =
-        "BUY";
+      aiStatus.textContent="BUY";
 
-      aiStatus.style.color =
+      aiStatus.style.color=
         "var(--green)";
 
-      aiDescription.textContent =
+      aiDescription.textContent=
         "Structure, direction and confirmation align.";
 
     }
 
 
-    else if(topSignal === "SELL"){
+    else if(topSignal==="SELL"){
 
-      signalCard.className =
+      signalCard.className=
         "card signal-card sell";
 
-      signalIcon.textContent =
-        "↓";
+      signalIcon.textContent="↓";
 
-      signalName.textContent =
+      signalName.textContent=
         "SELL SIGNAL";
 
-      signalSub.textContent =
+      signalSub.textContent=
         "High-quality bearish setup";
 
-      aiStatus.textContent =
-        "SELL";
+      aiStatus.textContent="SELL";
 
-      aiStatus.style.color =
+      aiStatus.style.color=
         "var(--red)";
 
-      aiDescription.textContent =
+      aiDescription.textContent=
         "Structure, direction and confirmation align.";
 
     }
@@ -5312,35 +4989,36 @@ async function analyze(){
 
     else{
 
-      signalCard.className =
+      signalCard.className=
         "card signal-card wait";
 
-      signalIcon.textContent =
-        "⏳";
+      signalIcon.textContent="⏳";
 
-      signalName.textContent =
-        "WAIT";
+      signalName.textContent="WAIT";
 
-      signalSub.textContent =
+      signalSub.textContent=
         data.waitReason ||
         "No high-quality setup";
 
-      aiStatus.textContent =
-        "WAIT";
+      aiStatus.textContent="WAIT";
 
-      aiStatus.style.color =
+      aiStatus.style.color=
         "var(--yellow)";
 
-      aiDescription.textContent =
+      aiDescription.textContent=
         "No valid entry. Waiting for a cleaner setup.";
 
     }
 
 
+    /*
+      FALLBACK TOP LEVEL VALUES
+    */
+
     if(
       !selectedSetup &&
-      data.entry !== null &&
-      data.entry !== undefined
+      data.entry!==null &&
+      data.entry!==undefined
     ){
 
       setText(
@@ -5355,8 +5033,8 @@ async function analyze(){
 
     if(
       !selectedSetup &&
-      data.sl !== null &&
-      data.sl !== undefined
+      data.sl!==null &&
+      data.sl!==undefined
     ){
 
       setText(
@@ -5371,8 +5049,8 @@ async function analyze(){
 
     if(
       !selectedSetup &&
-      data.tp1 !== null &&
-      data.tp1 !== undefined
+      data.tp1!==null &&
+      data.tp1!==undefined
     ){
 
       setText(
@@ -5387,8 +5065,8 @@ async function analyze(){
 
     if(
       !selectedSetup &&
-      data.tp2 !== null &&
-      data.tp2 !== undefined
+      data.tp2!==null &&
+      data.tp2!==undefined
     ){
 
       setText(
@@ -5401,24 +5079,30 @@ async function analyze(){
     }
 
 
+    /*
+      PUNCA
+    */
+
     if(data.punca){
 
-      const puncaPrice =
-        data.punca.price !== undefined
+      const puncaPrice=
+        data.punca.price!==undefined
           ? Number(
               data.punca.price
             ).toFixed(2)
           : "---";
 
+
       setText(
         "punca",
-        puncaPrice +
-        " • " +
+        puncaPrice+
+        " • "+
         (
           data.punca.source ||
           "---"
         )
       );
+
 
       setText(
         "puncaSource",
@@ -5430,22 +5114,19 @@ async function analyze(){
 
     else{
 
-      setText(
-        "punca",
-        "---"
-      );
-
-      setText(
-        "puncaSource",
-        "---"
-      );
+      setText("punca","---");
+      setText("puncaSource","---");
 
     }
 
 
+    /*
+      RISK
+    */
+
     if(
-      data.risk !== null &&
-      data.risk !== undefined
+      data.risk!==null &&
+      data.risk!==undefined
     ){
 
       setText(
@@ -5459,17 +5140,18 @@ async function analyze(){
 
     else{
 
-      setText(
-        "risk",
-        "---"
-      );
+      setText("risk","---");
 
     }
 
 
+    /*
+      MAX RISK
+    */
+
     if(
-      data.maxAllowedRisk !== null &&
-      data.maxAllowedRisk !== undefined
+      data.maxAllowedRisk!==null &&
+      data.maxAllowedRisk!==undefined
     ){
 
       setText(
@@ -5483,13 +5165,14 @@ async function analyze(){
 
     else{
 
-      setText(
-        "maxRisk",
-        "---"
-      );
+      setText("maxRisk","---");
 
     }
 
+
+    /*
+      REASON
+    */
 
     if(selectedSetup){
 
@@ -5499,7 +5182,7 @@ async function analyze(){
         selectedSetup.waitReason ||
         data.waitReason ||
         (
-          selectedSetup.status === "SIGNAL"
+          selectedSetup.status==="SIGNAL"
             ? "CONFIRMED SETUP"
             : "SETUP DETECTED"
         )
@@ -5513,9 +5196,9 @@ async function analyze(){
         "reason",
         data.waitReason ||
         (
-          topSignal === "BUY"
+          topSignal==="BUY"
             ? "BUY SETUP"
-            : topSignal === "SELL"
+            : topSignal==="SELL"
               ? "SELL SETUP"
               : "WAIT"
         )
@@ -5524,22 +5207,71 @@ async function analyze(){
     }
 
 
-    const buyScore =
+    /*
+      SCORE
+    */
+
+    const buyScore=
       data.scores?.buy ??
       data.scores?.scalpingBuy ??
       data.scores?.intradayBuy ??
       0;
 
-    const sellScore =
+
+    const sellScore=
       data.scores?.sell ??
       data.scores?.scalpingSell ??
       data.scores?.intradaySell ??
       0;
 
 
+    /*
+      Kalau API top-level scores kosong,
+      ambil score sebenar dari mode.
+    */
+
+    const scalpBuyScore=
+      Number(
+        data.scalping?.buy?.score || 0
+      );
+
+    const scalpSellScore=
+      Number(
+        data.scalping?.sell?.score || 0
+      );
+
+    const intraBuyScore=
+      Number(
+        data.intraday?.buy?.score || 0
+      );
+
+    const intraSellScore=
+      Number(
+        data.intraday?.sell?.score || 0
+      );
+
+
+    const finalBuyScore=
+      Number(buyScore)>0
+        ? Number(buyScore)
+        : Math.max(
+            scalpBuyScore,
+            intraBuyScore
+          );
+
+
+    const finalSellScore=
+      Number(sellScore)>0
+        ? Number(sellScore)
+        : Math.max(
+            scalpSellScore,
+            intraSellScore
+          );
+
+
     setText(
       "score",
-      `BUY ${buyScore} • SELL ${sellScore}`
+      `BUY ${finalBuyScore} • SELL ${finalSellScore}`
     );
 
 
@@ -5559,25 +5291,22 @@ async function analyze(){
     );
 
 
-    signalCard.className =
+    signalCard.className=
       "card signal-card wait";
 
-    signalIcon.textContent =
-      "⚠";
+    signalIcon.textContent="⚠";
 
-    signalName.textContent =
-      "ERROR";
+    signalName.textContent="ERROR";
 
-    signalSub.textContent =
+    signalSub.textContent=
       error.message;
 
-    aiStatus.textContent =
-      "ERROR";
+    aiStatus.textContent="ERROR";
 
-    aiStatus.style.color =
+    aiStatus.style.color=
       "var(--red)";
 
-    aiDescription.textContent =
+    aiDescription.textContent=
       "Unable to complete market analysis.";
 
 
@@ -5594,51 +5323,48 @@ async function analyze(){
 }
 
 
-/* ==============================
-   API COOLDOWN
-   ============================== */
+/* =========================================================
+   COOLDOWN
+   ========================================================= */
 
-let cooldownTimer = null;
+let cooldownTimer=null;
 
-function startCooldown(
-  seconds = 60
-){
 
-  clearInterval(
-    cooldownTimer
-  );
+function startCooldown(seconds=60){
 
-  let remaining =
-    seconds;
+  clearInterval(cooldownTimer);
 
-  analyzeBtn.disabled =
-    true;
+  let remaining=seconds;
 
-  analyzeBtn.textContent =
+  analyzeBtn.disabled=true;
+
+  analyzeBtn.textContent=
     `NEXT ANALYSIS: ${remaining}s`;
 
-  cooldownTimer =
-    setInterval(() => {
+
+  cooldownTimer=
+    setInterval(()=>{
 
       remaining--;
 
-      if(remaining <= 0){
+
+      if(remaining<=0){
 
         clearInterval(
           cooldownTimer
         );
 
-        analyzeBtn.disabled =
-          false;
+        analyzeBtn.disabled=false;
 
-        analyzeBtn.textContent =
+        analyzeBtn.textContent=
           "✦ ANALYZE MARKET";
 
         return;
 
       }
 
-      analyzeBtn.textContent =
+
+      analyzeBtn.textContent=
         `NEXT ANALYSIS: ${remaining}s`;
 
     },1000);
@@ -5646,9 +5372,9 @@ function startCooldown(
 }
 
 
-/* ==============================
+/* =========================================================
    BUTTON
-   ============================== */
+   ========================================================= */
 
 analyzeBtn.addEventListener(
   "click",

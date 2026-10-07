@@ -622,7 +622,7 @@ body::after{
 
 .direction-grid{
   display:grid;
-  grid-template-columns:repeat(5,1fr);
+  grid-template-columns:repeat(4,1fr);
   gap:10px;
 }
 
@@ -649,6 +649,102 @@ body::after{
 .bullish{color:var(--green)}
 .bearish{color:var(--red)}
 .neutral{color:var(--yellow)}
+
+/* ==============================
+   FOREX SESSIONS
+   ============================== */
+
+.session-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+
+.session-card{
+  position:relative;
+  padding:17px;
+  border-radius:16px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  overflow:hidden;
+}
+
+.session-card.open{
+  border-color:rgba(32,217,139,.28);
+  box-shadow:inset 0 0 25px rgba(32,217,139,.025);
+}
+
+.session-card.overlap{
+  border-color:rgba(216,180,90,.32);
+  box-shadow:inset 0 0 30px rgba(216,180,90,.035);
+}
+
+.session-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+
+.session-name{
+  font-size:12px;
+  font-weight:900;
+}
+
+.session-status{
+  padding:5px 7px;
+  border-radius:20px;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.5px;
+}
+
+.session-status.open{
+  color:#9ff5ce;
+  background:rgba(32,217,139,.08);
+  border:1px solid rgba(32,217,139,.16);
+}
+
+.session-status.closed{
+  color:#777c84;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.06);
+}
+
+.session-time{
+  margin-top:13px;
+  color:var(--white);
+  font-size:13px;
+  font-weight:800;
+}
+
+.session-zone{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:8px;
+}
+
+.session-activity{
+  margin-top:13px;
+  font-size:9px;
+  letter-spacing:1px;
+  font-weight:900;
+  color:var(--gold);
+}
+
+.session-live{
+  position:absolute;
+  right:-25px;
+  bottom:-25px;
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  border:1px solid rgba(32,217,139,.08);
+}
+
+/* ==============================
+   MARKET DATA
+   ============================== */
 
 .data-grid{
   display:grid;
@@ -714,8 +810,11 @@ body::after{
   }
 
   .direction-grid{
-    grid-template-columns:repeat(5,1fr);
-    overflow-x:auto;
+    grid-template-columns:repeat(4,1fr);
+  }
+
+  .session-grid{
+    grid-template-columns:repeat(2,1fr);
   }
 
   .direction{
@@ -755,6 +854,22 @@ body::after{
   .auth-box,
   .pending-box{
     padding:23px;
+  }
+
+  .session-grid{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .session-card{
+    padding:13px;
+  }
+
+  .session-name{
+    font-size:10px;
+  }
+
+  .session-time{
+    font-size:11px;
   }
 }
 </style>
@@ -946,7 +1061,6 @@ const supabaseClient =
       <div class="timeframe">
         <div class="tf">H4</div>
         <div class="tf">H1</div>
-        <div class="tf">M30</div>
         <div class="tf">M15</div>
         <div class="tf active">M5</div>
       </div>
@@ -1075,6 +1189,164 @@ const supabaseClient =
   </div>
 
 
+  <!-- FOREX SESSIONS -->
+
+  <div class="section-title">
+    FOREX SESSIONS • MALAYSIA TIME
+  </div>
+
+  <section class="session-grid">
+
+    <div id="asiaSession" class="session-card">
+
+      <div class="session-head">
+
+        <div class="session-name">
+          🇯🇵 ASIA / TOKYO
+        </div>
+
+        <div
+          id="asiaStatus"
+          class="session-status closed">
+          CLOSED
+        </div>
+
+      </div>
+
+      <div
+        id="asiaTime"
+        class="session-time">
+        08:00 — 17:00 MYT
+      </div>
+
+      <div class="session-zone">
+        TOKYO TIME • AUTO
+      </div>
+
+      <div
+        id="asiaActivity"
+        class="session-activity">
+        MODERATE
+      </div>
+
+      <div class="session-live"></div>
+
+    </div>
+
+
+    <div id="londonSession" class="session-card">
+
+      <div class="session-head">
+
+        <div class="session-name">
+          🇬🇧 LONDON
+        </div>
+
+        <div
+          id="londonStatus"
+          class="session-status closed">
+          CLOSED
+        </div>
+
+      </div>
+
+      <div
+        id="londonTime"
+        class="session-time">
+        AUTO
+      </div>
+
+      <div class="session-zone">
+        LONDON TIME • AUTO DST
+      </div>
+
+      <div
+        id="londonActivity"
+        class="session-activity">
+        HIGH
+      </div>
+
+      <div class="session-live"></div>
+
+    </div>
+
+
+    <div id="newYorkSession" class="session-card">
+
+      <div class="session-head">
+
+        <div class="session-name">
+          🇺🇸 NEW YORK
+        </div>
+
+        <div
+          id="newyorkStatus"
+          class="session-status closed">
+          CLOSED
+        </div>
+
+      </div>
+
+      <div
+        id="newyorkTime"
+        class="session-time">
+        AUTO
+      </div>
+
+      <div class="session-zone">
+        NEW YORK TIME • AUTO DST
+      </div>
+
+      <div
+        id="newyorkActivity"
+        class="session-activity">
+        HIGH
+      </div>
+
+      <div class="session-live"></div>
+
+    </div>
+
+
+    <div id="overlapSession" class="session-card overlap">
+
+      <div class="session-head">
+
+        <div class="session-name">
+          🔥 LONDON × NEW YORK
+        </div>
+
+        <div
+          id="overlapStatus"
+          class="session-status closed">
+          INACTIVE
+        </div>
+
+      </div>
+
+      <div
+        id="overlapTime"
+        class="session-time">
+        AUTO
+      </div>
+
+      <div class="session-zone">
+        OVERLAP • MALAYSIA TIME
+      </div>
+
+      <div
+        id="overlapActivity"
+        class="session-activity">
+        VERY HIGH
+      </div>
+
+      <div class="session-live"></div>
+
+    </div>
+
+  </section>
+
+
   <div class="section-title">
     MULTI-TIMEFRAME DIRECTION
   </div>
@@ -1089,11 +1361,6 @@ const supabaseClient =
     <div class="direction">
       <div class="tf-name">H1</div>
       <div id="h1" class="dir neutral">---</div>
-    </div>
-
-    <div class="direction">
-      <div class="tf-name">M30</div>
-      <div id="m30" class="dir neutral">---</div>
     </div>
 
     <div class="direction">
@@ -1450,7 +1717,7 @@ async function checkUserAccess(){
 
   }
 
-    }
+}
 
 
 /* ==============================
@@ -1506,6 +1773,8 @@ function showApp(){
   ).style.display = "block";
 
   getLivePrice();
+
+  updateSessionDisplay();
 
 }
 
@@ -1669,6 +1938,310 @@ async function getLivePrice(){
 
 
 /* ==============================
+   FOREX SESSION ENGINE
+   DISPLAY = MALAYSIA TIME
+   ============================== */
+
+function getTimeParts(timeZone){
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-GB",
+      {
+        timeZone,
+        hour:"2-digit",
+        minute:"2-digit",
+        hour12:false,
+        weekday:"short"
+      }
+    ).formatToParts(new Date());
+
+  const result = {};
+
+  parts.forEach(part => {
+    result[part.type] = part.value;
+  });
+
+  return {
+    hour:Number(result.hour),
+    minute:Number(result.minute),
+    weekday:result.weekday
+  };
+
+}
+
+
+function minutesNow(timeZone){
+
+  const parts =
+    getTimeParts(timeZone);
+
+  return (
+    parts.hour * 60 +
+    parts.minute
+  );
+
+}
+
+
+function isSessionOpen(
+  timeZone,
+  startHour,
+  endHour
+){
+
+  const now =
+    minutesNow(timeZone);
+
+  const start =
+    startHour * 60;
+
+  const end =
+    endHour * 60;
+
+  if(start < end){
+
+    return now >= start &&
+           now < end;
+
+  }
+
+  return now >= start ||
+         now < end;
+
+}
+
+
+function formatMalaysiaSessionTime(
+  timeZone,
+  startHour,
+  endHour
+){
+
+  function convert(
+    hour,
+    minute
+  ){
+
+    const now =
+      new Date();
+
+    const base =
+      new Date(
+        now.toLocaleString(
+          "en-US",
+          {timeZone}
+        )
+      );
+
+    base.setHours(
+      hour,
+      minute,
+      0,
+      0
+    );
+
+    const myt =
+      new Intl.DateTimeFormat(
+        "en-GB",
+        {
+          timeZone:"Asia/Kuala_Lumpur",
+          hour:"2-digit",
+          minute:"2-digit",
+          hour12:false
+        }
+      ).format(base);
+
+    return myt;
+
+  }
+
+  return (
+    convert(startHour,0) +
+    " — " +
+    convert(endHour,0) +
+    " MYT"
+  );
+
+}
+
+
+function updateSessionCard(
+  cardId,
+  statusId,
+  timeId,
+  activityId,
+  open,
+  activity,
+  time
+){
+
+  const card =
+    document.getElementById(cardId);
+
+  const status =
+    document.getElementById(statusId);
+
+  const timeEl =
+    document.getElementById(timeId);
+
+  const activityEl =
+    document.getElementById(activityId);
+
+  if(!card || !status)
+    return;
+
+  card.classList.toggle(
+    "open",
+    open
+  );
+
+  status.className =
+    "session-status " +
+    (open ? "open" : "closed");
+
+  status.textContent =
+    open ? "OPEN" : "CLOSED";
+
+  timeEl.textContent =
+    time;
+
+  activityEl.textContent =
+    activity;
+}
+
+
+function updateSessionDisplay(){
+
+  const tokyoOpen =
+    isSessionOpen(
+      "Asia/Tokyo",
+      9,
+      18
+    );
+
+  const londonOpen =
+    isSessionOpen(
+      "Europe/London",
+      8,
+      17
+    );
+
+  const newYorkOpen =
+    isSessionOpen(
+      "America/New_York",
+      8,
+      17
+    );
+
+  const overlapOpen =
+    londonOpen &&
+    newYorkOpen;
+
+
+  updateSessionCard(
+    "asiaSession",
+    "asiaStatus",
+    "asiaTime",
+    "asiaActivity",
+    tokyoOpen,
+    "MODERATE",
+    formatMalaysiaSessionTime(
+      "Asia/Tokyo",
+      9,
+      18
+    )
+  );
+
+
+  updateSessionCard(
+    "londonSession",
+    "londonStatus",
+    "londonTime",
+    "londonActivity",
+    londonOpen,
+    "HIGH",
+    formatMalaysiaSessionTime(
+      "Europe/London",
+      8,
+      17
+    )
+  );
+
+
+  updateSessionCard(
+    "newYorkSession",
+    "newyorkStatus",
+    "newyorkTime",
+    "newyorkActivity",
+    newYorkOpen,
+    "HIGH",
+    formatMalaysiaSessionTime(
+      "America/New_York",
+      8,
+      17
+    )
+  );
+
+
+  const overlapCard =
+    document.getElementById(
+      "overlapSession"
+    );
+
+  const overlapStatus =
+    document.getElementById(
+      "overlapStatus"
+    );
+
+  const overlapTime =
+    document.getElementById(
+      "overlapTime"
+    );
+
+  const overlapActivity =
+    document.getElementById(
+      "overlapActivity"
+    );
+
+  overlapCard.classList.toggle(
+    "open",
+    overlapOpen
+  );
+
+  overlapStatus.className =
+    "session-status " +
+    (overlapOpen ? "open" : "closed");
+
+  overlapStatus.textContent =
+    overlapOpen
+      ? "ACTIVE"
+      : "INACTIVE";
+
+  overlapTime.textContent =
+    overlapOpen
+      ? "LONDON × NEW YORK • MYT"
+      : formatMalaysiaSessionTime(
+          "Europe/London",
+          8,
+          17
+        );
+
+  overlapActivity.textContent =
+    "VERY HIGH";
+
+}
+
+
+/* Update session status every minute */
+
+setInterval(
+  updateSessionDisplay,
+  60000
+);
+
+
+/* ==============================
    DIRECTION
    ============================== */
 
@@ -1676,6 +2249,9 @@ function setDirection(id,value){
 
   const el =
     document.getElementById(id);
+
+  if(!el)
+    return;
 
   el.textContent =
     value || "---";
@@ -1710,9 +2286,15 @@ function setDirection(id,value){
 
 function setText(id,value){
 
-  document.getElementById(id)
-    .textContent =
-    value ?? "---";
+  const el =
+    document.getElementById(id);
+
+  if(el){
+
+    el.textContent =
+      value ?? "---";
+
+  }
 
 }
 
@@ -1751,7 +2333,7 @@ async function analyze(){
     "var(--gold)";
 
   aiDescription.textContent =
-    "Scanning H4 → H1 → M30 → M15 → M5 structure...";
+    "Scanning H4 → H1 → M15 → M5 structure...";
 
   signalCard.className =
     "card signal-card wait";
@@ -1784,11 +2366,25 @@ async function analyze(){
     }
 
 
-    setDirection("h4",data.direction?.H4);
-    setDirection("h1",data.direction?.H1);
-    setDirection("m30",data.direction?.M30);
-    setDirection("m15",data.direction?.M15);
-    setDirection("m5",data.direction?.M5);
+    setDirection(
+      "h4",
+      data.direction?.H4
+    );
+
+    setDirection(
+      "h1",
+      data.direction?.H1
+    );
+
+    setDirection(
+      "m15",
+      data.direction?.M15
+    );
+
+    setDirection(
+      "m5",
+      data.direction?.M5
+    );
 
 
     const signal =
@@ -1998,6 +2594,8 @@ async function analyze(){
       `BUY ${buyScore} • SELL ${sellScore}`
     );
 
+
+    updateSessionDisplay();
 
     startCooldown();
 

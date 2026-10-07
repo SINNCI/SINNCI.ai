@@ -1553,7 +1553,7 @@ const supabaseClient =
         </div>
 
         <div class="news-subheading">
-          HIGH & MEDIUM IMPACT • MALAYSIA TIME
+          US • HIGH & MEDIUM IMPACT • MALAYSIA TIME
         </div>
       </div>
 
@@ -1589,7 +1589,7 @@ const supabaseClient =
       class="news-list">
 
       <div class="news-empty">
-        Scanning economic calendar...
+        Scanning US economic calendar...
       </div>
 
     </div>
@@ -2504,12 +2504,91 @@ setInterval(
 
 
 /* ==============================
-   ECONOMIC NEWS ENGINE
+   US ECONOMIC NEWS ENGINE
+   XAUUSD FOCUS
    ============================== */
 
 let sinnciNews = [];
 let newsFilter = "all";
 
+
+/* ==============================
+   US NEWS FILTER
+   ============================== */
+
+function isUSGoldNews(event){
+
+  const text =
+    `${event.name || ""} ${event.title || ""}`
+      .toLowerCase()
+      .trim();
+
+  const impact =
+    String(
+      event.impact || ""
+    ).toLowerCase();
+
+  /* Only HIGH + MEDIUM */
+
+  if(
+    impact !== "high" &&
+    impact !== "medium"
+  ){
+    return false;
+  }
+
+  const category =
+    String(
+      event.category || ""
+    ).toLowerCase();
+
+  /* Remove non-economic items */
+
+  if(
+    category.includes("earnings") ||
+    category.includes("holiday")
+  ){
+    return false;
+  }
+
+  /*
+    Explicit US identification
+  */
+
+  const explicitUS =
+    text.includes("us ") ||
+    text.includes("u.s.") ||
+    text.includes("united states") ||
+    text.includes("united states of america");
+
+  /*
+    US-specific events that may not
+    always contain "US" in their title.
+  */
+
+  const usSpecific =
+    text.includes("fomc") ||
+    text.includes("federal reserve") ||
+    text.includes("fed ") ||
+    text.includes("non-farm") ||
+    text.includes("nonfarm") ||
+    text.includes("nfp") ||
+    text.includes("adp employment") ||
+    text.includes("initial jobless claims") ||
+    text.includes("jobless claims") ||
+    text.includes("beige book");
+
+  return (
+    explicitUS ||
+    usSpecific
+  );
+
+}
+
+
+/* ==============================
+   LOAD ECONOMIC NEWS
+   ============================== */
 
 async function loadEconomicNews(){
 
@@ -2523,7 +2602,7 @@ async function loadEconomicNews(){
 
     newsList.innerHTML = `
       <div class="news-empty">
-        Scanning economic calendar...
+        Scanning US economic calendar...
       </div>
     `;
 
@@ -2545,20 +2624,15 @@ async function loadEconomicNews(){
 
     }
 
+    /*
+      US ONLY
+      HIGH + MEDIUM ONLY
+    */
+
     sinnciNews =
-      data.events.filter(event => {
-
-        const impact =
-          String(
-            event.impact || ""
-          ).toLowerCase();
-
-        return (
-          impact === "high" ||
-          impact === "medium"
-        );
-
-      });
+      data.events.filter(
+        isUSGoldNews
+      );
 
     renderEconomicNews();
 
@@ -2567,13 +2641,13 @@ async function loadEconomicNews(){
   catch(error){
 
     console.error(
-      "SINNCI NEWS ERROR:",
+      "SINNCI US NEWS ERROR:",
       error
     );
 
     newsList.innerHTML = `
       <div class="news-empty">
-        Economic news temporarily unavailable
+        US economic news temporarily unavailable
       </div>
     `;
 
@@ -2602,29 +2676,16 @@ function filterNews(type){
 
   });
 
-  if(type === "all"){
+  const buttonId =
+    type === "all"
+      ? "newsAllBtn"
+      : type === "high"
+        ? "newsHighBtn"
+        : "newsMediumBtn";
 
-    document
-      .getElementById("newsAllBtn")
-      ?.classList.add("active");
-
-  }
-
-  if(type === "high"){
-
-    document
-      .getElementById("newsHighBtn")
-      ?.classList.add("active");
-
-  }
-
-  if(type === "medium"){
-
-    document
-      .getElementById("newsMediumBtn")
-      ?.classList.add("active");
-
-  }
+  document
+    .getElementById(buttonId)
+    ?.classList.add("active");
 
   renderEconomicNews();
 
@@ -2668,7 +2729,7 @@ function newsCountdown(date){
   ){
 
     return {
-      text:"🔴 LIVE NOW",
+      text:"LIVE NOW",
       live:true
     };
 
@@ -2722,7 +2783,7 @@ function newsCountdown(date){
   }
 
   return {
-    text:`IN ${minutes}M`,
+    text:`IN ${Math.max(0,minutes)}M`,
     live:false
   };
 
@@ -2779,27 +2840,50 @@ function renderEconomicNews(){
 
     });
 
+  /*
+    Sort by event time,
+    remove events older than 1 hour,
+    show maximum 10.
+  */
+
   list =
     list
-      .filter(event => event.time_utc)
+      .filter(
+        event => event.time_utc
+      )
       .sort(
         (a,b) =>
           new Date(a.time_utc) -
           new Date(b.time_utc)
       )
+      .filter(event => {
+
+        const eventTime =
+          new Date(
+            event.time_utc
+          ).getTime();
+
+        return (
+          eventTime >=
+          Date.now() - 3600000
+        );
+
+      })
       .slice(0,10);
+
 
   if(!list.length){
 
     newsList.innerHTML = `
       <div class="news-empty">
-        No HIGH / MEDIUM impact news available.
+        No US HIGH / MEDIUM impact news available.
       </div>
     `;
 
     return;
 
   }
+
 
   newsList.innerHTML =
     list.map(event => {
@@ -2820,7 +2904,8 @@ function renderEconomicNews(){
       const name =
         event.name ||
         event.title ||
-        "Economic News";
+        "US Economic News";
+
 
       return `
 
@@ -2833,7 +2918,17 @@ function renderEconomicNews(){
             <div>
 
               <div class="news-name">
-                🇺🇸 ${name}
+                🇺🇸 US
+              </div>
+
+              <div
+                style="
+                  margin-top:5px;
+                  font-size:12px;
+                  font-weight:900;
+                  line-height:1.35;
+                ">
+                ${name}
               </div>
 
               <div class="news-time">
@@ -2853,6 +2948,7 @@ function renderEconomicNews(){
 
           </div>
 
+
           <div
             class="news-countdown ${
               countdown.live
@@ -2860,9 +2956,16 @@ function renderEconomicNews(){
                 : ""
             }">
 
-            ⏳ ${countdown.text}
+            ${
+              countdown.live
+                ? "🔴"
+                : "⏳"
+            }
+
+            ${countdown.text}
 
           </div>
+
 
           <div class="news-data">
 
@@ -2873,10 +2976,13 @@ function renderEconomicNews(){
               </div>
 
               <div class="news-value">
-                ${newsValue(event.consensus)}
+                ${newsValue(
+                  event.consensus
+                )}
               </div>
 
             </div>
+
 
             <div class="news-box">
 
@@ -2885,10 +2991,13 @@ function renderEconomicNews(){
               </div>
 
               <div class="news-value">
-                ${newsValue(event.prior)}
+                ${newsValue(
+                  event.prior
+                )}
               </div>
 
             </div>
+
 
             <div class="news-box">
 
@@ -2897,21 +3006,24 @@ function renderEconomicNews(){
               </div>
 
               <div class="news-value">
-                ${newsValue(event.actual)}
+                ${newsValue(
+                  event.actual
+                )}
               </div>
 
             </div>
 
           </div>
 
+
           ${
             impact === "high"
-            ? `
-              <div class="news-warning">
-                ⚠ High volatility may occur on XAUUSD
-              </div>
-            `
-            : ""
+              ? `
+                <div class="news-warning">
+                  ⚠ High volatility potential on XAUUSD
+                </div>
+              `
+              : ""
           }
 
         </div>
@@ -2960,7 +3072,12 @@ function updateNewsCountdowns(){
         );
 
       countdown.textContent =
-        "⏳ " + result.text;
+        (
+          result.live
+            ? "🔴 "
+            : "⏳ "
+        ) +
+        result.text;
 
     });
 

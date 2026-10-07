@@ -2998,6 +2998,27 @@ const supabaseClient =
 
 let sinnciIntroAudioStarted = false;
 
+const bullSound = new Audio("bull.mp3");
+const bearSound = new Audio("Bear.mp3");
+const whooshSound = new Audio("whoosh.mp3");
+const impactSound = new Audio("Impact.mp3");
+
+bullSound.preload = "auto";
+bearSound.preload = "auto";
+whooshSound.preload = "auto";
+impactSound.preload = "auto";
+
+
+function playSINNCISound(audio, volume = 1){
+
+  audio.currentTime = 0;
+  audio.volume = volume;
+
+  audio.play().catch(() => {});
+
+}
+
+
 function startSINNCIIntroSound(){
 
   if(sinnciIntroAudioStarted)
@@ -3005,272 +3026,87 @@ function startSINNCIIntroSound(){
 
   sinnciIntroAudioStarted = true;
 
-  try{
 
-    const AudioContext =
-      window.AudioContext ||
-      window.webkitAudioContext;
+  /* 🐂 BULL — 1.0s */
 
-    if(!AudioContext)
-      return;
+  setTimeout(() => {
 
-    const ctx =
-      new AudioContext();
-
-    if(ctx.state === "suspended"){
-      ctx.resume().catch(()=>{});
-    }
-
-    const master =
-      ctx.createGain();
-
-    master.gain.value = 0.0001;
-
-    master.connect(
-      ctx.destination
+    playSINNCISound(
+      bullSound,
+      1
     );
 
+  }, 1000);
 
-    /* ==========================
-       LOW CINEMATIC RUMBLE
-       0s → 3s
-       ========================== */
 
-    const rumble =
-      ctx.createOscillator();
+  /* 🐻 BEAR — 1.7s */
 
-    const rumbleGain =
-      ctx.createGain();
+  setTimeout(() => {
 
-    rumble.type = "sine";
-
-    rumble.frequency.value =
-      42;
-
-    rumbleGain.gain.value =
-      0.0001;
-
-    rumble.connect(
-      rumbleGain
+    playSINNCISound(
+      bearSound,
+      1
     );
 
-    rumbleGain.connect(
-      master
+  }, 1700);
+
+
+  /* 🌪️ WHOOSH — 2.5s */
+
+  setTimeout(() => {
+
+    playSINNCISound(
+      whooshSound,
+      0.8
     );
 
-    rumble.start();
+  }, 2500);
 
-    rumbleGain.gain.exponentialRampToValueAtTime(
-      0.10,
-      ctx.currentTime + .8
+
+  /* 💥 IMPACT — 3.8s */
+
+  setTimeout(() => {
+
+    playSINNCISound(
+      impactSound,
+      1
     );
 
-    rumbleGain.gain.exponentialRampToValueAtTime(
-      0.0001,
-      ctx.currentTime + 3.2
-    );
-
-    rumble.stop(
-      ctx.currentTime + 3.3
-    );
-
-
-    /* ==========================
-       BULL ROAR STYLE
-       ~1.0s
-       ========================== */
-
-    setTimeout(() => {
-
-      const bull =
-        ctx.createOscillator();
-
-      const bullGain =
-        ctx.createGain();
-
-      bull.type =
-        "sawtooth";
-
-      bull.frequency.setValueAtTime(
-        115,
-        ctx.currentTime
-      );
-
-      bull.frequency.exponentialRampToValueAtTime(
-        52,
-        ctx.currentTime + .75
-      );
-
-      bullGain.gain.setValueAtTime(
-        0.0001,
-        ctx.currentTime
-      );
-
-      bullGain.gain.exponentialRampToValueAtTime(
-        0.09,
-        ctx.currentTime + .08
-      );
-
-      bullGain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        ctx.currentTime + .9
-      );
-
-      bull.connect(
-        bullGain
-      );
-
-      bullGain.connect(
-        master
-      );
-
-      bull.start();
-
-      bull.stop(
-        ctx.currentTime + .95
-      );
-
-    },950);
-
-
-    /* ==========================
-       BEAR GROWL STYLE
-       ~1.5s
-       ========================== */
-
-    setTimeout(() => {
-
-      const bear =
-        ctx.createOscillator();
-
-      const bearGain =
-        ctx.createGain();
-
-      bear.type =
-        "sawtooth";
-
-      bear.frequency.setValueAtTime(
-        82,
-        ctx.currentTime
-      );
-
-      bear.frequency.exponentialRampToValueAtTime(
-        34,
-        ctx.currentTime + .95
-      );
-
-      bearGain.gain.setValueAtTime(
-        0.0001,
-        ctx.currentTime
-      );
-
-      bearGain.gain.exponentialRampToValueAtTime(
-        0.085,
-        ctx.currentTime + .1
-      );
-
-      bearGain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        ctx.currentTime + 1
-      );
-
-      bear.connect(
-        bearGain
-      );
-
-      bearGain.connect(
-        master
-      );
-
-      bear.start();
-
-      bear.stop(
-        ctx.currentTime + 1.05
-      );
-
-    },1500);
-
-
-    /* ==========================
-       FINAL CINEMATIC IMPACT
-       ~3.7s
-       ========================== */
-
-    setTimeout(() => {
-
-      const impact =
-        ctx.createOscillator();
-
-      const impactGain =
-        ctx.createGain();
-
-      impact.type =
-        "sine";
-
-      impact.frequency.setValueAtTime(
-        75,
-        ctx.currentTime
-      );
-
-      impact.frequency.exponentialRampToValueAtTime(
-        38,
-        ctx.currentTime + .6
-      );
-
-      impactGain.gain.setValueAtTime(
-        0.0001,
-        ctx.currentTime
-      );
-
-      impactGain.gain.exponentialRampToValueAtTime(
-        0.16,
-        ctx.currentTime + .035
-      );
-
-      impactGain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        ctx.currentTime + .75
-      );
-
-      impact.connect(
-        impactGain
-      );
-
-      impactGain.connect(
-        master
-      );
-
-      impact.start();
-
-      impact.stop(
-        ctx.currentTime + .8
-      );
-
-    },3650);
-
-
-    master.gain.exponentialRampToValueAtTime(
-      0.8,
-      ctx.currentTime + .15
-    );
-
-    master.gain.exponentialRampToValueAtTime(
-      0.0001,
-      ctx.currentTime + 5
-    );
-
-  }
-
-  catch(error){
-
-    console.log(
-      "Intro audio unavailable:",
-      error
-    );
-
-  }
+  }, 3800);
 
 }
+
+
+/* ==============================
+   START INTRO AUDIO
+   ============================== */
+
+window.addEventListener(
+  "load",
+  () => {
+
+    startSINNCIIntroSound();
+
+  }
+);
+
+
+/*
+  Browser biasanya block autoplay.
+  Tap pertama akan cuba aktifkan audio.
+*/
+
+document.addEventListener(
+  "pointerdown",
+  () => {
+
+    startSINNCIIntroSound();
+
+  },
+  {
+    once:true
+  }
+);
 
 
 /* ==============================

@@ -579,6 +579,245 @@ body::after{
   font-weight:800;
 }
 
+
+/* ==============================
+   TRADING SETUPS
+   ============================== */
+
+.setup-section{
+  margin-top:4px;
+  margin-bottom:20px;
+}
+
+.setup-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.setup-card{
+  position:relative;
+  overflow:hidden;
+  padding:20px;
+  border-radius:19px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(22,24,29,.96),
+      rgba(9,11,14,.92)
+    );
+  border:1px solid var(--line);
+  box-shadow:
+    0 14px 45px rgba(0,0,0,.25),
+    inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+.setup-card.buy{
+  border-color:rgba(32,217,139,.22);
+}
+
+.setup-card.sell{
+  border-color:rgba(255,82,104,.22);
+}
+
+.setup-card.setup{
+  border-color:rgba(216,180,90,.20);
+}
+
+.setup-card.wait{
+  border-color:rgba(242,201,76,.14);
+}
+
+.setup-card::after{
+  content:"";
+  position:absolute;
+  width:110px;
+  height:110px;
+  right:-45px;
+  top:-45px;
+  border-radius:50%;
+  border:1px solid rgba(216,180,90,.08);
+  box-shadow:
+    0 0 0 20px rgba(216,180,90,.018),
+    0 0 0 40px rgba(216,180,90,.01);
+  pointer-events:none;
+}
+
+.setup-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.setup-title{
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:.5px;
+}
+
+.setup-path{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:.7px;
+}
+
+.setup-status{
+  flex-shrink:0;
+  padding:6px 9px;
+  border-radius:8px;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.7px;
+}
+
+.setup-status.signal{
+  color:#9ff5ce;
+  background:rgba(32,217,139,.08);
+  border:1px solid rgba(32,217,139,.16);
+}
+
+.setup-status.setup{
+  color:var(--gold2);
+  background:rgba(216,180,90,.08);
+  border:1px solid rgba(216,180,90,.16);
+}
+
+.setup-status.wait{
+  color:#e5c96c;
+  background:rgba(242,201,76,.06);
+  border:1px solid rgba(242,201,76,.11);
+}
+
+.setup-status.buy{
+  color:#9ff5ce;
+  background:rgba(32,217,139,.08);
+  border:1px solid rgba(32,217,139,.16);
+}
+
+.setup-status.sell{
+  color:#ff9aa6;
+  background:rgba(255,82,104,.08);
+  border:1px solid rgba(255,82,104,.14);
+}
+
+.setup-direction{
+  margin-top:17px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.setup-arrow{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:rgba(255,255,255,.035);
+  font-size:19px;
+  font-weight:900;
+}
+
+.setup-direction.buy .setup-arrow{
+  color:var(--green);
+  background:rgba(32,217,139,.08);
+}
+
+.setup-direction.sell .setup-arrow{
+  color:var(--red);
+  background:rgba(255,82,104,.08);
+}
+
+.setup-direction.wait .setup-arrow{
+  color:var(--yellow);
+  background:rgba(242,201,76,.07);
+}
+
+.setup-direction-text{
+  font-size:18px;
+  font-weight:900;
+}
+
+.setup-direction.buy .setup-direction-text{
+  color:var(--green);
+}
+
+.setup-direction.sell .setup-direction-text{
+  color:var(--red);
+}
+
+.setup-direction.wait .setup-direction-text{
+  color:var(--yellow);
+}
+
+.setup-score{
+  margin-left:auto;
+  color:var(--gold);
+  font-size:9px;
+  font-weight:800;
+}
+
+.setup-metrics{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:7px;
+  margin-top:17px;
+}
+
+.setup-metric{
+  padding:10px;
+  border-radius:11px;
+  background:rgba(255,255,255,.025);
+  border:1px solid rgba(255,255,255,.045);
+  min-width:0;
+}
+
+.setup-metric-label{
+  color:var(--muted);
+  font-size:7px;
+  letter-spacing:.7px;
+}
+
+.setup-metric-value{
+  margin-top:6px;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.setup-reason{
+  margin-top:13px;
+  padding:11px;
+  border-radius:11px;
+  background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.04);
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.5;
+}
+
+.setup-confirm{
+  margin-top:9px;
+  color:var(--gold);
+  font-size:8px;
+  letter-spacing:.4px;
+}
+
+.setup-empty{
+  padding:18px;
+  border-radius:14px;
+  background:rgba(255,255,255,.02);
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:10px;
+  text-align:center;
+}
+
+
 .analyze-wrap{
   display:flex;
   justify-content:center;
@@ -999,6 +1238,10 @@ body::after{
   .data-grid{
     grid-template-columns:repeat(2,1fr);
   }
+
+  .setup-grid{
+    grid-template-columns:1fr;
+  }
 }
 
 @media(max-width:480px){
@@ -1058,6 +1301,22 @@ body::after{
 
   .news-filter{
     flex:1;
+  }
+
+  .setup-card{
+    padding:16px;
+  }
+
+  .setup-metrics{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .setup-title{
+    font-size:14px;
+  }
+
+  .setup-direction-text{
+    font-size:16px;
   }
 }
 </style>
@@ -1291,6 +1550,8 @@ const supabaseClient =
   </section>
 
 
+  <!-- MAIN SIGNAL -->
+
   <section
     id="signalCard"
     class="card signal-card wait">
@@ -1357,6 +1618,288 @@ const supabaseClient =
       <div class="metric">
         <div class="metric-label">PUNCA</div>
         <div id="punca" class="metric-value">---</div>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ==============================
+       SCALPING / INTRADAY SETUPS
+       ============================== -->
+
+  <div class="section-title">
+    SINNCI TRADING SETUPS
+  </div>
+
+  <section class="setup-section">
+
+    <div class="setup-grid">
+
+      <!-- SCALPING -->
+
+      <div
+        id="scalpingCard"
+        class="setup-card wait">
+
+        <div class="setup-head">
+
+          <div>
+
+            <div class="setup-title">
+              ⚡ SCALPING
+            </div>
+
+            <div class="setup-path">
+              H1 → M15 → M5
+            </div>
+
+          </div>
+
+          <div
+            id="scalpingStatus"
+            class="setup-status wait">
+            WAIT
+          </div>
+
+        </div>
+
+
+        <div
+          id="scalpingDirection"
+          class="setup-direction wait">
+
+          <div
+            id="scalpingArrow"
+            class="setup-arrow">
+            ⏳
+          </div>
+
+          <div
+            id="scalpingDirectionText"
+            class="setup-direction-text">
+            WAIT
+          </div>
+
+          <div
+            id="scalpingScore"
+            class="setup-score">
+            SCORE 0
+          </div>
+
+        </div>
+
+
+        <div class="setup-metrics">
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              ENTRY
+            </div>
+
+            <div
+              id="scalpingEntry"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              SL
+            </div>
+
+            <div
+              id="scalpingSL"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              TP1 • 60
+            </div>
+
+            <div
+              id="scalpingTP1"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              TP2 • 120
+            </div>
+
+            <div
+              id="scalpingTP2"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div
+          id="scalpingReason"
+          class="setup-reason">
+          Waiting for a valid H1 → M15 → M5 scalping setup.
+        </div>
+
+        <div
+          id="scalpingConfirm"
+          class="setup-confirm">
+          M5 confirmation pending
+        </div>
+
+      </div>
+
+
+      <!-- INTRADAY -->
+
+      <div
+        id="intradayCard"
+        class="setup-card wait">
+
+        <div class="setup-head">
+
+          <div>
+
+            <div class="setup-title">
+              📈 INTRADAY
+            </div>
+
+            <div class="setup-path">
+              H4 → H1 → M15 → M5
+            </div>
+
+          </div>
+
+          <div
+            id="intradayStatus"
+            class="setup-status wait">
+            WAIT
+          </div>
+
+        </div>
+
+
+        <div
+          id="intradayDirection"
+          class="setup-direction wait">
+
+          <div
+            id="intradayArrow"
+            class="setup-arrow">
+            ⏳
+          </div>
+
+          <div
+            id="intradayDirectionText"
+            class="setup-direction-text">
+            WAIT
+          </div>
+
+          <div
+            id="intradayScore"
+            class="setup-score">
+            SCORE 0
+          </div>
+
+        </div>
+
+
+        <div class="setup-metrics">
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              ENTRY
+            </div>
+
+            <div
+              id="intradayEntry"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              SL
+            </div>
+
+            <div
+              id="intradaySL"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              TP1 • 150
+            </div>
+
+            <div
+              id="intradayTP1"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+
+          <div class="setup-metric">
+
+            <div class="setup-metric-label">
+              TP2 • 230
+            </div>
+
+            <div
+              id="intradayTP2"
+              class="setup-metric-value">
+              ---
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div
+          id="intradayReason"
+          class="setup-reason">
+          Waiting for a valid H4 → H1 → M15 → M5 intraday setup.
+        </div>
+
+        <div
+          id="intradayConfirm"
+          class="setup-confirm">
+          M5 confirmation pending
+        </div>
+
       </div>
 
     </div>
@@ -1535,9 +2078,7 @@ const supabaseClient =
   </section>
 
 
-  <!-- ==============================
-       ECONOMIC NEWS
-       ============================== -->
+  <!-- ECONOMIC NEWS -->
 
   <div class="section-title">
     ECONOMIC NEWS • XAUUSD
@@ -2528,8 +3069,6 @@ function isUSGoldNews(event){
       event.impact || ""
     ).toLowerCase();
 
-  /* Only HIGH + MEDIUM */
-
   if(
     impact !== "high" &&
     impact !== "medium"
@@ -2542,8 +3081,6 @@ function isUSGoldNews(event){
       event.category || ""
     ).toLowerCase();
 
-  /* Remove non-economic items */
-
   if(
     category.includes("earnings") ||
     category.includes("holiday")
@@ -2551,20 +3088,11 @@ function isUSGoldNews(event){
     return false;
   }
 
-  /*
-    Explicit US identification
-  */
-
   const explicitUS =
     text.includes("us ") ||
     text.includes("u.s.") ||
     text.includes("united states") ||
     text.includes("united states of america");
-
-  /*
-    US-specific events that may not
-    always contain "US" in their title.
-  */
 
   const usSpecific =
     text.includes("fomc") ||
@@ -2623,11 +3151,6 @@ async function loadEconomicNews(){
       );
 
     }
-
-    /*
-      US ONLY
-      HIGH + MEDIUM ONLY
-    */
 
     sinnciNews =
       data.events.filter(
@@ -2839,12 +3362,6 @@ function renderEconomicNews(){
       );
 
     });
-
-  /*
-    Sort by event time,
-    remove events older than 1 hour,
-    show maximum 10.
-  */
 
   list =
     list
@@ -3158,6 +3675,347 @@ function setText(id,value){
 
 
 /* ==============================
+   PRICE FORMAT
+   ============================== */
+
+function formatSetupPrice(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    !Number.isFinite(Number(value))
+  ){
+
+    return "---";
+
+  }
+
+  return Number(value).toFixed(2);
+
+}
+
+
+/* ==============================
+   SETUP RENDER
+   ============================== */
+
+function renderSetup(type,setup){
+
+  const prefix =
+    type === "scalping"
+      ? "scalping"
+      : "intraday";
+
+  const card =
+    document.getElementById(
+      prefix + "Card"
+    );
+
+  const statusEl =
+    document.getElementById(
+      prefix + "Status"
+    );
+
+  const directionEl =
+    document.getElementById(
+      prefix + "Direction"
+    );
+
+  const arrowEl =
+    document.getElementById(
+      prefix + "Arrow"
+    );
+
+  const directionTextEl =
+    document.getElementById(
+      prefix + "DirectionText"
+    );
+
+  const scoreEl =
+    document.getElementById(
+      prefix + "Score"
+    );
+
+  const entryEl =
+    document.getElementById(
+      prefix + "Entry"
+    );
+
+  const slEl =
+    document.getElementById(
+      prefix + "SL"
+    );
+
+  const tp1El =
+    document.getElementById(
+      prefix + "TP1"
+    );
+
+  const tp2El =
+    document.getElementById(
+      prefix + "TP2"
+    );
+
+  const reasonEl =
+    document.getElementById(
+      prefix + "Reason"
+    );
+
+  const confirmEl =
+    document.getElementById(
+      prefix + "Confirm"
+    );
+
+
+  if(!card)
+    return;
+
+
+  if(!setup){
+
+    card.className =
+      "setup-card wait";
+
+    statusEl.className =
+      "setup-status wait";
+
+    statusEl.textContent =
+      "WAIT";
+
+    directionEl.className =
+      "setup-direction wait";
+
+    arrowEl.textContent =
+      "⏳";
+
+    directionTextEl.textContent =
+      "WAIT";
+
+    scoreEl.textContent =
+      "SCORE 0";
+
+    entryEl.textContent =
+      "---";
+
+    slEl.textContent =
+      "---";
+
+    tp1El.textContent =
+      "---";
+
+    tp2El.textContent =
+      "---";
+
+    reasonEl.textContent =
+      type === "scalping"
+        ? "Waiting for a valid H1 → M15 → M5 scalping setup."
+        : "Waiting for a valid H4 → H1 → M15 → M5 intraday setup.";
+
+    confirmEl.textContent =
+      "M5 confirmation pending";
+
+    return;
+
+  }
+
+
+  const direction =
+    String(
+      setup.direction ||
+      setup.signal ||
+      "WAIT"
+    ).toUpperCase();
+
+  let status =
+    String(
+      setup.status ||
+      ""
+    ).toUpperCase();
+
+
+  /*
+    Backend boleh return:
+    SIGNAL
+    SETUP
+    WAIT
+  */
+
+  if(
+    status !== "SIGNAL" &&
+    status !== "SETUP"
+  ){
+
+    status =
+      direction === "BUY" ||
+      direction === "SELL"
+        ? "SETUP"
+        : "WAIT";
+
+  }
+
+
+  let cardClass =
+    "setup-card";
+
+  if(direction === "BUY")
+    cardClass += " buy";
+
+  else if(direction === "SELL")
+    cardClass += " sell";
+
+  else
+    cardClass += " wait";
+
+
+  card.className =
+    cardClass;
+
+
+  let statusClass =
+    "setup-status ";
+
+  if(status === "SIGNAL")
+    statusClass += "signal";
+
+  else if(status === "SETUP")
+    statusClass += "setup";
+
+  else
+    statusClass += "wait";
+
+
+  if(direction === "BUY")
+    statusClass += " buy";
+
+  else if(direction === "SELL")
+    statusClass += " sell";
+
+
+  statusEl.className =
+    statusClass;
+
+  statusEl.textContent =
+    status;
+
+
+  let directionClass =
+    "setup-direction ";
+
+  if(direction === "BUY")
+    directionClass += "buy";
+
+  else if(direction === "SELL")
+    directionClass += "sell";
+
+  else
+    directionClass += "wait";
+
+
+  directionEl.className =
+    directionClass;
+
+
+  if(direction === "BUY"){
+
+    arrowEl.textContent =
+      "↑";
+
+    directionTextEl.textContent =
+      "BUY";
+
+  }
+
+  else if(direction === "SELL"){
+
+    arrowEl.textContent =
+      "↓";
+
+    directionTextEl.textContent =
+      "SELL";
+
+  }
+
+  else{
+
+    arrowEl.textContent =
+      "⏳";
+
+    directionTextEl.textContent =
+      "WAIT";
+
+  }
+
+
+  const score =
+    setup.score ??
+    setup.buyScore ??
+    setup.sellScore ??
+    0;
+
+  scoreEl.textContent =
+    "SCORE " + score;
+
+
+  entryEl.textContent =
+    formatSetupPrice(
+      setup.entry
+    );
+
+  slEl.textContent =
+    formatSetupPrice(
+      setup.sl
+    );
+
+  tp1El.textContent =
+    formatSetupPrice(
+      setup.tp1
+    );
+
+  tp2El.textContent =
+    formatSetupPrice(
+      setup.tp2
+    );
+
+
+  reasonEl.textContent =
+    setup.reason ||
+    setup.waitReason ||
+    setup.description ||
+    (
+      status === "SIGNAL"
+        ? "M5 confirmation aligned with the higher timeframe setup."
+        : status === "SETUP"
+          ? "Setup detected. Waiting for M5 confirmation."
+          : "No valid setup."
+    );
+
+
+  if(status === "SIGNAL"){
+
+    confirmEl.textContent =
+      "✓ M5 confirmation CONFIRMED";
+
+  }
+
+  else if(status === "SETUP"){
+
+    confirmEl.textContent =
+      "⏳ M5 confirmation pending";
+
+  }
+
+  else{
+
+    confirmEl.textContent =
+      "No valid setup yet";
+
+  }
+
+}
+
+
+/* ==============================
    RESET
    ============================== */
 
@@ -3168,6 +4026,256 @@ function resetSignal(){
   setText("tp1","---");
   setText("tp2","---");
   setText("punca","---");
+
+  renderSetup(
+    "scalping",
+    null
+  );
+
+  renderSetup(
+    "intraday",
+    null
+  );
+
+}
+
+
+/* ==============================
+   APPLY PRIMARY SETUP
+   ============================== */
+
+function applyPrimarySetup(setup){
+
+  if(!setup)
+    return;
+
+  const direction =
+    String(
+      setup.direction ||
+      setup.signal ||
+      "WAIT"
+    ).toUpperCase();
+
+  const status =
+    String(
+      setup.status ||
+      ""
+    ).toUpperCase();
+
+
+  if(direction === "BUY"){
+
+    signalCard.className =
+      "card signal-card buy";
+
+    signalIcon.textContent =
+      "↑";
+
+    signalName.textContent =
+      status === "SIGNAL"
+        ? "BUY SIGNAL"
+        : "BUY SETUP";
+
+    signalSub.textContent =
+      status === "SIGNAL"
+        ? "M5 confirmed bullish setup"
+        : "Bullish setup detected";
+
+    aiStatus.textContent =
+      status === "SIGNAL"
+        ? "BUY"
+        : "BUY SETUP";
+
+    aiStatus.style.color =
+      "var(--green)";
+
+    aiDescription.textContent =
+      setup.reason ||
+      (
+        status === "SIGNAL"
+          ? "M5 confirmation aligns with the setup."
+          : "Setup detected. Waiting for M5 confirmation."
+      );
+
+  }
+
+
+  else if(direction === "SELL"){
+
+    signalCard.className =
+      "card signal-card sell";
+
+    signalIcon.textContent =
+      "↓";
+
+    signalName.textContent =
+      status === "SIGNAL"
+        ? "SELL SIGNAL"
+        : "SELL SETUP";
+
+    signalSub.textContent =
+      status === "SIGNAL"
+        ? "M5 confirmed bearish setup"
+        : "Bearish setup detected";
+
+    aiStatus.textContent =
+      status === "SIGNAL"
+        ? "SELL"
+        : "SELL SETUP";
+
+    aiStatus.style.color =
+      "var(--red)";
+
+    aiDescription.textContent =
+      setup.reason ||
+      (
+        status === "SIGNAL"
+          ? "M5 confirmation aligns with the setup."
+          : "Setup detected. Waiting for M5 confirmation."
+      );
+
+  }
+
+
+  else{
+
+    signalCard.className =
+      "card signal-card wait";
+
+    signalIcon.textContent =
+      "⏳";
+
+    signalName.textContent =
+      "WAIT";
+
+    signalSub.textContent =
+      setup.reason ||
+      "No high-quality setup";
+
+    aiStatus.textContent =
+      "WAIT";
+
+    aiStatus.style.color =
+      "var(--yellow)";
+
+    aiDescription.textContent =
+      "Waiting for a cleaner market structure.";
+
+  }
+
+
+  setText(
+    "entry",
+    formatSetupPrice(
+      setup.entry
+    )
+  );
+
+  setText(
+    "sl",
+    formatSetupPrice(
+      setup.sl
+    )
+  );
+
+  setText(
+    "tp1",
+    formatSetupPrice(
+      setup.tp1
+    )
+  );
+
+  setText(
+    "tp2",
+    formatSetupPrice(
+      setup.tp2
+    )
+  );
+
+}
+
+
+/* ==============================
+   FIND BEST FRONTEND SETUP
+   ============================== */
+
+function chooseBestSetup(data){
+
+  /*
+    Backend utama:
+    data.primarySetup
+
+    Kalau tak ada, frontend akan pilih
+    SIGNAL dahulu, kemudian SETUP.
+  */
+
+  if(data.primarySetup){
+
+    return data.primarySetup;
+
+  }
+
+
+  const scalping =
+    data.scalping;
+
+  const intraday =
+    data.intraday;
+
+
+  const candidates =
+    [
+      scalping,
+      intraday
+    ]
+    .filter(Boolean);
+
+
+  if(!candidates.length)
+    return null;
+
+
+  const signals =
+    candidates.filter(
+      setup =>
+        String(
+          setup.status || ""
+        ).toUpperCase() === "SIGNAL"
+    );
+
+
+  if(signals.length){
+
+    return signals.sort(
+      (a,b) =>
+        Number(b.score || 0) -
+        Number(a.score || 0)
+    )[0];
+
+  }
+
+
+  const setups =
+    candidates.filter(
+      setup =>
+        String(
+          setup.status || ""
+        ).toUpperCase() === "SETUP"
+    );
+
+
+  if(setups.length){
+
+    return setups.sort(
+      (a,b) =>
+        Number(b.score || 0) -
+        Number(a.score || 0)
+    )[0];
+
+  }
+
+
+  return null;
 
 }
 
@@ -3203,18 +4311,27 @@ async function analyze(){
     "ANALYZING";
 
   signalSub.textContent =
-    "Searching historical punca...";
+    "Searching scalping & intraday setups...";
 
 
   try{
 
     const response =
-      await fetch("/api/analyze");
+      await fetch(
+        "/api/analyze",
+        {
+          cache:"no-store"
+        }
+      );
 
     const data =
       await response.json();
 
-    if(!response.ok || data.error){
+
+    if(
+      !response.ok ||
+      data.error
+    ){
 
       throw new Error(
         data.error ||
@@ -3223,6 +4340,10 @@ async function analyze(){
 
     }
 
+
+    /* ==========================
+       DIRECTION
+       ========================== */
 
     setDirection(
       "h4",
@@ -3245,18 +4366,66 @@ async function analyze(){
     );
 
 
-    const signal =
-      data.signal || "WAIT";
+    /* ==========================
+       RESET OLD VALUES
+       ========================== */
 
     resetSignal();
 
 
-    if(signal === "BUY"){
+    /* ==========================
+       RENDER BOTH SETUPS
+       ========================== */
+
+    renderSetup(
+      "scalping",
+      data.scalping
+    );
+
+    renderSetup(
+      "intraday",
+      data.intraday
+    );
+
+
+    /* ==========================
+       SELECT MAIN SETUP
+       ========================== */
+
+    const selectedSetup =
+      chooseBestSetup(data);
+
+
+    const topSignal =
+      String(
+        data.signal ||
+        "WAIT"
+      ).toUpperCase();
+
+
+    /*
+      Priority:
+      1. primarySetup
+      2. confirmed SIGNAL
+      3. SETUP
+      4. old top-level signal
+    */
+
+    if(selectedSetup){
+
+      applyPrimarySetup(
+        selectedSetup
+      );
+
+    }
+
+    else if(topSignal === "BUY"){
 
       signalCard.className =
         "card signal-card buy";
 
-      signalIcon.textContent = "↑";
+      signalIcon.textContent =
+        "↑";
 
       signalName.textContent =
         "BUY SIGNAL";
@@ -3276,12 +4445,13 @@ async function analyze(){
     }
 
 
-    else if(signal === "SELL"){
+    else if(topSignal === "SELL"){
 
       signalCard.className =
         "card signal-card sell";
 
-      signalIcon.textContent = "↓";
+      signalIcon.textContent =
+        "↓";
 
       signalName.textContent =
         "SELL SIGNAL";
@@ -3328,67 +4498,123 @@ async function analyze(){
     }
 
 
-    setText(
-      "entry",
+    /* ==========================
+       OLD BACKEND VALUES
+       ========================== */
+
+    if(
+      !selectedSetup &&
       data.entry !== null &&
       data.entry !== undefined
-        ? Number(data.entry).toFixed(2)
-        : "---"
-    );
+    ){
 
-    setText(
-      "sl",
+      setText(
+        "entry",
+        formatSetupPrice(
+          data.entry
+        )
+      );
+
+    }
+
+
+    if(
+      !selectedSetup &&
       data.sl !== null &&
       data.sl !== undefined
-        ? Number(data.sl).toFixed(2)
-        : "---"
-    );
+    ){
 
-    setText(
-      "tp1",
+      setText(
+        "sl",
+        formatSetupPrice(
+          data.sl
+        )
+      );
+
+    }
+
+
+    if(
+      !selectedSetup &&
       data.tp1 !== null &&
       data.tp1 !== undefined
-        ? Number(data.tp1).toFixed(2)
-        : "---"
-    );
+    ){
 
-    setText(
-      "tp2",
+      setText(
+        "tp1",
+        formatSetupPrice(
+          data.tp1
+        )
+      );
+
+    }
+
+
+    if(
+      !selectedSetup &&
       data.tp2 !== null &&
       data.tp2 !== undefined
-        ? Number(data.tp2).toFixed(2)
-        : "---"
-    );
+    ){
 
+      setText(
+        "tp2",
+        formatSetupPrice(
+          data.tp2
+        )
+      );
+
+    }
+
+
+    /* ==========================
+       PUNCA
+       ========================== */
 
     if(data.punca){
 
       const puncaPrice =
         data.punca.price !== undefined
-          ? Number(data.punca.price).toFixed(2)
+          ? Number(
+              data.punca.price
+            ).toFixed(2)
           : "---";
 
       setText(
         "punca",
         puncaPrice +
         " • " +
-        (data.punca.source || "---")
+        (
+          data.punca.source ||
+          "---"
+        )
       );
 
       setText(
         "puncaSource",
-        data.punca.source || "---"
+        data.punca.source ||
+        "---"
       );
 
     }
 
     else{
 
-      setText("punca","---");
-      setText("puncaSource","---");
+      setText(
+        "punca",
+        "---"
+      );
+
+      setText(
+        "puncaSource",
+        "---"
+      );
 
     }
 
+
+    /* ==========================
+       RISK
+       ========================== */
 
     if(
       data.risk !== null &&
@@ -3397,17 +4623,26 @@ async function analyze(){
 
       setText(
         "risk",
-        Number(data.risk).toFixed(2)
+        Number(
+          data.risk
+        ).toFixed(2)
       );
 
     }
 
     else{
 
-      setText("risk","---");
+      setText(
+        "risk",
+        "---"
+      );
 
     }
 
+
+    /* ==========================
+       MAX RISK
+       ========================== */
 
     if(
       data.maxAllowedRisk !== null &&
@@ -3416,36 +4651,76 @@ async function analyze(){
 
       setText(
         "maxRisk",
-        Number(data.maxAllowedRisk).toFixed(2)
+        Number(
+          data.maxAllowedRisk
+        ).toFixed(2)
       );
 
     }
 
     else{
 
-      setText("maxRisk","---");
+      setText(
+        "maxRisk",
+        "---"
+      );
 
     }
 
 
-    setText(
-      "reason",
-      data.waitReason ||
-      (
-        signal === "BUY"
-          ? "BUY SETUP"
-          : signal === "SELL"
-            ? "SELL SETUP"
-            : "WAIT"
-      )
-    );
+    /* ==========================
+       REASON
+       ========================== */
 
+    if(selectedSetup){
+
+      setText(
+        "reason",
+        selectedSetup.reason ||
+        selectedSetup.waitReason ||
+        data.waitReason ||
+        (
+          selectedSetup.status === "SIGNAL"
+            ? "CONFIRMED SETUP"
+            : "SETUP DETECTED"
+        )
+      );
+
+    }
+
+    else{
+
+      setText(
+        "reason",
+        data.waitReason ||
+        (
+          topSignal === "BUY"
+            ? "BUY SETUP"
+            : topSignal === "SELL"
+              ? "SELL SETUP"
+              : "WAIT"
+        )
+      );
+
+    }
+
+
+    /* ==========================
+       SCORE
+       ========================== */
 
     const buyScore =
-      data.scores?.buy ?? 0;
+      data.scores?.buy ??
+      data.scores?.scalpingBuy ??
+      data.scores?.intradayBuy ??
+      0;
 
     const sellScore =
-      data.scores?.sell ?? 0;
+      data.scores?.sell ??
+      data.scores?.scalpingSell ??
+      data.scores?.intradaySell ??
+      0;
+
 
     setText(
       "score",
@@ -3453,13 +4728,29 @@ async function analyze(){
     );
 
 
+    /* ==========================
+       SESSION UPDATE
+       ========================== */
+
     updateSessionDisplay();
+
+
+    /* ==========================
+       START COOLDOWN
+       ========================== */
 
     startCooldown();
 
   }
 
+
   catch(error){
+
+    console.error(
+      "SINNCI ANALYZE ERROR:",
+      error
+    );
+
 
     signalCard.className =
       "card signal-card wait";
@@ -3482,6 +4773,13 @@ async function analyze(){
     aiDescription.textContent =
       "Unable to complete market analysis.";
 
+
+    setText(
+      "reason",
+      error.message
+    );
+
+
     startCooldown(10);
 
   }
@@ -3495,9 +4793,13 @@ async function analyze(){
 
 let cooldownTimer = null;
 
-function startCooldown(seconds = 60){
+function startCooldown(
+  seconds = 60
+){
 
-  clearInterval(cooldownTimer);
+  clearInterval(
+    cooldownTimer
+  );
 
   let remaining =
     seconds;
@@ -3564,4 +4866,4 @@ setInterval(
 </script>
 
 </body>
-  </html>
+          </html>

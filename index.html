@@ -16,8 +16,8 @@
 <meta property="og:url" content="https://sinnci-ai.vercel.app/">
 <meta property="og:title" content="SINNCI AI — XAUUSD Market Intelligence">
 <meta property="og:description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
-<meta property="og:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA1218.jpg">
-<meta property="og:image:secure_url" content="https://sinnci-ai.vercel.app/IMG-20261008-WA1218.jpg">
+<meta property="og:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
+<meta property="og:image:secure_url" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 <meta property="og:image:type" content="image/jpeg">
 
 <!-- Twitter / X Card -->
@@ -25,7 +25,7 @@
 <meta name="twitter:url" content="https://sinnci-ai.vercel.app/">
 <meta name="twitter:title" content="SINNCI AI — XAUUSD Market Intelligence">
 <meta name="twitter:description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
-<meta name="twitter:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA1218.jpg">
+<meta name="twitter:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -2512,8 +2512,8 @@ function getBestModeSide(modeData, modeType, rootData = {}){
       const isScalp = (modeType === "scalping");
       const pullOffset = isScalp ? 0.8 : 2.5; 
       const tightSL = isScalp ? 2.0 : 4.0; 
-      const p1 = isScalp ? 6.0 : 15.0;
-      const p2 = isScalp ? 12.0 : 23.0;
+      const p1 = isScalp ? 6.0 : 15.0;  
+      const p2 = isScalp ? 12.0 : 23.0; 
 
       if (!entry && liveRef > 0) {
         entry = c.direction === "SELL" ? (liveRef + pullOffset) : (liveRef - pullOffset);

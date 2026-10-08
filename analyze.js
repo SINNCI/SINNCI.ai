@@ -1,1020 +1,890 @@
 /**
- * ============================================================================
- * SINNCI MARKET ENGINE PRO (api/analyze.js)
- * Asset: XAUUSD (Gold)
- * Deployment: Vercel Serverless Function
+ * SINNCI AI — XAUUSD MARKET ANALYSIS ENGINE
+ * File: api/analyze.js
  *
- * RECTIFICATIONS APPLIED:
- * 1. Resolved duplicate "status" conflict: API root status is always "success",
- *    while signal state resides in "signalStatus" (with backward compatibility).
- * 2. Closed-candle confirmation: M5 break and M1 confirmation exclusively evaluate
- *    completed candles, excluding the live forming candle (candlestick index [length - 2]).
- * 3. Strict Setup Selection: Setup qualification requires structure, zone validity,
- *    threshold scores (Scalping >= 65, Intraday >= 75), and strict confirmation flow.
- * 4. Anti-Chase Entry Bounds: Limits maximum execution distance strictly to zone thickness.
- * 5. Ephemeral Zone Lock: Explicitly notes in-memory stateless execution without false DB claims.
- * 6. Objective Scoring: Score reflects strictly verified structural conditions.
- * ============================================================================
+ * Analysis only. NO automated trading or order execution.
+ *
+ * Data source: Twelve Data time_series
+ * Required environment variable: TWELVE_DATA_API_KEY
+ *
+ * Timeframes:
+ * Scalping:  H1 -> M15 -> M5 -> M1
+ * Intraday:  H4 -> H1 -> M15 -> M5 -> M1
+ *
+ * Important:
+ * - No fabricated candles or prices.
+ * - WAIT if required data or confirmation is missing.
+ * - M5 structure break + M1 final confirmation required for READY.
+ * - This endpoint does not permanently store or lock zones.
  */
 
-import crypto from "crypto";
-
 const SYMBOL = "XAU/USD";
-const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com/time_series";
-
-// =========================================================
-// 1. UNIT & ZONE SPECIFICATIONS
-// 10 POINTS = 1 PIP ($0.01 = 1 point, $0.10 = 1 pip, $1.00 = 100 points)
-// =========================================================
-const POINTS_PER_PIP = 10;
 const POINT_VALUE = 0.01;
 
-// UNIFIED ZONE RANGE: 200 - 350 points = 20 - 35 pips ($2.00 - $3.50)
-const UNIFIED_ZONE_MIN_POINTS = 200;
-const UNIFIED_ZONE_MAX_POINTS = 350;
+// Gold price movement: 1 point = $0.01.
+// These values are price-distance units, not guaranteed broker pip conventions.
+const SETTINGS = {
+  zoneMin: 2.00,
+  zoneMax: 3.50,
+  stopLossDistance: 3.00,
 
-// UNIFIED STOP LOSS: 300 points = 30 pips ($3.00)
-const UNIFIED_SL_POINTS = 300;
+  scalping: {
+    tp1Distance: 6.00,
+    tp2Distance: 12.00,
+    minimumScore: 65
+  },
 
-// Target Multipliers
-const SCALP_TP1_POINTS = 600;  // 60 pips / $6.00
-const SCALP_TP2_POINTS = 1200; // 120 pips / $12.00
-const INTRA_TP1_POINTS = 1500; // 150 pips / $15.00
-const INTRA_TP2_POINTS = 2300; // 230 pips / $23.00
+  intraday: {
+    tp1Distance: 15.00,
+    tp2Distance: 23.00,
+    minimumScore: 65
+  },
 
-// Score Thresholds
-const SCALP_MIN_SCORE = 65;
-const INTRA_MIN_SCORE = 75;
+  candleCount: 60,
+  fetchTimeoutMs: 12000
+};
 
-// =========================================================
-// 2. HELPERS & UTILITIES
-// =========================================================
-function safeNum(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
+const TIMEFRAMES = {
+  H4: { interval: "4h", ms: 4 * 60 * 60 * 1000 },
+  H1: { interval: "1h", ms: 60 * 60 * 1000 },
+  M15: { interval: "15min", ms: 15 * 60 * 1000 },
+  M5: { interval: "5min", ms: 5 * 60 * 1000 },
+  M1: { interval: "1min", ms: 60 * 1000 }
+};
+
+function responseError(res, statusCode, code, message, details = null) {
+  return res.status(statusCode).json({
+    success: false,
+    status: "error",
+    code,
+    error: message,
+    details,
+    symbol: "XAUUSD",
+    source: "SINNCI AI",
+    timestamp: new Date().toISOString()
+  });
 }
 
-function round(v, d = 2) {
-  const p = Math.pow(10, d);
-  return Math.round(v * p) / p;
+function toNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
+function average(values) {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function calculateATR(candles, period = 14) {
-  if (!candles || candles.length < period + 2) return 3.0;
-  let trSum = 0;
-  // Calculate ATR based on closed candles up to candles.length - 2
-  const endIdx = candles.length - 1;
-  const startIdx = endIdx - period;
-  for (let i = startIdx; i < endIdx; i++) {
-    const c = candles[i];
-    const prev = candles[i - 1];
-    if (!prev) continue;
-    const tr = Math.max(
-      c.high - c.low,
-      Math.abs(c.high - prev.close),
-      Math.abs(c.low - prev.close)
+function roundPrice(value) {
+  return value === null || !Number.isFinite(value)
+    ? null
+    : Number(value.toFixed(2));
+}
+
+function parseCandleTime(value) {
+  if (!value) return null;
+
+  // Twelve Data forex timestamps are normally UTC.
+  // Preserve an explicit timezone if one is already supplied.
+  const raw = String(value).trim();
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
+    ? raw.replace(" ", "T") + "Z"
+    : raw;
+
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function normalizeCandles(values, timeframeMs) {
+  if (!Array.isArray(values)) return [];
+
+  const now = Date.now();
+
+  return values
+    .map((item) => {
+      const time = parseCandleTime(item.datetime);
+
+      return {
+        time,
+        datetime: item.datetime || null,
+        open: toNumber(item.open),
+        high: toNumber(item.high),
+        low: toNumber(item.low),
+        close: toNumber(item.close)
+      };
+    })
+    .filter((candle) =>
+      candle.time !== null &&
+      candle.open !== null &&
+      candle.high !== null &&
+      candle.low !== null &&
+      candle.close !== null &&
+      candle.high >= candle.low &&
+      candle.high >= candle.open &&
+      candle.high >= candle.close &&
+      candle.low <= candle.open &&
+      candle.low <= candle.close &&
+      candle.time + timeframeMs <= now
+    )
+    .sort((a, b) => a.time - b.time);
+}
+
+async function fetchCandles(key, timeframeKey) {
+  const timeframe = TIMEFRAMES[timeframeKey];
+  const url = new URL("https://api.twelvedata.com/time_series");
+
+  url.searchParams.set("symbol", SYMBOL);
+  url.searchParams.set("interval", timeframe.interval);
+  url.searchParams.set("outputsize", String(SETTINGS.candleCount));
+  url.searchParams.set("order", "DESC");
+  url.searchParams.set("timezone", "UTC");
+  url.searchParams.set("apikey", key);
+
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    SETTINGS.fetchTimeoutMs
+  );
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      signal: controller.signal,
+      headers: { Accept: "application/json" }
+    });
+
+    let payload;
+
+    try {
+      payload = await response.json();
+    } catch {
+      throw new Error(`${timeframeKey}: respons API bukan JSON yang sah.`);
+    }
+
+    if (!response.ok || payload.status === "error" || payload.code) {
+      const message =
+        payload.message ||
+        payload.error ||
+        `HTTP ${response.status}`;
+
+      throw new Error(`${timeframeKey}: ${message}`);
+    }
+
+    if (!Array.isArray(payload.values)) {
+      throw new Error(
+        `${timeframeKey}: data candle tiada. Semak simbol, API key atau kuota.`
+      );
+    }
+
+    const candles = normalizeCandles(
+      payload.values,
+      timeframe.ms
     );
-    trSum += tr;
-  }
-  return trSum / period;
-}
 
-function generateSetupId(tf, direction, setupType, anchorPrice) {
-  const roundedAnchor = Math.round(anchorPrice * 2) / 2;
-  const rawKey = `${tf}_${direction}_${setupType}_${roundedAnchor}`;
-  return crypto.createHash("md5").update(rawKey).digest("hex").slice(0, 10);
-}
-
-// =========================================================
-// 3. CANDLE FETCHER
-// =========================================================
-async function fetchCandles(interval, outputsize, apiKey) {
-  const url = `${TWELVE_DATA_BASE_URL}?symbol=${encodeURIComponent(
-    SYMBOL
-  )}&interval=${interval}&outputsize=${outputsize}&apikey=${encodeURIComponent(apiKey)}`;
-
-  let res;
-  try {
-    res = await fetch(url);
-  } catch (err) {
-    throw {
-      code: "NETWORK_ERROR",
-      message: `Failed to connect to Twelve Data for ${interval}: ${err.message}`,
-      source: "Twelve Data Network"
-    };
-  }
-
-  let data;
-  try {
-    data = await res.json();
-  } catch (err) {
-    throw {
-      code: "PARSE_ERROR",
-      message: `Failed to parse JSON response for ${interval}.`,
-      source: "Twelve Data Parser"
-    };
-  }
-
-  if (!res.ok || data.status === "error" || data.code || !Array.isArray(data.values)) {
-    throw {
-      code: data.code || res.status || "API_ERROR",
-      message: data.message || `No candle data returned for interval ${interval}`,
-      source: "Twelve Data API"
-    };
-  }
-
-  return data.values
-    .map((c) => ({
-      datetime: c.datetime,
-      open: safeNum(c.open),
-      high: safeNum(c.high),
-      low: safeNum(c.low),
-      close: safeNum(c.close)
-    }))
-    .reverse();
-}
-
-// =========================================================
-// 4. MARKET STRUCTURE ENGINE (HH / HL / LH / LL)
-// =========================================================
-function getSwings(candles, left = 2, right = 2) {
-  const highs = [];
-  const lows = [];
-
-  // Exclude current forming candle (last index) from swing pivot generation
-  const closedCandles = candles.slice(0, -1);
-
-  for (let i = left; i < closedCandles.length - right; i++) {
-    const c = closedCandles[i];
-    let isHigh = true;
-    let isLow = true;
-
-    for (let j = 1; j <= left; j++) {
-      if (closedCandles[i - j].high >= c.high) isHigh = false;
-      if (closedCandles[i - j].low <= c.low) isLow = false;
-    }
-    for (let j = 1; j <= right; j++) {
-      if (closedCandles[i + j].high > c.high) isHigh = false;
-      if (closedCandles[i + j].low < c.low) isLow = false;
+    if (candles.length < 10) {
+      throw new Error(
+        `${timeframeKey}: candle tertutup tidak mencukupi (${candles.length}).`
+      );
     }
 
-    if (isHigh) highs.push({ index: i, price: c.high, datetime: c.datetime });
-    if (isLow) lows.push({ index: i, price: c.low, datetime: c.datetime });
-  }
+    return {
+      candles,
+      meta: {
+        interval: timeframe.interval,
+        received: payload.values.length,
+        usableClosedCandles: candles.length,
+        lastCandleTime: candles[candles.length - 1].datetime
+      }
+    };
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`${timeframeKey}: permintaan API tamat masa.`);
+    }
 
-  return { highs, lows };
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-function analyzeStructure(candles) {
-  if (!candles || candles.length < 8) {
+function candleDirection(candle) {
+  if (candle.close > candle.open) return "BULLISH";
+  if (candle.close < candle.open) return "BEARISH";
+  return "NEUTRAL";
+}
+
+function getTrend(candles) {
+  if (!Array.isArray(candles) || candles.length < 12) {
     return {
       direction: "NEUTRAL",
-      structure: "RANGE",
-      highs: [],
-      lows: [],
-      keySupport: 0,
-      keyResistance: 0,
-      isSideway: true,
-      lastHigh: 0,
-      lastLow: 0
+      score: 0,
+      reason: "Candle tidak mencukupi untuk menentukan struktur."
     };
   }
 
-  const { highs, lows } = getSwings(candles, 2, 2);
-  const lastClosed = candles[candles.length - 2];
+  const sample = candles.slice(-12);
+  const firstHalf = sample.slice(0, 6);
+  const secondHalf = sample.slice(6);
 
-  if (highs.length < 2 || lows.length < 2) {
-    const highVal = highs.length ? highs[highs.length - 1].price : lastClosed.high;
-    const lowVal = lows.length ? lows[lows.length - 1].price : lastClosed.low;
+  const oldHigh = Math.max(...firstHalf.map((c) => c.high));
+  const newHigh = Math.max(...secondHalf.map((c) => c.high));
+  const oldLow = Math.min(...firstHalf.map((c) => c.low));
+  const newLow = Math.min(...secondHalf.map((c) => c.low));
+
+  const oldClose = average(firstHalf.map((c) => c.close));
+  const newClose = average(secondHalf.map((c) => c.close));
+
+  const higherHigh = newHigh > oldHigh;
+  const higherLow = newLow > oldLow;
+  const lowerHigh = newHigh < oldHigh;
+  const lowerLow = newLow < oldLow;
+
+  if (higherHigh && higherLow && newClose > oldClose) {
     return {
-      direction: "NEUTRAL",
-      structure: "RANGE",
-      highs,
-      lows,
-      keySupport: lowVal,
-      keyResistance: highVal,
-      isSideway: true,
-      lastHigh: highVal,
-      lastLow: lowVal
+      direction: "BULLISH",
+      score: 20,
+      reason: "Struktur menunjukkan higher high dan higher low."
     };
   }
 
-  const h1 = highs[highs.length - 1];
-  const h2 = highs[highs.length - 2];
-  const l1 = lows[lows.length - 1];
-  const l2 = lows[lows.length - 2];
-
-  let direction = "NEUTRAL";
-  let structure = "RANGE";
-
-  if (h1.price > h2.price && l1.price > l2.price) {
-    direction = "BULLISH";
-    structure = "HH_HL";
-  } else if (h1.price < h2.price && l1.price < l2.price) {
-    direction = "BEARISH";
-    structure = "LH_LL";
-  } else {
-    direction = "NEUTRAL";
-    structure = "RANGE";
+  if (lowerHigh && lowerLow && newClose < oldClose) {
+    return {
+      direction: "BEARISH",
+      score: 20,
+      reason: "Struktur menunjukkan lower high dan lower low."
+    };
   }
 
-  const recentHighs = highs.slice(-3).map((s) => s.price);
-  const recentLows = lows.slice(-3).map((s) => s.price);
-  const keyResistance = Math.max(...recentHighs);
-  const keySupport = Math.min(...recentLows);
-  const isSideway = structure === "RANGE" || (keyResistance - keySupport) <= 8.0;
+  if (newClose > oldClose) {
+    return {
+      direction: "BULLISH",
+      score: 10,
+      reason: "Purata penutupan meningkat tetapi struktur belum lengkap."
+    };
+  }
+
+  if (newClose < oldClose) {
+    return {
+      direction: "BEARISH",
+      score: 10,
+      reason: "Purata penutupan menurun tetapi struktur belum lengkap."
+    };
+  }
 
   return {
-    direction,
-    structure,
-    highs,
-    lows,
-    h1: h1.price,
-    h2: h2.price,
-    l1: l1.price,
-    l2: l2.price,
-    keyResistance,
-    keySupport,
-    isSideway,
-    lastHigh: h1.price,
-    lastLow: l1.price
+    direction: "NEUTRAL",
+    score: 0,
+    reason: "Struktur belum menunjukkan arah yang jelas."
   };
 }
 
-// =========================================================
-// 5. ZONE BUILDER ENGINE (200 - 350 POINTS)
-// =========================================================
-function buildStandardZone(anchor, type, atrPrice = 3.0) {
-  const minWidth = UNIFIED_ZONE_MIN_POINTS * POINT_VALUE; // $2.00
-  const maxWidth = UNIFIED_ZONE_MAX_POINTS * POINT_VALUE; // $3.50
-  const adaptiveWidth = clamp(atrPrice * 0.85, minWidth, maxWidth);
+function findSwingLows(candles) {
+  const result = [];
 
-  let low, high;
-  if (type === "BUY") {
-    high = anchor;
-    low = anchor - adaptiveWidth;
-  } else {
-    low = anchor;
-    high = anchor + adaptiveWidth;
+  for (let i = 2; i < candles.length - 2; i++) {
+    const value = candles[i].low;
+
+    if (
+      value < candles[i - 1].low &&
+      value < candles[i - 2].low &&
+      value <= candles[i + 1].low &&
+      value <= candles[i + 2].low
+    ) {
+      result.push({
+        price: value,
+        time: candles[i].datetime,
+        index: i
+      });
+    }
   }
 
-  const pointsWidth = round((high - low) / POINT_VALUE, 0);
+  return result;
+}
+
+function findSwingHighs(candles) {
+  const result = [];
+
+  for (let i = 2; i < candles.length - 2; i++) {
+    const value = candles[i].high;
+
+    if (
+      value > candles[i - 1].high &&
+      value > candles[i - 2].high &&
+      value >= candles[i + 1].high &&
+      value >= candles[i + 2].high
+    ) {
+      result.push({
+        price: value,
+        time: candles[i].datetime,
+        index: i
+      });
+    }
+  }
+
+  return result;
+}
+
+function buildZone(candles, direction, price) {
+  if (!candles.length || price === null) {
+    return {
+      valid: false,
+      low: null,
+      high: null,
+      reason: "Tiada data untuk membina zon."
+    };
+  }
+
+  const recent = candles.slice(-40);
+  const swingPoints = direction === "BUY"
+    ? findSwingLows(recent)
+    : findSwingHighs(recent);
+
+  const candidates = swingPoints
+    .filter((point) => {
+      if (direction === "BUY") return point.price <= price;
+      return point.price >= price;
+    })
+    .sort((a, b) => {
+      if (direction === "BUY") return b.price - a.price;
+      return a.price - b.price;
+    });
+
+  if (!candidates.length) {
+    return {
+      valid: false,
+      low: null,
+      high: null,
+      reason: "Tiada swing zone yang sah berhampiran harga."
+    };
+  }
+
+  const pivot = candidates[0].price;
+  const halfWidth = (SETTINGS.zoneMin + SETTINGS.zoneMax) / 4;
+
+  let low;
+  let high;
+
+  if (direction === "BUY") {
+    low = pivot - halfWidth;
+    high = pivot + halfWidth;
+  } else {
+    low = pivot - halfWidth;
+    high = pivot + halfWidth;
+  }
+
+  const zoneWidth = high - low;
+
+  if (
+    zoneWidth < SETTINGS.zoneMin ||
+    zoneWidth > SETTINGS.zoneMax ||
+    low <= 0 ||
+    high <= low
+  ) {
+    return {
+      valid: false,
+      low: null,
+      high: null,
+      reason: "Zon tidak memenuhi julat yang ditetapkan."
+    };
+  }
+
+  // Do not force a setup when price is already far from the zone.
+  const distance = direction === "BUY"
+    ? price - high
+    : low - price;
+
+  const tooFar = distance > SETTINGS.zoneMax;
 
   return {
-    type,
-    low: round(low, 2),
-    high: round(high, 2),
-    anchor: round(anchor, 2),
-    width: round(high - low, 2),
-    points: pointsWidth,
-    pips: round(pointsWidth / POINTS_PER_PIP, 1),
-    locked: true,
-    lockType: "EPHEMERAL_PER_REQUEST"
+    valid: !tooFar,
+    low: roundPrice(low),
+    high: roundPrice(high),
+    pivot: roundPrice(pivot),
+    source: "M15_SWING",
+    locked: false,
+    status: price >= low && price <= high
+      ? "IN_ZONE"
+      : price < low
+        ? "BELOW_ZONE"
+        : "ABOVE_ZONE",
+    reason: tooFar
+      ? "Harga terlalu jauh daripada zon; tunggu peluang baharu."
+      : "Zon dibina daripada swing M15 yang dikesan.",
+    distanceFromZone: roundPrice(Math.max(0, distance))
   };
 }
 
-function refineZoneWithM5(zone, m5Swings) {
-  if (!zone) return null;
-
-  const minAllowed = UNIFIED_ZONE_MIN_POINTS * POINT_VALUE;
-  const maxAllowed = UNIFIED_ZONE_MAX_POINTS * POINT_VALUE;
-
-  if (zone.type === "BUY") {
-    const validLows = m5Swings.lows.filter(
-      (s) => s.price >= zone.low - 0.5 && s.price <= zone.high + 0.5
-    );
-    if (validLows.length > 0) {
-      const best = validLows[validLows.length - 1].price;
-      const refLow = Math.max(zone.low, best - 1.2);
-      const refHigh = Math.min(zone.high, best + 1.3);
-      const span = refHigh - refLow;
-
-      if (span >= minAllowed && span <= maxAllowed) {
-        const points = round(span / POINT_VALUE, 0);
-        return {
-          type: "BUY",
-          low: round(refLow, 2),
-          high: round(refHigh, 2),
-          anchor: round(best, 2),
-          width: round(span, 2),
-          points,
-          pips: round(points / POINTS_PER_PIP, 1),
-          locked: true,
-          lockType: "EPHEMERAL_PER_REQUEST"
-        };
-      }
-    }
-  } else if (zone.type === "SELL") {
-    const validHighs = m5Swings.highs.filter(
-      (s) => s.price >= zone.low - 0.5 && s.price <= zone.high + 0.5
-    );
-    if (validHighs.length > 0) {
-      const best = validHighs[validHighs.length - 1].price;
-      const refLow = Math.max(zone.low, best - 1.3);
-      const refHigh = Math.min(zone.high, best + 1.2);
-      const span = refHigh - refLow;
-
-      if (span >= minAllowed && span <= maxAllowed) {
-        const points = round(span / POINT_VALUE, 0);
-        return {
-          type: "SELL",
-          low: round(refLow, 2),
-          high: round(refHigh, 2),
-          anchor: round(best, 2),
-          width: round(span, 2),
-          points,
-          pips: round(points / POINTS_PER_PIP, 1),
-          locked: true,
-          lockType: "EPHEMERAL_PER_REQUEST"
-        };
-      }
-    }
+function getStructureBreak(candles, direction) {
+  if (!Array.isArray(candles) || candles.length < 7) {
+    return {
+      confirmed: false,
+      status: "NOT_CONFIRMED",
+      reason: "Candle M5 tidak mencukupi."
+    };
   }
 
-  return zone;
-}
-
-function evaluateZoneStatus(cmp, zone, invalidationLevel) {
-  if (!zone) return "INVALID";
-
-  if (zone.type === "BUY") {
-    if (cmp < invalidationLevel) return "INVALID";
-    if (cmp >= zone.low && cmp <= zone.high) return "IN_ZONE";
-    if (cmp > zone.high && cmp <= zone.high + 1.5) return "APPROACHING";
-    return "WATCH";
-  } else {
-    if (cmp > invalidationLevel) return "INVALID";
-    if (cmp >= zone.low && cmp <= zone.high) return "IN_ZONE";
-    if (cmp < zone.low && cmp >= zone.low - 1.5) return "APPROACHING";
-    return "WATCH";
-  }
-}
-
-// =========================================================
-// 6. CLOSED-CANDLE TRIGGER & CONFIRMATION
-// =========================================================
-function checkM5BreakClosed(m5Candles, direction) {
-  // Requires at least 3 candles: current live (length-1), last closed (length-2), prior closed (length-3)
-  if (!m5Candles || m5Candles.length < 3) {
-    return { hasBroken: false, details: "INSUFFICIENT_M5_CLOSED_DATA" };
-  }
-
-  const lastClosed = m5Candles[m5Candles.length - 2];
-  const priorClosed = m5Candles[m5Candles.length - 3];
-
-  let hasBroken = false;
-  let details = "WAITING_M5_CLOSED_BREAK";
+  const last = candles[candles.length - 1];
+  const previous = candles.slice(-7, -1);
 
   if (direction === "BUY") {
-    const brokeHigh = lastClosed.close > priorClosed.high;
-    const strongBullishClose = lastClosed.close > lastClosed.open &&
-      (lastClosed.close - lastClosed.open) >= (priorClosed.high - priorClosed.low) * 0.35;
-    const rejectionWick = lastClosed.low < priorClosed.low && lastClosed.close > priorClosed.close;
+    const referenceHigh = Math.max(...previous.map((c) => c.high));
+    const confirmed = last.close > referenceHigh;
 
-    if (brokeHigh || strongBullishClose || rejectionWick) {
-      hasBroken = true;
-      details = "CMP BREAK CONFIRMED";
-    }
-  } else if (direction === "SELL") {
-    const brokeLow = lastClosed.close < priorClosed.low;
-    const strongBearishClose = lastClosed.close < lastClosed.open &&
-      (lastClosed.open - lastClosed.close) >= (priorClosed.high - priorClosed.low) * 0.35;
-    const rejectionWick = lastClosed.high > priorClosed.high && lastClosed.close < priorClosed.close;
-
-    if (brokeLow || strongBearishClose || rejectionWick) {
-      hasBroken = true;
-      details = "CMP BREAK CONFIRMED";
-    }
+    return {
+      confirmed,
+      status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
+      method: "CLOSE_ABOVE_PREVIOUS_STRUCTURE",
+      reference: roundPrice(referenceHigh),
+      candleTime: last.datetime,
+      reason: confirmed
+        ? "Candle M5 tertutup di atas struktur sebelumnya."
+        : "Belum ada penutupan M5 di atas struktur sebelumnya."
+    };
   }
 
-  return { hasBroken, details };
+  const referenceLow = Math.min(...previous.map((c) => c.low));
+  const confirmed = last.close < referenceLow;
+
+  return {
+    confirmed,
+    status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
+    method: "CLOSE_BELOW_PREVIOUS_STRUCTURE",
+    reference: roundPrice(referenceLow),
+    candleTime: last.datetime,
+    reason: confirmed
+      ? "Candle M5 tertutup di bawah struktur sebelumnya."
+      : "Belum ada penutupan M5 di bawah struktur sebelumnya."
+  };
 }
 
-function checkM1ConfirmationClosed(m1Candles, direction) {
-  // Requires at least 4 candles to check closed sequence (excluding index length-1)
-  if (!m1Candles || m1Candles.length < 4) {
-    return { isConfirmed: false, status: "WAIT", details: "INSUFFICIENT_M1_CLOSED_DATA" };
+function getM1Confirmation(candles, direction) {
+  if (!Array.isArray(candles) || candles.length < 5) {
+    return {
+      confirmed: false,
+      status: "NOT_CONFIRMED",
+      reason: "Candle M1 tidak mencukupi."
+    };
   }
 
-  const lastClosed = m1Candles[m1Candles.length - 2];
-  const priorClosed = m1Candles[m1Candles.length - 3];
+  const last = candles[candles.length - 1];
+  const previous = candles[candles.length - 2];
+  const recent = candles.slice(-5, -1);
 
-  let isConfirmed = false;
-  let status = "NO CONFIRMATION";
-  let details = "VALIDATING_M1_CLOSED_STRUCTURE";
+  const lastDirection = candleDirection(last);
+  const previousDirection = candleDirection(previous);
 
-  if (direction === "BUY") {
-    const isBullish = lastClosed.close > lastClosed.open;
-    const closedAbovePrior = lastClosed.close > priorClosed.high;
-    const rejectionFollowThrough = lastClosed.low <= priorClosed.low && lastClosed.close > priorClosed.close;
-    const positiveMomentum = lastClosed.close >= priorClosed.close;
+  const bullishEngulfing =
+    lastDirection === "BULLISH" &&
+    previousDirection === "BEARISH" &&
+    last.open <= previous.close &&
+    last.close >= previous.open;
 
-    if ((closedAbovePrior || rejectionFollowThrough) && isBullish && positiveMomentum) {
-      isConfirmed = true;
-      status = "BULLISH CONFIRMED";
-      details = "M5 BREAK + M1 CONFIRMED";
-    } else {
-      status = "CHECKING";
-      details = "M5 BREAK -> CHECKING M1";
-    }
-  } else if (direction === "SELL") {
-    const isBearish = lastClosed.close < lastClosed.open;
-    const closedBelowPrior = lastClosed.close < priorClosed.low;
-    const rejectionFollowThrough = lastClosed.high >= priorClosed.high && lastClosed.close < priorClosed.close;
-    const negativeMomentum = lastClosed.close <= priorClosed.close;
+  const bearishEngulfing =
+    lastDirection === "BEARISH" &&
+    previousDirection === "BULLISH" &&
+    last.open >= previous.close &&
+    last.close <= previous.open;
 
-    if ((closedBelowPrior || rejectionFollowThrough) && isBearish && negativeMomentum) {
-      isConfirmed = true;
-      status = "BEARISH CONFIRMED";
-      details = "M5 BREAK + M1 CONFIRMED";
-    } else {
-      status = "CHECKING";
-      details = "M5 BREAK -> CHECKING M1";
-    }
-  }
+  const bullishBreak =
+    lastDirection === "BULLISH" &&
+    last.close > Math.max(...recent.map((c) => c.high));
 
-  return { isConfirmed, status, details };
+  const bearishBreak =
+    lastDirection === "BEARISH" &&
+    last.close < Math.min(...recent.map((c) => c.low));
+
+  const confirmed = direction === "BUY"
+    ? bullishEngulfing || bullishBreak
+    : bearishEngulfing || bearishBreak;
+
+  const method = direction === "BUY"
+    ? bullishEngulfing
+      ? "BULLISH_ENGULFING"
+      : bullishBreak
+        ? "M1_MICRO_STRUCTURE_BREAK"
+        : null
+    : bearishEngulfing
+      ? "BEARISH_ENGULFING"
+      : bearishBreak
+        ? "M1_MICRO_STRUCTURE_BREAK"
+        : null;
+
+  return {
+    confirmed,
+    status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
+    method,
+    candleTime: last.datetime,
+    reason: confirmed
+      ? `Confirmation M1 sah: ${method}.`
+      : "Engulfing atau break struktur M1 belum disahkan."
+  };
 }
 
-function isWithinExecutionBounds(direction, zone, cmp) {
-  // Hard limit: price must not exceed zone boundaries by more than the zone width itself
-  const maxChase = Math.max(zone.width, UNIFIED_ZONE_MIN_POINTS * POINT_VALUE);
+function buildTradePlan(direction, price, settings) {
+  if (price === null || !Number.isFinite(price)) return null;
 
-  if (direction === "BUY") {
-    // If CMP is too far above zone.high, entering represents chasing
-    return cmp <= round(zone.high + maxChase, 2) && cmp >= round(zone.low - 1.0, 2);
-  } else {
-    // If CMP is too far below zone.low, entering represents chasing
-    return cmp >= round(zone.low - maxChase, 2) && cmp <= round(zone.high + 1.0, 2);
-  }
+  const sl = direction === "BUY"
+    ? price - SETTINGS.stopLossDistance
+    : price + SETTINGS.stopLossDistance;
+
+  const tp1 = direction === "BUY"
+    ? price + settings.tp1Distance
+    : price - settings.tp1Distance;
+
+  const tp2 = direction === "BUY"
+    ? price + settings.tp2Distance
+    : price - settings.tp2Distance;
+
+  return {
+    entry: roundPrice(price),
+    sl: roundPrice(sl),
+    tp1: roundPrice(tp1),
+    tp2: roundPrice(tp2),
+    distances: {
+      stopLoss: SETTINGS.stopLossDistance,
+      tp1: settings.tp1Distance,
+      tp2: settings.tp2Distance
+    }
+  };
 }
 
-// =========================================================
-// 7. OBJECTIVE SCORING ENGINE
-// =========================================================
-function computeObjectiveScore({
+function makeSetup({
+  type,
   direction,
-  higherTfTrend,
-  entryTfTrend,
-  isSideway,
-  zoneStatus,
-  m5Broken,
-  m1Confirmed,
-  isExecutionInRange
+  price,
+  higherTrend,
+  lowerTrend,
+  m15,
+  m5,
+  m1,
+  settings
 }) {
-  let score = 30; // Base baseline score
+  const zone = buildZone(m15, direction, price);
+  const m5Confirmation = getStructureBreak(m5, direction);
+  const m1Confirmation = getM1Confirmation(m1, direction);
 
-  const targetTrend = direction === "BUY" ? "BULLISH" : "BEARISH";
+  const directionAligned =
+    higherTrend.direction === directionToTrend(direction) &&
+    lowerTrend.direction === directionToTrend(direction);
 
-  // Higher timeframe alignment: +20
-  if (higherTfTrend === targetTrend) {
+  let score = 0;
+
+  if (higherTrend.direction === directionToTrend(direction)) {
     score += 20;
   }
 
-  // Intermediate setup timeframe alignment: +15
-  if (entryTfTrend === targetTrend) {
-    score += 15;
+  if (lowerTrend.direction === directionToTrend(direction)) {
+    score += 20;
   }
 
-  // Clean structure (not heavily consolidating): +10
-  if (!isSideway) {
-    score += 10;
+  if (zone.valid) score += 15;
+  if (zone.status === "IN_ZONE") score += 10;
+  if (m5Confirmation.confirmed) score += 20;
+  if (m1Confirmation.confirmed) score += 15;
+
+  score = Math.min(100, score);
+
+  const reasons = [];
+
+  if (!directionAligned) {
+    reasons.push("Arah timeframe utama belum selari.");
   }
 
-  // Zone proximity condition: +10
-  if (zoneStatus === "IN_ZONE" || zoneStatus === "APPROACHING") {
-    score += 10;
+  if (!zone.valid) {
+    reasons.push(zone.reason);
   }
 
-  // M5 Closed Structure Break: +10
-  if (m5Broken) {
-    score += 10;
+  if (zone.valid && zone.status !== "IN_ZONE") {
+    reasons.push("Harga belum berada di dalam entry zone.");
   }
 
-  // M1 Closed Confirmation: +10
-  if (m1Confirmed && isExecutionInRange) {
-    score += 10;
+  if (!m5Confirmation.confirmed) {
+    reasons.push(m5Confirmation.reason);
   }
 
-  return clamp(score, 0, 100);
-}
-
-// =========================================================
-// 8. SCALPING ENGINE (H1 -> M15 -> M5 -> M1)
-// =========================================================
-function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR, m5Candles, m1Candles) {
-  const isBuy = side === "BUY";
-  let anchor = 0;
-  let setupType = "SR_LEVEL";
-  let reason = "";
-
-  if (m15Struct.isSideway) {
-    if (isBuy) {
-      anchor = m15Struct.keySupport;
-      setupType = "RANGE_SUPPORT";
-      reason = "M15 Range consolidation support; structural bounce setup.";
-    } else {
-      anchor = m15Struct.keyResistance;
-      setupType = "RANGE_RESISTANCE";
-      reason = "M15 Range consolidation resistance; structural rejection setup.";
-    }
-  } else if (isBuy) {
-    if (m15Struct.h2 && cmp >= m15Struct.h2) {
-      anchor = m15Struct.h2;
-      setupType = "BREAKOUT_PULLBACK";
-      reason = "Bullish structure breakout; pullback to structural RBS.";
-    } else {
-      anchor = m15Struct.l1 ? m15Struct.l1 : m15Struct.keySupport;
-      setupType = "TREND_CONTINUATION";
-      reason = "Higher-High / Higher-Low progression; continuing bullish structure.";
-    }
-  } else {
-    if (m15Struct.l2 && cmp <= m15Struct.l2) {
-      anchor = m15Struct.l2;
-      setupType = "BREAKOUT_PULLBACK";
-      reason = "Bearish structure breakdown; pullback to structural SBR.";
-    } else {
-      anchor = m15Struct.h1 ? m15Struct.h1 : m15Struct.keyResistance;
-      setupType = "TREND_CONTINUATION";
-      reason = "Lower-High / Lower-Low progression; continuing bearish structure.";
-    }
+  if (!m1Confirmation.confirmed) {
+    reasons.push(m1Confirmation.reason);
   }
 
-  const baseZone = buildStandardZone(anchor, side, m15ATR);
-  const refinedZone = refineZoneWithM5(baseZone, m5Swings);
-
-  const slOffset = UNIFIED_SL_POINTS * POINT_VALUE; // $3.00
-  const invalidationLevel = isBuy ? refinedZone.low - slOffset : refinedZone.high + slOffset;
-  const zoneStatus = evaluateZoneStatus(cmp, refinedZone, invalidationLevel);
-
-  // M5 Closed Break & M1 Closed Confirmation Checks
-  const m5Break = checkM5BreakClosed(m5Candles, side);
-  const m1Confirm = m5Break.hasBroken
-    ? checkM1ConfirmationClosed(m1Candles, side)
-    : { isConfirmed: false, status: "WAIT", details: "WAITING_M5_BREAK" };
-
-  const inExecutionRange = isWithinExecutionBounds(side, refinedZone, cmp);
-
-  // Compute non-random, verified score
-  const score = computeObjectiveScore({
-    direction: side,
-    higherTfTrend: h1Struct.direction,
-    entryTfTrend: m15Struct.direction,
-    isSideway: m15Struct.isSideway,
-    zoneStatus,
-    m5Broken: m5Break.hasBroken,
-    m1Confirmed: m1Confirm.isConfirmed,
-    isExecutionInRange: inExecutionRange
-  });
-
-  let signalStatus = "WAIT";
-  let confirmation = "Waiting for M5 break";
-
-  if (zoneStatus === "INVALID") {
-    signalStatus = "INVALID";
-    confirmation = "STRUCTURE_INVALIDATED";
-  } else if (!m5Break.hasBroken) {
-    signalStatus = "WAIT";
-    confirmation = "Waiting for M5 break";
-  } else if (m5Break.hasBroken && !m1Confirm.isConfirmed) {
-    signalStatus = "M1_CHECKING";
-    confirmation = "M5 BREAK -> CHECKING M1";
-  } else if (m5Break.hasBroken && m1Confirm.isConfirmed) {
-    if (!inExecutionRange) {
-      signalStatus = "WAIT";
-      confirmation = "OVEREXTENDED_AVOID_CHASE";
-    } else if (score < SCALP_MIN_SCORE) {
-      signalStatus = "WAIT";
-      confirmation = `SCORE_BELOW_THRESHOLD (${score}/${SCALP_MIN_SCORE})`;
-    } else {
-      signalStatus = "READY";
-      confirmation = "M5 BREAK + M1 CONFIRMED";
-    }
+  if (score < settings.minimumScore) {
+    reasons.push(`Score di bawah minimum ${settings.minimumScore}.`);
   }
 
-  const structuralBase = isBuy ? refinedZone.low : refinedZone.high;
-  const sl = isBuy ? round(structuralBase - slOffset, 2) : round(structuralBase + slOffset, 2);
-  const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
+  const ready =
+    directionAligned &&
+    zone.valid &&
+    zone.status === "IN_ZONE" &&
+    m5Confirmation.confirmed &&
+    m1Confirmation.confirmed &&
+    score >= settings.minimumScore;
 
-  const tp1 = isBuy
-    ? round(refinedZone.high + (SCALP_TP1_POINTS * POINT_VALUE), 2)
-    : round(refinedZone.low - (SCALP_TP1_POINTS * POINT_VALUE), 2);
-
-  const tp2 = isBuy
-    ? round(refinedZone.high + (SCALP_TP2_POINTS * POINT_VALUE), 2)
-    : round(refinedZone.low - (SCALP_TP2_POINTS * POINT_VALUE), 2);
-
-  const setupId = generateSetupId("SCALP", side, setupType, refinedZone.anchor);
+  const entryStatus = ready ? "READY" : "WAIT";
 
   return {
-    setupId,
-    side,
-    direction: side,
-    signalStatus,
-    zoneStatus,
-    confirmation,
+    setupId: `SINNCI-${type}-${direction}-${m15[m15.length - 1].time}`,
+    type,
+    symbol: "XAUUSD",
+    direction,
+    status: entryStatus,
+    entryStatus,
     score,
-    entry,
-    sl,
-    tp1,
-    tp2,
-    slPoints: UNIFIED_SL_POINTS,
-    slPips: UNIFIED_SL_POINTS / POINTS_PER_PIP,
-    zone: {
-      type: side,
-      low: refinedZone.low,
-      high: refinedZone.high,
-      anchor: refinedZone.anchor,
-      points: refinedZone.points,
-      pips: refinedZone.pips,
-      locked: true,
-      status: zoneStatus,
-      persistence: "EPHEMERAL_PER_REQUEST"
+    minimumScore: settings.minimumScore,
+    marketBias: {
+      higherTimeframe: higherTrend.direction,
+      setupTimeframe: lowerTrend.direction
     },
-    setup: setupType,
-    reason,
-    m5Status: m5Break.hasBroken ? "CMP BREAK CONFIRMED" : "WAIT",
-    m1Status: m1Confirm.status,
-    isEligible: score >= SCALP_MIN_SCORE && zoneStatus !== "INVALID"
+    zone: {
+      low: zone.low,
+      high: zone.high,
+      pivot: zone.pivot ?? null,
+      source: zone.source ?? null,
+      locked: false,
+      status: zone.status,
+      valid: zone.valid,
+      reason: zone.reason
+    },
+    confirmation: {
+      m5: {
+        ...m5Confirmation,
+        method: m5Confirmation.method || null
+      },
+      m1: {
+        ...m1Confirmation,
+        method: m1Confirmation.method || null
+      }
+    },
+    plan: ready ? buildTradePlan(direction, price, settings) : null,
+    reasons: ready
+      ? ["Timeframe selari, harga dalam zon, M5 dan M1 disahkan."]
+      : [...new Set(reasons)],
+    lastUpdated: new Date().toISOString()
   };
 }
 
-// =========================================================
-// 9. INTRADAY ENGINE (H4 -> H1 -> M15 -> M5 -> M1)
-// =========================================================
-function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR, m5Candles, m1Candles) {
-  const isBuy = side === "BUY";
-  let anchor = 0;
-  let setupType = "SR_LEVEL";
-  let reason = "";
+function directionToTrend(direction) {
+  return direction === "BUY" ? "BULLISH" : "BEARISH";
+}
 
-  // Hierarchy: Fibonacci Pullback (0.382 / 0.500 ONLY) on H1 Swing
-  if (h1Struct.h1 && h1Struct.l1 && h1Struct.h1 > h1Struct.l1) {
-    const range = h1Struct.h1 - h1Struct.l1;
-    if (isBuy) {
-      anchor = h1Struct.h1 - (range * 0.5);
-      setupType = "PULLBACK_FIB_50";
-      reason = "H4/H1 structural alignment with 50.0% Fibonacci pullback level.";
-    } else {
-      anchor = h1Struct.l1 + (range * 0.382);
-      setupType = "PULLBACK_FIB_382";
-      reason = "H4/H1 structural alignment with 38.2% Fibonacci pullback rejection.";
-    }
-  } else {
-    anchor = isBuy ? h1Struct.keySupport : h1Struct.keyResistance;
-    setupType = isBuy ? "PULLBACK_SUPPORT" : "PULLBACK_RESISTANCE";
-    reason = isBuy ? "H4/H1 structural support demand zone." : "H4/H1 major resistance rejection.";
+function selectDirection(higherTrend, lowerTrend) {
+  if (
+    higherTrend.direction === "BULLISH" &&
+    lowerTrend.direction === "BULLISH"
+  ) {
+    return "BUY";
   }
 
-  const baseZone = buildStandardZone(anchor, side, h1ATR);
-  const refinedZone = refineZoneWithM5(baseZone, m5Swings);
-
-  const slOffset = UNIFIED_SL_POINTS * POINT_VALUE; // $3.00
-  const invalidationLevel = isBuy ? refinedZone.low - slOffset : refinedZone.high + slOffset;
-  const zoneStatus = evaluateZoneStatus(cmp, refinedZone, invalidationLevel);
-
-  // M5 Closed Break & M1 Closed Confirmation Checks
-  const m5Break = checkM5BreakClosed(m5Candles, side);
-  const m1Confirm = m5Break.hasBroken
-    ? checkM1ConfirmationClosed(m1Candles, side)
-    : { isConfirmed: false, status: "WAIT", details: "WAITING_M5_BREAK" };
-
-  const inExecutionRange = isWithinExecutionBounds(side, refinedZone, cmp);
-
-  // Compute non-random, verified score
-  const score = computeObjectiveScore({
-    direction: side,
-    higherTfTrend: h4Struct.direction,
-    entryTfTrend: h1Struct.direction,
-    isSideway: h1Struct.isSideway,
-    zoneStatus,
-    m5Broken: m5Break.hasBroken,
-    m1Confirmed: m1Confirm.isConfirmed,
-    isExecutionInRange: inExecutionRange
-  });
-
-  let signalStatus = "WAIT";
-  let confirmation = "Waiting for M5 break";
-
-  if (zoneStatus === "INVALID") {
-    signalStatus = "INVALID";
-    confirmation = "STRUCTURE_INVALIDATED";
-  } else if (!m5Break.hasBroken) {
-    signalStatus = "WAIT";
-    confirmation = "Waiting for M5 break";
-  } else if (m5Break.hasBroken && !m1Confirm.isConfirmed) {
-    signalStatus = "M1_CHECKING";
-    confirmation = "M5 BREAK -> CHECKING M1";
-  } else if (m5Break.hasBroken && m1Confirm.isConfirmed) {
-    if (!inExecutionRange) {
-      signalStatus = "WAIT";
-      confirmation = "OVEREXTENDED_AVOID_CHASE";
-    } else if (score < INTRA_MIN_SCORE) {
-      signalStatus = "WAIT";
-      confirmation = `SCORE_BELOW_THRESHOLD (${score}/${INTRA_MIN_SCORE})`;
-    } else {
-      signalStatus = "READY";
-      confirmation = "M5 BREAK + M1 CONFIRMED";
-    }
+  if (
+    higherTrend.direction === "BEARISH" &&
+    lowerTrend.direction === "BEARISH"
+  ) {
+    return "SELL";
   }
 
-  const structuralBase = isBuy ? refinedZone.low : refinedZone.high;
-  const sl = isBuy ? round(structuralBase - slOffset, 2) : round(structuralBase + slOffset, 2);
-  const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
+  return null;
+}
 
-  const tp1 = isBuy
-    ? round(refinedZone.high + (INTRA_TP1_POINTS * POINT_VALUE), 2)
-    : round(refinedZone.low - (INTRA_TP1_POINTS * POINT_VALUE), 2);
-
-  const tp2 = isBuy
-    ? round(refinedZone.high + (INTRA_TP2_POINTS * POINT_VALUE), 2)
-    : round(refinedZone.low - (INTRA_TP2_POINTS * POINT_VALUE), 2);
-
-  const setupId = generateSetupId("INTRA", side, setupType, refinedZone.anchor);
-
+function makeWaitingSetup(type, reason, price = null) {
   return {
-    setupId,
-    side,
-    direction: side,
-    signalStatus,
-    zoneStatus,
-    confirmation,
-    score,
-    entry,
-    sl,
-    tp1,
-    tp2,
-    slPoints: UNIFIED_SL_POINTS,
-    slPips: UNIFIED_SL_POINTS / POINTS_PER_PIP,
+    setupId: null,
+    type,
+    symbol: "XAUUSD",
+    direction: "WAIT",
+    status: "WAIT",
+    entryStatus: "WAIT",
+    score: 0,
     zone: {
-      type: side,
-      low: refinedZone.low,
-      high: refinedZone.high,
-      anchor: refinedZone.anchor,
-      points: refinedZone.points,
-      pips: refinedZone.pips,
-      locked: true,
-      status: zoneStatus,
-      persistence: "EPHEMERAL_PER_REQUEST"
+      low: null,
+      high: null,
+      pivot: null,
+      source: null,
+      locked: false,
+      status: "NOT_AVAILABLE",
+      valid: false,
+      reason
     },
-    setup: setupType,
-    reason,
-    m5Status: m5Break.hasBroken ? "CMP BREAK CONFIRMED" : "WAIT",
-    m1Status: m1Confirm.status,
-    isEligible: score >= INTRA_MIN_SCORE && zoneStatus !== "INVALID"
+    confirmation: {
+      m5: {
+        confirmed: false,
+        status: "NOT_CHECKED",
+        reason
+      },
+      m1: {
+        confirmed: false,
+        status: "NOT_CHECKED",
+        reason
+      }
+    },
+    plan: null,
+    reasons: [reason],
+    lastUpdated: new Date().toISOString()
   };
 }
 
-// =========================================================
-// 10. MAIN HANDLER
-// =========================================================
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store, max-age=0");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
+  if (req.method !== "GET") {
+    return responseError(
+      res,
+      405,
+      "METHOD_NOT_ALLOWED",
+      "Gunakan GET untuk mendapatkan analisis."
+    );
+  }
+
+  const apiKey = process.env.TWELVE_DATA_API_KEY;
+
+  if (!apiKey) {
+    return responseError(
+      res,
+      500,
+      "MISSING_API_KEY",
+      "Environment variable TWELVE_DATA_API_KEY belum ditetapkan di Vercel."
+    );
+  }
+
   try {
-    const apiKey = process.env.TWELVE_DATA_API_KEY;
+    // Five timeframe requests are required for the complete analysis.
+    // They are fetched once per request, concurrently.
+    const timeframeKeys = ["H4", "H1", "M15", "M5", "M1"];
 
-    if (!apiKey || apiKey.trim() === "") {
-      return res.status(500).json({
-        success: false,
-        status: "error",
-        error: "TWELVE_DATA_API_KEY is not configured in Vercel Environment Variables.",
-        code: "CONFIG_ERROR",
-        details: "Missing environment variable: TWELVE_DATA_API_KEY",
-        source: "Vercel Environment"
+    const fetched = await Promise.all(
+      timeframeKeys.map(async (key) => [
+        key,
+        await fetchCandles(apiKey, key)
+      ])
+    );
+
+    const data = Object.fromEntries(fetched);
+    const candles = Object.fromEntries(
+      timeframeKeys.map((key) => [key, data[key].candles])
+    );
+
+    const lastM1 = candles.M1[candles.M1.length - 1];
+    const price = lastM1.close;
+
+    const trendH4 = getTrend(candles.H4);
+    const trendH1 = getTrend(candles.H1);
+    const trendM15 = getTrend(candles.M15);
+
+    const scalpDirection = selectDirection(trendH1, trendM15);
+    const intradayDirection = selectDirection(trendH4, trendH1);
+
+    let scalping;
+    let intraday;
+
+    if (scalpDirection) {
+      scalping = makeSetup({
+        type: "SCALPING",
+        direction: scalpDirection,
+        price,
+        higherTrend: trendH1,
+        lowerTrend: trendM15,
+        m15: candles.M15,
+        m5: candles.M5,
+        m1: candles.M1,
+        settings: SETTINGS.scalping
       });
-    }
-
-    // Parallel fetch across 5 intervals
-    let h4Candles, h1Candles, m15Candles, m5Candles, m1Candles;
-    try {
-      [h4Candles, h1Candles, m15Candles, m5Candles, m1Candles] = await Promise.all([
-        fetchCandles("4h", 40, apiKey),
-        fetchCandles("1h", 45, apiKey),
-        fetchCandles("15min", 50, apiKey),
-        fetchCandles("5min", 50, apiKey),
-        fetchCandles("1min", 35, apiKey)
-      ]);
-    } catch (apiErr) {
-      return res.status(502).json({
-        success: false,
-        status: "error",
-        error: apiErr.message || "Twelve Data fetch error",
-        code: apiErr.code || 502,
-        details: apiErr.message,
-        source: apiErr.source || "Twelve Data API"
-      });
-    }
-
-    if (!m5Candles.length || !m15Candles.length || !h1Candles.length || !h4Candles.length || !m1Candles.length) {
-      return res.status(502).json({
-        success: false,
-        status: "error",
-        error: "Insufficient candle history returned from Twelve Data. Market may be closed or symbol data delayed.",
-        code: "INSUFFICIENT_DATA",
-        details: "Candle length verification failed across one or more critical timeframes.",
-        source: "Twelve Data API"
-      });
-    }
-
-    // Current Market Price: derived from the latest live candle close
-    const cmpCandle = m1Candles[m1Candles.length - 1];
-    const currentPrice = round(cmpCandle.close, 2);
-
-    // Multi-timeframe structure mapping
-    const h4Struct = analyzeStructure(h4Candles);
-    const h1Struct = analyzeStructure(h1Candles);
-    const m15Struct = analyzeStructure(m15Candles);
-    const m5Swings = getSwings(m5Candles, 2, 2);
-    const m15ATR = calculateATR(m15Candles, 14);
-    const h1ATR = calculateATR(h1Candles, 14);
-
-    // Scalping Side Evaluators
-    const scalpBuy = buildScalpSide("BUY", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR, m5Candles, m1Candles);
-    const scalpSell = buildScalpSide("SELL", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR, m5Candles, m1Candles);
-
-    // Intraday Side Evaluators
-    const intraBuy = buildIntradaySide("BUY", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR, m5Candles, m1Candles);
-    const intraSell = buildIntradaySide("SELL", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR, m5Candles, m1Candles);
-
-    // Filter sides by structural trend qualification, NOT raw score alone
-    const pickBestSide = (buySetup, sellSetup, tfBias) => {
-      if (tfBias === "BULLISH" && buySetup.isEligible) return buySetup;
-      if (tfBias === "BEARISH" && sellSetup.isEligible) return sellSetup;
-      // In sideways / neutral, pick qualified side with active zone proximity
-      if (buySetup.isEligible && (buySetup.zoneStatus === "IN_ZONE" || buySetup.zoneStatus === "APPROACHING")) return buySetup;
-      if (sellSetup.isEligible && (sellSetup.zoneStatus === "IN_ZONE" || sellSetup.zoneStatus === "APPROACHING")) return sellSetup;
-      // Fallback: return higher verified score if eligible, otherwise default to higher score in WAIT state
-      if (buySetup.isEligible && !sellSetup.isEligible) return buySetup;
-      if (sellSetup.isEligible && !buySetup.isEligible) return sellSetup;
-      return buySetup.score >= sellSetup.score ? buySetup : sellSetup;
-    };
-
-    const primaryScalp = pickBestSide(scalpBuy, scalpSell, h1Struct.direction);
-    const primaryIntra = pickBestSide(intraBuy, intraSell, h4Struct.direction);
-
-    // Dominant Setup selection strictly based on timeframe confluence & qualification
-    let bestSetup = primaryScalp;
-    if (primaryIntra.isEligible && !primaryScalp.isEligible) {
-      bestSetup = primaryIntra;
-    } else if (primaryIntra.isEligible && primaryScalp.isEligible) {
-      bestSetup = primaryIntra.score >= primaryScalp.score ? primaryIntra : primaryScalp;
     } else {
-      bestSetup = primaryScalp.score >= primaryIntra.score ? primaryScalp : primaryIntra;
+      scalping = makeWaitingSetup(
+        "SCALPING",
+        "Arah H1 dan M15 tidak selari. Tunggu setup yang lebih jelas."
+      );
     }
 
-    const puncaPrice = bestSetup.zone.anchor;
-    const puncaSource = `${m15Struct.isSideway ? "M15 Range" : "M15 S/R"} (${bestSetup.setup})`;
+    if (intradayDirection) {
+      intraday = makeSetup({
+        type: "INTRADAY",
+        direction: intradayDirection,
+        price,
+        higherTrend: trendH4,
+        lowerTrend: trendH1,
+        m15: candles.M15,
+        m5: candles.M5,
+        m1: candles.M1,
+        settings: SETTINGS.intraday
+      });
+    } else {
+      intraday = makeWaitingSetup(
+        "INTRADAY",
+        "Arah H4 dan H1 tidak selari. Tunggu setup yang lebih jelas."
+      );
+    }
 
-    const calculatedRisk = round(Math.abs(bestSetup.entry - bestSetup.sl), 2);
-    const maxAllowedRisk = round(UNIFIED_SL_POINTS * POINT_VALUE, 2); // $3.00
+    const readySetups = [scalping, intraday].filter(
+      (setup) => setup.entryStatus === "READY"
+    );
 
-    // Construct robust response payload (resolving duplicate "status" collision)
-    const responsePayload = {
-      // API Protocol State (Unambiguous)
+    return res.status(200).json({
       success: true,
       status: "success",
-
-      engine: {
-        name: "SINNCI MARKET ENGINE PRO",
-        version: "PRO-3.0",
-        mode: "MARKET_STRUCTURE_ANALYSIS_ONLY",
-        disclaimer: "Analysis and signal mapping only. Automated trade execution is strictly disabled.",
-        standards: {
-          unit: "10 points = 1 pip",
-          zoneRange: "200 - 350 points (20 - 35 pips)",
-          stopLoss: "300 points (30 pips)",
-          closedCandleVerification: "Active on M5 & M1"
+      engine: "SINNCI MARKET ENGINE",
+      version: "2.0.0",
+      symbol: "XAUUSD",
+      source: "Twelve Data",
+      analysisOnly: true,
+      automatedTrading: false,
+      market: {
+        price: roundPrice(price),
+        priceSource: "Last available CLOSED M1 candle close",
+        priceTime: lastM1.datetime,
+        priceIsBrokerQuote: false,
+        trends: {
+          H4: trendH4,
+          H1: trendH1,
+          M15: trendM15
         }
       },
-      market: {
-        symbol: "XAUUSD",
-        price: currentPrice,
-        atr: round(m15ATR, 2)
+      scalping,
+      intraday,
+      bestSetup: readySetups.length
+        ? readySetups.reduce((best, current) =>
+            current.score > best.score ? current : best
+          )
+        : null,
+      summary: {
+        ready: readySetups.length > 0,
+        readyCount: readySetups.length,
+        message: readySetups.length
+          ? "Sekurang-kurangnya satu setup memenuhi syarat confirmation."
+          : "Tiada setup READY. Tunggu confirmation yang sah.",
+        note: "Score tinggi sahaja tidak mencukupi untuk mengaktifkan entry."
       },
-      direction: {
-        H4: h4Struct.direction,
-        H1: h1Struct.direction,
-        M15: m15Struct.direction,
-        M5: bestSetup.m5Status
+      dataQuality: {
+        closedCandlesOnly: true,
+        timeframes: Object.fromEntries(
+          timeframeKeys.map((key) => [key, data[key].meta])
+        ),
+        zonePersistence: false,
+        warning:
+          "Harga menggunakan penutupan candle M1 terakhir yang tersedia, bukan quote broker live."
       },
-      structure: {
-        H4: h4Struct.structure,
-        H1: h1Struct.structure,
-        M15: m15Struct.structure
+      settings: {
+        zoneMin: SETTINGS.zoneMin,
+        zoneMax: SETTINGS.zoneMax,
+        stopLossDistance: SETTINGS.stopLossDistance,
+        scalping: SETTINGS.scalping,
+        intraday: SETTINGS.intraday,
+        pointValue: POINT_VALUE
       },
-      multiTimeframe: {
-        H4: h4Struct.direction,
-        H1: h1Struct.direction,
-        M15: m15Struct.direction,
-        M5: bestSetup.m5Status,
-        M1: bestSetup.m1Status
-      },
-      // Scalping Setup Node
-      scalping: {
-        signal: primaryScalp.side,
-        direction: primaryScalp.side,
-        structure: m15Struct.structure,
-        signalStatus: primaryScalp.signalStatus,
-        status: primaryScalp.signalStatus, // Backward compatibility for legacy UI
-        score: primaryScalp.score,
-        zone: primaryScalp.zone,
-        entry: primaryScalp.entry,
-        sl: primaryScalp.sl,
-        tp1: primaryScalp.tp1,
-        tp2: primaryScalp.tp2,
-        reason: primaryScalp.reason,
-        locked: true,
-        m5Status: primaryScalp.m5Status,
-        m1Status: primaryScalp.m1Status,
-        buy: { ...scalpBuy, status: scalpBuy.signalStatus },
-        sell: { ...scalpSell, status: scalpSell.signalStatus }
-      },
-      // Intraday Setup Node
-      intraday: {
-        signal: primaryIntra.side,
-        direction: primaryIntra.side,
-        signalStatus: primaryIntra.signalStatus,
-        status: primaryIntra.signalStatus, // Backward compatibility for legacy UI
-        score: primaryIntra.score,
-        zone: primaryIntra.zone,
-        entry: primaryIntra.entry,
-        sl: primaryIntra.sl,
-        tp1: primaryIntra.tp1,
-        tp2: primaryIntra.tp2,
-        reason: primaryIntra.reason,
-        locked: true,
-        m5Status: primaryIntra.m5Status,
-        m1Status: primaryIntra.m1Status,
-        buy: { ...intraBuy, status: intraBuy.signalStatus },
-        sell: { ...intraSell, status: intraSell.signalStatus }
-      },
-      // Distinct Signal Execution State
-      signal: {
-        direction: bestSetup.side,
-        status: bestSetup.signalStatus,
-        signalStatus: bestSetup.signalStatus,
-        confirmation: bestSetup.confirmation
-      },
-      // Explicit Dedicated Signal State
-      signalStatus: bestSetup.signalStatus,
-      zone: bestSetup.zone,
-      m1: {
-        status: bestSetup.m1Status,
-        direction: bestSetup.m1Status.includes("CONFIRMED") ? bestSetup.side : "NONE"
-      },
-      audit: {
-        m5Break: bestSetup.m5Status === "CMP BREAK CONFIRMED",
-        m5BreakDetails: bestSetup.m5Status,
-        m1Confirmed: bestSetup.m1Status.includes("CONFIRMED"),
-        m1Details: bestSetup.m1Status,
-        evaluationModel: "CLOSED_CANDLES_ONLY"
-      },
-      score: bestSetup.score,
-      scores: {
-        buy: Math.max(scalpBuy.score, intraBuy.score),
-        sell: Math.max(scalpSell.score, intraSell.score)
-      },
-      entry: bestSetup.entry,
-      sl: bestSetup.sl,
-      tp1: bestSetup.tp1,
-      tp2: bestSetup.tp2,
-      plan: {
-        entry: bestSetup.entry,
-        sl: bestSetup.sl,
-        tp1: bestSetup.tp1,
-        tp2: bestSetup.tp2
-      },
-      punca: {
-        price: puncaPrice,
-        source: puncaSource
-      },
-      risk: calculatedRisk,
-      maxAllowedRisk: maxAllowedRisk,
-      reason: bestSetup.reason,
-      waitReason: bestSetup.signalStatus === "READY" ? null : bestSetup.confirmation,
       timestamp: new Date().toISOString()
-    };
-
-    return res.status(200).json(responsePayload);
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      status: "error",
-      error: error.message || "Market analysis execution encountered an unhandled exception.",
-      code: error.code || 500,
-      details: error.details || error.stack || "Internal Execution Exception",
-      source: error.source || "Serverless Execution Engine"
     });
+  } catch (error) {
+    const message = error?.message || "Analisis gagal diproses.";
+
+    return responseError(
+      res,
+      502,
+      "MARKET_DATA_ERROR",
+      "SINNCI AI tidak dapat menyelesaikan analisis menggunakan data pasaran.",
+      message
+    );
   }
 }

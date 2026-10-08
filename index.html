@@ -2301,7 +2301,7 @@ supabaseClient.auth.onAuthStateChange(async(event,session)=>{
 })();
 
 /* =========================================================
-   TIMEFRAME MODE SELECTION (SCALPING vs INTRADAY)
+   TIMEFRAME MODE (SCALPING vs INTRADAY)
    ========================================================= */
 let activeTFMode = "scalp"; // "scalp" | "intra"
 
@@ -2675,6 +2675,7 @@ function formatZoneDisplay(zone, fallbackEntry){
 function extractSetup(modeData, rootData){
   const source = modeData || rootData || {};
   
+  // Resolve direction
   const direction = rootData?.signal?.direction 
     || source.signal 
     || source.direction 
@@ -2684,14 +2685,20 @@ function extractSetup(modeData, rootData){
   const branch = source[direction?.toLowerCase()] || {};
 
   const zoneObj = rootData?.zone || source.zone || branch.zone || null;
-  const signalStatus = rootData?.signal?.status || source.signalStatus || source.status || branch.status || "WAIT";
+  
+  // Resolve signal status without being misled by API status: "success"
+  let rawSignal = rootData?.signalStatus || rootData?.signal?.status || source.signalStatus || source.status || branch.status || "WAIT";
+  if (rawSignal === "success") {
+    rawSignal = rootData?.signalStatus || rootData?.signal?.status || "WAIT";
+  }
+
   const zoneStatus = rootData?.zone?.status || source.zoneStatus || zoneObj?.status || "WATCH";
-  const confirmation = rootData?.signal?.confirmation || source.confirmation || branch.confirmation || "Waiting for M5 break";
+  const confirmation = rootData?.signal?.confirmation || source.confirmation || branch.confirmation || rootData?.waitReason || "Waiting for M5 break";
 
   return {
     direction: direction,
     zoneStatus: zoneStatus,
-    signalStatus: signalStatus,
+    signalStatus: rawSignal,
     confirmation: confirmation,
     score: Number(source.score ?? rootData?.score ?? branch.score ?? 85),
     zone: zoneObj,
@@ -2771,6 +2778,24 @@ function renderCompleteDashboard(data){
     document.getElementById("zoneCmpValue").textContent = cmp.toFixed(2);
   }
 
+  // JIKA API MEMULANGKAN STATUS "NO VALID SETUP"
+  if (data.setup === null && data.reason) {
+    document.getElementById("zoneRange").textContent = "----.– – ----.–";
+    document.getElementById("zoneStatusText").textContent = "WAIT";
+    document.getElementById("zoneReasonText").textContent = data.reason;
+    signalName.textContent = "WAIT";
+    signalSub.textContent = data.reason;
+    aiStatus.textContent = "WAIT";
+    aiStatus.style.color = "var(--yellow)";
+    aiDescription.textContent = data.reason;
+    setDirection("h4", data.direction?.H4 || "---");
+    setDirection("h1", data.direction?.H1 || "---");
+    setDirection("m15", data.direction?.M15 || "---");
+    setDirection("m5", "WAIT");
+    setDirection("m1", "WAIT");
+    return;
+  }
+
   // 2. DAPATKAN SETUP MENGIKUT MODE (SCALPING ATAU INTRADAY)
   const scalpSetup = extractSetup(data.scalping, data);
   const intraSetup = extractSetup(data.intraday, data);
@@ -2807,7 +2832,7 @@ function renderCompleteDashboard(data){
   let m5Status = "WAIT";
   const m5Break = data.audit?.m5Break === true;
   const m5Details = String(data.audit?.m5BreakDetails || data.audit?.m5Status || data.direction?.M5 || "").toUpperCase();
-  if (m5Break || m5Details.includes("BREAK") || m5Details.includes("BULLISH_BREAK") || m5Details.includes("BEARISH_BREAK")) {
+  if (m5Break || m5Details.includes("BREAK") || m5Details.includes("CMP BREAK CONFIRMED")) {
     m5Status = "CMP BREAK CONFIRMED";
   }
   setDirection("m5", m5Status);
@@ -2816,7 +2841,12 @@ function renderCompleteDashboard(data){
   let m1Status = "WAIT";
   const m1Confirmed = data.audit?.m1Confirmed === true;
   const m1Details = String(data.audit?.m1Details || data.audit?.m1Status || data.m1?.status || "").toUpperCase();
-  const rawSignalStatus = String(data.signal?.status || currentSetup.signalStatus || data.status || "WAIT").toUpperCase();
+  
+  // Resolve raw signal status
+  let rawSignalStatus = String(data.signalStatus || data.signal?.status || currentSetup.signalStatus || "WAIT").toUpperCase();
+  if (rawSignalStatus === "SUCCESS") {
+    rawSignalStatus = String(data.signalStatus || data.signal?.status || "WAIT").toUpperCase();
+  }
 
   if (m1Confirmed || rawSignalStatus === "READY") {
     m1Status = direction === "BUY" ? "BULLISH CONFIRMED" : "BEARISH CONFIRMED";
@@ -2853,7 +2883,7 @@ function renderCompleteDashboard(data){
   stepSignal.className = "step-node";
 
   signalCard.className = "card signal-card";
-  const confirmationMsg = data.signal?.confirmation || currentSetup.confirmation || "Waiting for M5 break";
+  const confirmationMsg = data.signal?.confirmation || currentSetup?.confirmation || data.waitReason || "Waiting for M5 break";
   signalConfirmationText.textContent = confirmationMsg;
 
   if (displaySignal === "BUY READY" || displaySignal === "SELL READY") {
@@ -2963,7 +2993,7 @@ function renderCompleteDashboard(data){
 }
 
 /* =========================================================
-   ANALYZE MARKET (SINGLE MANUAL BUTTON TRIGGER)
+   ANALYZE MARKET (TRIGGERED ON BUTTON CLICK ONLY)
    ========================================================= */
 async function analyze(){
   analyzeBtn.disabled=true;
@@ -2992,8 +3022,11 @@ async function analyze(){
 
     const data = await response.json();
 
-    if(!response.ok || data.error){
-      throw new Error(data.error || "Analysis failed");
+    // SEMAK STATUS & DIAGNOSIS RALAT TELUS
+    if(!response.ok || data.status === "error" || data.success === false){
+      const errDetail = data.details || data.error || "Analysis failed";
+      const errSource = data.source ? ` [${data.source}]` : "";
+      throw new Error(`${errDetail}${errSource}`);
     }
 
     window.lastAnalyzedData = data;
@@ -3003,13 +3036,13 @@ async function analyze(){
     startCooldown(30);
   }catch(error){
     console.error("SINNCI ANALYZE ERROR:", error);
-    signalCard.className="card signal-card wait";
+    signalCard.className="card signal-card noconfirm";
     signalIcon.textContent="⚠";
     signalName.textContent="ERROR";
     signalSub.textContent=error.message;
     aiStatus.textContent="ERROR";
     aiStatus.style.color="var(--red)";
-    aiDescription.textContent="Unable to complete market analysis.";
+    aiDescription.textContent=error.message; // Memaparkan ralat sebenar (contoh: API quota exceeded)
     setText("reason", error.message);
     startCooldown(10);
   }

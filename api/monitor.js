@@ -1,168 +1,155 @@
 /**
+ * SINNCI AI — LIVE SETUP MONITOR
+ * File: api/monitor.js
+ *
+ * Reads the real analysis response from /api/analyze.
+ * No fabricated prices, no fake confirmation, no trade execution.
+ */
 
-* SINNCI AI — MONITOR API
-* File: api/monitor.js
-* Purpose: Monitor an existing XAUUSD setup.
-* Analysis only. No automated trade execution.
-  */
-
-const POINT_VALUE = 0.01;
-
-function num(value) {
-const result = Number(value);
-return Number.isFinite(result) ? result : null;
-}
-
-function jsonError(res, statusCode, code, message) {
-return res.status(statusCode).json({
-success: false,
-status: "error",
-code,
-error: message,
-source: "SINNCI Monitor"
-});
+function sendError(res, statusCode, code, message, details = null) {
+  return res.status(statusCode).json({
+    success: false,
+    status: "error",
+    code,
+    error: message,
+    details,
+    source: "SINNCI Monitor",
+    timestamp: new Date().toISOString()
+  });
 }
 
 export default async function handler(req, res) {
-res.setHeader("Access-Control-Allow-Origin", "*");
-res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Cache-Control", "no-store, max-age=0");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-if (req.method === "OPTIONS") {
-return res.status(200).end();
-}
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-if (req.method !== "GET" && req.method !== "POST") {
-return jsonError(
-res,
-405,
-"METHOD_NOT_ALLOWED",
-"Gunakan GET atau POST."
-);
-}
-
-try {
-let body = req.body || {};
-
-if (typeof body === "string") {
-  try {
-    body = JSON.parse(body);
-  } catch {
-    return jsonError(
+  if (req.method !== "GET") {
+    return sendError(
       res,
-      400,
-      "INVALID_JSON",
-      "Body JSON tidak sah."
+      405,
+      "METHOD_NOT_ALLOWED",
+      "Gunakan GET untuk memantau setup."
     );
   }
-}
 
-const params = req.method === "GET"
-  ? (req.query || {})
-  : body;
+  try {
+    const baseUrl = `https://${req.headers.host}`;
+    const analyzeUrl = `${baseUrl}/api/analyze`;
 
-const setupId = params.setupId;
-const direction = String(
-  params.direction || params.side || ""
-).toUpperCase();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
 
-const zone = params.zone || {};
+    let response;
+    let data;
 
-const low = num(zone.low ?? params.zoneLow);
-const high = num(zone.high ?? params.zoneHigh);
-const price = num(params.price);
+    try {
+      response = await fetch(analyzeUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+        cache: "no-store"
+      });
 
-if (!setupId) {
-  return jsonError(
-    res,
-    400,
-    "MISSING_SETUP_ID",
-    "setupId diperlukan daripada setup SINNCI AI."
-  );
-}
+      data = await response.json();
+    } finally {
+      clearTimeout(timeout);
+    }
 
-if (direction !== "BUY" && direction !== "SELL") {
-  return jsonError(
-    res,
-    400,
-    "INVALID_DIRECTION",
-    "Direction mesti BUY atau SELL."
-  );
-}
+    if (!response.ok || data.success !== true) {
+      return sendError(
+        res,
+        502,
+        "ANALYZE_API_FAILED",
+        "Monitor tidak dapat mendapatkan analisis sebenar.",
+        data
+      );
+    }
 
-if (
-  low === null ||
-  high === null ||
-  low >= high
-) {
-  return jsonError(
-    res,
-    400,
-    "INVALID_ZONE",
-    "Zon mesti mempunyai nilai low dan high yang sah."
-  );
-}
+    const requestedType = String(
+      req.query?.type || "both"
+    ).toLowerCase();
 
-if (price === null || price <= 0) {
-  return jsonError(
-    res,
-    400,
-    "MISSING_PRICE",
-    "Harga semasa yang sah diperlukan. Monitor tidak mereka harga."
-  );
-}
+    const allowedTypes = ["both", "scalping", "intraday"];
 
-let zoneStatus = "WATCH";
+    if (!allowedTypes.includes(requestedType)) {
+      return sendError(
+        res,
+        400,
+        "INVALID_TYPE",
+        "type mesti both, scalping atau intraday."
+      );
+    }
 
-if (direction === "BUY") {
-  if (price < low) {
-    zoneStatus = "BELOW_ZONE";
-  } else if (price <= high) {
-    zoneStatus = "IN_ZONE";
-  } else {
-    zoneStatus = "ABOVE_ZONE";
+    const selectedSetups = {};
+
+    if (
+      (requestedType === "both" || requestedType === "scalping") &&
+      data.scalping
+    ) {
+      selectedSetups.scalping = data.scalping;
+    }
+
+    if (
+      (requestedType === "both" || requestedType === "intraday") &&
+      data.intraday
+    ) {
+      selectedSetups.intraday = data.intraday;
+    }
+
+    const setups = Object.values(selectedSetups);
+
+    const readySetups = setups.filter(
+      (setup) => setup.entryStatus === "READY" &&
+        setup.confirmation?.m5?.confirmed === true &&
+        setup.confirmation?.m1?.confirmed === true &&
+        setup.zone?.valid === true &&
+        setup.zone?.status === "IN_ZONE" &&
+        setup.plan !== null
+    );
+
+    return res.status(200).json({
+      success: true,
+      status: "success",
+      engine: "SINNCI LIVE MONITOR",
+      version: "2.0.0",
+      symbol: data.symbol || "XAUUSD",
+      source: data.source || "SINNCI AI",
+      analysisOnly: true,
+      automatedTrading: false,
+      market: data.market || null,
+      setups: selectedSetups,
+      bestSetup: readySetups.length
+        ? readySetups.reduce((best, setup) =>
+            setup.score > best.score ? setup : best
+          )
+        : null,
+      summary: {
+        ready: readySetups.length > 0,
+        readyCount: readySetups.length,
+        message: readySetups.length
+          ? "Setup disahkan oleh analisis M5 dan M1."
+          : "WAIT — belum ada setup yang memenuhi semua syarat.",
+        note:
+          "Monitor membaca keputusan analisis. Ia tidak mengesahkan candle secara berasingan."
+      },
+      dataQuality: data.dataQuality || null,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    const message = error?.name === "AbortError"
+      ? "Permintaan analisis mengambil masa terlalu lama."
+      : error?.message || "Monitor gagal diproses.";
+
+    return sendError(
+      res,
+      502,
+      "MONITOR_INTERNAL_ERROR",
+      message
+    );
   }
-} else {
-  if (price > high) {
-    zoneStatus = "ABOVE_ZONE";
-  } else if (price >= low) {
-    zoneStatus = "IN_ZONE";
-  } else {
-    zoneStatus = "BELOW_ZONE";
-  }
-}
-
-return res.status(200).json({
-  success: true,
-  status: "success",
-  engine: "SINNCI MONITOR",
-  version: "1.0",
-  symbol: "XAUUSD",
-  setupId,
-  direction,
-  price,
-  zone: {
-    low,
-    high,
-    locked: false,
-    status: zoneStatus
-  },
-  entryStatus: "WAIT",
-  confirmation: {
-    m5: "NOT_CHECKED",
-    m1: "NOT_CHECKED"
-  },
-  note: "Monitor asas sahaja. Zone belum persistent dan M5/M1 belum disahkan menggunakan candle sebenar.",
-  pointValue: POINT_VALUE,
-  timestamp: new Date().toISOString()
-});
-
-} catch (error) {
-return jsonError(
-res,
-500,
-"MONITOR_INTERNAL_ERROR",
-error.message || "Monitor gagal diproses."
-);
-}
 }

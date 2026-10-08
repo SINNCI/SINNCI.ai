@@ -1,9 +1,12 @@
 /**
  * ============================================================================
- * SINNCI MARKET ENGINE PRO (PRO-3.0)
+ * SINNCI MARKET ENGINE PRO (PRO-3.0 REVISED)
  * Asset: XAUUSD (Gold)
  * File: api/analyze.js
  * Deployment: Vercel Serverless Function
+ * 
+ * FLOW ARCHITECTURE:
+ * H1 BIAS -> M15 SETUP -> EARLY ZONE OUTPUT (LOCKED) -> M5 BREAK TRIGGER -> M1 CHECK -> M1 CONFIRM -> READY SIGNAL
  * ============================================================================
  */
 
@@ -13,7 +16,7 @@ const SYMBOL = "XAU/USD";
 const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com/time_series";
 
 // =========================================================
-// 1. UNIT & ZONE RULES (RULE TERKINI SAHAJA)
+// 1. UNIT & ZONE RULES
 // 10 POINTS = 1 PIP ($0.01 = 1 point, $0.10 = 1 pip, $1.00 = 100 points)
 // =========================================================
 const POINTS_PER_PIP = 10;
@@ -34,10 +37,6 @@ const SCALP_TP2_POINTS = 1200; // 120 pips / $12.00
 const INTRA_TP1_POINTS = 1500; // 150 pips / $15.00
 const INTRA_TP2_POINTS = 2300; // 230 pips / $23.00
 
-// Thresholds
-const SCALP_SIGNAL_SCORE = 65;
-const INTRA_SIGNAL_SCORE = 90;
-
 // =========================================================
 // 2. HELPERS & MATH
 // =========================================================
@@ -56,7 +55,7 @@ function clamp(v, min, max) {
 }
 
 function calculateATR(candles, period = 14) {
-  if (!candles || candles.length < period + 1) return 3.0; // Fallback price ATR
+  if (!candles || candles.length < period + 1) return 3.0;
   let trSum = 0;
   for (let i = candles.length - period; i < candles.length; i++) {
     const c = candles[i];
@@ -72,7 +71,6 @@ function calculateATR(candles, period = 14) {
   return trSum / period;
 }
 
-// Deterministic Zone Lock Hash (Mengunci zon selagi aras struktur tidak terbatal)
 function generateSetupId(tf, direction, setupType, anchorPrice) {
   const roundedAnchor = Math.round(anchorPrice * 2) / 2;
   const rawKey = `${tf}_${direction}_${setupType}_${roundedAnchor}`;
@@ -200,7 +198,6 @@ function analyzeStructure(candles) {
 // 5. ZONE BUILDER ENGINE (200 - 350 POINTS / 20 - 35 PIPS)
 // =========================================================
 function buildStandardZone(anchor, type, atrPrice = 3.0) {
-  // Tetapan ketat: 200 - 350 points ($2.00 - $3.50) berasaskan turun naik pasaran sebenar
   const minWidth = UNIFIED_ZONE_MIN_POINTS * POINT_VALUE; // $2.00
   const maxWidth = UNIFIED_ZONE_MAX_POINTS * POINT_VALUE; // $3.50
   const adaptiveWidth = clamp(atrPrice * 0.85, minWidth, maxWidth);
@@ -224,15 +221,15 @@ function buildStandardZone(anchor, type, atrPrice = 3.0) {
     width: round(high - low, 2),
     points: pointsWidth,
     pips: round(pointsWidth / POINTS_PER_PIP, 1),
+    locked: true,
   };
 }
 
-// Refine M15 zone dengan structure M5 tanpa melanggar had 200–350 points
 function refineZoneWithM5(zone, m5Swings) {
   if (!zone) return null;
 
-  const minAllowed = UNIFIED_ZONE_MIN_POINTS * POINT_VALUE; // $2.00
-  const maxAllowed = UNIFIED_ZONE_MAX_POINTS * POINT_VALUE; // $3.50
+  const minAllowed = UNIFIED_ZONE_MIN_POINTS * POINT_VALUE;
+  const maxAllowed = UNIFIED_ZONE_MAX_POINTS * POINT_VALUE;
 
   if (zone.type === "BUY") {
     const validLows = m5Swings.lows.filter(
@@ -254,6 +251,7 @@ function refineZoneWithM5(zone, m5Swings) {
           width: round(span, 2),
           points,
           pips: round(points / POINTS_PER_PIP, 1),
+          locked: true,
         };
       }
     }
@@ -277,6 +275,7 @@ function refineZoneWithM5(zone, m5Swings) {
           width: round(span, 2),
           points,
           pips: round(points / POINTS_PER_PIP, 1),
+          locked: true,
         };
       }
     }
@@ -285,51 +284,144 @@ function refineZoneWithM5(zone, m5Swings) {
   return zone;
 }
 
-function evaluateStatus(cmp, zone, invalidationLevel) {
-  if (!zone) return "WAIT";
+// Status zon berasingan daripada status signal
+function evaluateZoneStatus(cmp, zone, slOffset) {
+  if (!zone) return "INVALID";
 
   if (zone.type === "BUY") {
-    if (cmp < invalidationLevel) return "INVALID";
-    if (cmp >= zone.low && cmp <= zone.high) return "READY";
-    if (cmp > zone.high && cmp <= zone.high + 1.5) return "APPROACHING";
-    if (cmp > zone.high + 1.5 && cmp <= zone.high + 5.0) return "WAIT_RETEST";
+    if (cmp < zone.low - slOffset) return "INVALID";
+    if (cmp >= zone.low && cmp <= zone.high) return "IN_ZONE";
+    if (cmp > zone.high && cmp <= zone.high + 2.0) return "APPROACHING";
     return "WATCH";
   } else {
-    if (cmp > invalidationLevel) return "INVALID";
-    if (cmp >= zone.low && cmp <= zone.high) return "READY";
-    if (cmp < zone.low && cmp >= zone.low - 1.5) return "APPROACHING";
-    if (cmp < zone.low - 1.5 && cmp >= zone.low - 5.0) return "WAIT_RETEST";
+    if (cmp > zone.high + slOffset) return "INVALID";
+    if (cmp >= zone.low && cmp <= zone.high) return "IN_ZONE";
+    if (cmp < zone.low && cmp >= zone.low - 2.0) return "APPROACHING";
     return "WATCH";
   }
 }
 
 // =========================================================
-// 6. SCALPING ENGINE (H1 -> M15 -> M5)
+// 6. TRIGGER & CONFIRMATION ENGINE (M5 BREAK -> M1 CONFIRM)
 // =========================================================
-function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
+function evaluateM5Break(m5Candles, cmp, direction, isStrongSetup) {
+  if (!m5Candles || m5Candles.length < 3) {
+    return { hasBroken: false, isStrong: false, details: "Awaiting M5 data" };
+  }
+
+  const latest = m5Candles[m5Candles.length - 1];
+  const prev = m5Candles[m5Candles.length - 2];
+
+  // Setup kuat: bypass keperluan breakout melampau
+  if (isStrongSetup) {
+    return {
+      hasBroken: true,
+      isStrong: true,
+      details: "Strong structure alignment active; fast M1 trigger.",
+    };
+  }
+
+  let hasBroken = false;
+  let details = "Awaiting M5 CMP/Structure break";
+
+  if (direction === "BUY") {
+    const cmpBrokeHigh = cmp > prev.high;
+    const bullishShift = latest.close > prev.high || (latest.close > latest.open && cmp > prev.close);
+    const rejectionWick = latest.low < prev.low && cmp > prev.low;
+
+    if (cmpBrokeHigh || bullishShift || rejectionWick) {
+      hasBroken = true;
+      details = "M5 Bullish CMP/Structure break detected";
+    }
+  } else if (direction === "SELL") {
+    const cmpBrokeLow = cmp < prev.low;
+    const bearishShift = latest.close < prev.low || (latest.close < latest.open && cmp < prev.close);
+    const rejectionWick = latest.high > prev.high && cmp < prev.high;
+
+    if (cmpBrokeLow || bearishShift || rejectionWick) {
+      hasBroken = true;
+      details = "M5 Bearish CMP/Structure break detected";
+    }
+  }
+
+  return { hasBroken, isStrong: false, details };
+}
+
+function evaluateM1Confirmation(m1Candles, cmp, direction) {
+  if (!m1Candles || m1Candles.length < 4) {
+    return { isConfirmed: false, details: "Awaiting M1 candles" };
+  }
+
+  const recent = m1Candles.slice(-4);
+  const current = recent[recent.length - 1];
+  const prev = recent[recent.length - 2];
+
+  let isConfirmed = false;
+  let details = "Validating M1 micro-structure";
+
+  if (direction === "BUY") {
+    const bullishBody = current.close > current.open;
+    const microBreak = cmp > prev.high || current.close > prev.high;
+    const rejectionLow = current.low <= prev.low && current.close > current.open;
+    const positiveMomentum = current.close >= prev.close;
+
+    if ((microBreak || rejectionLow) && bullishBody && positiveMomentum) {
+      isConfirmed = true;
+      details = "M1 confirmed: Bullish micro-reclaim & upward momentum";
+    } else {
+      details = "M1 waiting for buyer follow-through";
+    }
+  } else if (direction === "SELL") {
+    const bearishBody = current.close < current.open;
+    const microBreak = cmp < prev.low || current.close < prev.low;
+    const rejectionHigh = current.high >= prev.high && current.close < current.open;
+    const negativeMomentum = current.close <= prev.close;
+
+    if ((microBreak || rejectionHigh) && bearishBody && negativeMomentum) {
+      isConfirmed = true;
+      details = "M1 confirmed: Bearish micro-reclaim & downward momentum";
+    } else {
+      details = "M1 waiting for seller follow-through";
+    }
+  }
+
+  return { isConfirmed, details };
+}
+
+// Elak mengejar harga jika pasaran sudah lari melebihi 60 pips dari had struktur
+function isPriceWithinExecutionBounds(direction, zone, cmp) {
+  const maxTolerance = 6.0; // $6.00 = 60 pips = 600 points
+  if (direction === "BUY") {
+    return cmp <= zone.high + maxTolerance;
+  } else {
+    return cmp >= zone.low - maxTolerance;
+  }
+}
+
+// =========================================================
+// 7. SCALPING ENGINE (H1 -> M15 -> M5 -> M1)
+// =========================================================
+function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR, m5Candles, m1Candles) {
   const isBuy = side === "BUY";
   let anchor = 0;
   let setupType = "SR_LEVEL";
   let reason = "";
 
-  // 1. Sideway Market Logic (Range Support / Resistance - JANGAN TUNGGU BREAKOUT)
   if (m15Struct.isSideway) {
     if (isBuy) {
       anchor = m15Struct.keySupport;
       setupType = "RANGE_SUPPORT";
-      reason = "M15 Range consolidation support holding; buy dip setup.";
+      reason = "M15 Range consolidation support; early zone locked.";
     } else {
       anchor = m15Struct.keyResistance;
       setupType = "RANGE_RESISTANCE";
-      reason = "M15 Range consolidation resistance holding; sell rejection setup.";
+      reason = "M15 Range consolidation resistance; early zone locked.";
     }
-  }
-  // 2. Trend Continuation & Pullback / Retest
-  else if (isBuy) {
+  } else if (isBuy) {
     if (m15Struct.h2 && cmp >= m15Struct.h2.price) {
       anchor = m15Struct.h2.price;
       setupType = "BREAKOUT_PULLBACK";
-      reason = "Bullish structure breakout; pullback to previous resistance (RBS).";
+      reason = "Bullish structure breakout; key resistance-turned-support.";
     } else {
       anchor = m15Struct.l1 ? m15Struct.l1.price : m15Struct.keySupport;
       setupType = "TREND_CONTINUATION";
@@ -339,7 +431,7 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
     if (m15Struct.l2 && cmp <= m15Struct.l2.price) {
       anchor = m15Struct.l2.price;
       setupType = "BREAKOUT_PULLBACK";
-      reason = "Bearish structure breakdown; pullback to previous support (SBR).";
+      reason = "Bearish structure breakdown; key support-turned-resistance.";
     } else {
       anchor = m15Struct.h1 ? m15Struct.h1.price : m15Struct.keyResistance;
       setupType = "TREND_CONTINUATION";
@@ -347,17 +439,48 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
     }
   }
 
-  // 200 - 350 points zone
+  // 1. Zone Output Awal (200 - 350 points) & LOCKED
   const baseZone = buildStandardZone(anchor, side, m15ATR);
   const refinedZone = refineZoneWithM5(baseZone, m5Swings);
 
-  // Invalidation & SL: 300 points ($3.00) dari sempadan zon
   const slOffset = UNIFIED_SL_POINTS * POINT_VALUE; // $3.00
-  const invalidationLevel = isBuy ? refinedZone.low - slOffset : refinedZone.high + slOffset;
-  const status = evaluateStatus(cmp, refinedZone, invalidationLevel);
+  const zoneStatus = evaluateZoneStatus(cmp, refinedZone, slOffset);
 
+  // 2. Flow Trigger & Execution
+  const targetDir = isBuy ? "BULLISH" : "BEARISH";
+  const isStrong = h1Struct.direction === targetDir && m15Struct.direction === targetDir;
+
+  const m5Break = evaluateM5Break(m5Candles, cmp, side, isStrong);
+  const m1Confirm = (m5Break.hasBroken || m5Break.isStrong)
+    ? evaluateM1Confirmation(m1Candles, cmp, side)
+    : { isConfirmed: false, details: "Waiting for M5 break" };
+
+  let signalStatus = "WAIT";
+  let confirmation = "WAIT_M5_BREAK";
+
+  if (zoneStatus === "INVALID") {
+    signalStatus = "INVALID";
+    confirmation = "STRUCTURE_INVALIDATED";
+  } else if (!m5Break.hasBroken && !m5Break.isStrong) {
+    signalStatus = zoneStatus === "APPROACHING" ? "APPROACHING" : "WATCH";
+    confirmation = "M5_BREAK_WAIT_M1";
+  } else if ((m5Break.hasBroken || m5Break.isStrong) && !m1Confirm.isConfirmed) {
+    signalStatus = "M1_CHECKING";
+    confirmation = "M5_BREAK";
+  } else if ((m5Break.hasBroken || m5Break.isStrong) && m1Confirm.isConfirmed) {
+    if (isPriceWithinExecutionBounds(side, refinedZone, cmp)) {
+      signalStatus = "READY";
+      confirmation = "M5_BREAK_M1_CONFIRMED";
+    } else {
+      signalStatus = "WAIT";
+      confirmation = "OVEREXTENDED_AVOID_CHASE";
+    }
+  }
+
+  // Pengiraan Aras Struktur SL & TP
+  const structuralBase = isBuy ? refinedZone.low : refinedZone.high;
+  const sl = isBuy ? round(structuralBase - slOffset, 2) : round(structuralBase + slOffset, 2);
   const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
-  const sl = isBuy ? round(refinedZone.low - slOffset, 2) : round(refinedZone.high + slOffset, 2);
 
   const tp1 = isBuy
     ? round(refinedZone.high + (SCALP_TP1_POINTS * POINT_VALUE), 2)
@@ -368,11 +491,10 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
     : round(refinedZone.low - (SCALP_TP2_POINTS * POINT_VALUE), 2);
 
   let score = 65;
-  const targetDir = isBuy ? "BULLISH" : "BEARISH";
   if (h1Struct.direction === targetDir) score += 15;
   if (m15Struct.direction === targetDir) score += 10;
-  if (status === "READY" || status === "APPROACHING") score += 8;
-  score = clamp(score, 45, 96);
+  if (signalStatus === "READY") score += 10;
+  score = clamp(score, 45, 98);
 
   const setupId = generateSetupId("SCALP", side, setupType, refinedZone.anchor);
 
@@ -380,7 +502,10 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
     setupId,
     side,
     direction: side,
-    status: score >= SCALP_SIGNAL_SCORE ? "SIGNAL" : status,
+    zoneStatus,
+    signalStatus,
+    status: signalStatus, // Serasi dengan UI
+    confirmation,
     score,
     entry,
     sl,
@@ -395,23 +520,27 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
       anchor: refinedZone.anchor,
       points: refinedZone.points,
       pips: refinedZone.pips,
+      locked: true,
+      status: zoneStatus,
     },
     setup: setupType,
     reason,
-    locked: true,
+    audit: {
+      m5Break: m5Break.details,
+      m1Confirm: m1Confirm.details,
+    },
   };
 }
 
 // =========================================================
-// 7. INTRADAY ENGINE (H4 -> H1 -> M15 -> M5)
+// 8. INTRADAY ENGINE (H4 -> H1 -> M15 -> M5 -> M1)
 // =========================================================
-function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR) {
+function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR, m5Candles, m1Candles) {
   const isBuy = side === "BUY";
   let anchor = 0;
   let setupType = "SR_LEVEL";
   let reason = "";
 
-  // Hierarchy: Fibonacci Pullback (0.382 / 0.500 ONLY) pada H1 Swing
   if (h1Struct.h1 && h1Struct.l1 && h1Struct.h1.price > h1Struct.l1.price) {
     const range = h1Struct.h1.price - h1Struct.l1.price;
     if (isBuy) {
@@ -426,20 +555,48 @@ function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h
   } else {
     anchor = isBuy ? h1Struct.keySupport : h1Struct.keyResistance;
     setupType = isBuy ? "PULLBACK_SUPPORT" : "PULLBACK_RESISTANCE";
-    reason = isBuy ? "H4/H1 structural support demand." : "H4/H1 major resistance rejection.";
+    reason = isBuy ? "H4/H1 structural demand zone." : "H4/H1 major resistance rejection.";
   }
 
-  // Unified Zone Range: 200 - 350 points
   const baseZone = buildStandardZone(anchor, side, h1ATR);
   const refinedZone = refineZoneWithM5(baseZone, m5Swings);
 
-  // Invalidation & SL: 300 points ($3.00)
   const slOffset = UNIFIED_SL_POINTS * POINT_VALUE; // $3.00
-  const invalidationLevel = isBuy ? refinedZone.low - slOffset : refinedZone.high + slOffset;
-  const status = evaluateStatus(cmp, refinedZone, invalidationLevel);
+  const zoneStatus = evaluateZoneStatus(cmp, refinedZone, slOffset);
 
+  const targetDir = isBuy ? "BULLISH" : "BEARISH";
+  const isStrong = h4Struct.direction === targetDir && h1Struct.direction === targetDir;
+
+  const m5Break = evaluateM5Break(m5Candles, cmp, side, isStrong);
+  const m1Confirm = (m5Break.hasBroken || m5Break.isStrong)
+    ? evaluateM1Confirmation(m1Candles, cmp, side)
+    : { isConfirmed: false, details: "Waiting for M5 break" };
+
+  let signalStatus = "WAIT";
+  let confirmation = "WAIT_M5_BREAK";
+
+  if (zoneStatus === "INVALID") {
+    signalStatus = "INVALID";
+    confirmation = "STRUCTURE_INVALIDATED";
+  } else if (!m5Break.hasBroken && !m5Break.isStrong) {
+    signalStatus = zoneStatus === "APPROACHING" ? "APPROACHING" : "WATCH";
+    confirmation = "M5_BREAK_WAIT_M1";
+  } else if ((m5Break.hasBroken || m5Break.isStrong) && !m1Confirm.isConfirmed) {
+    signalStatus = "M1_CHECKING";
+    confirmation = "M5_BREAK";
+  } else if ((m5Break.hasBroken || m5Break.isStrong) && m1Confirm.isConfirmed) {
+    if (isPriceWithinExecutionBounds(side, refinedZone, cmp)) {
+      signalStatus = "READY";
+      confirmation = "M5_BREAK_M1_CONFIRMED";
+    } else {
+      signalStatus = "WAIT";
+      confirmation = "OVEREXTENDED_AVOID_CHASE";
+    }
+  }
+
+  const structuralBase = isBuy ? refinedZone.low : refinedZone.high;
+  const sl = isBuy ? round(structuralBase - slOffset, 2) : round(structuralBase + slOffset, 2);
   const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
-  const sl = isBuy ? round(refinedZone.low - slOffset, 2) : round(refinedZone.high + slOffset, 2);
 
   const tp1 = isBuy
     ? round(refinedZone.high + (INTRA_TP1_POINTS * POINT_VALUE), 2)
@@ -450,10 +607,10 @@ function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h
     : round(refinedZone.low - (INTRA_TP2_POINTS * POINT_VALUE), 2);
 
   let score = 70;
-  const targetDir = isBuy ? "BULLISH" : "BEARISH";
   if (h4Struct.direction === targetDir) score += 15;
   if (h1Struct.direction === targetDir) score += 10;
-  score = clamp(score, 50, 95);
+  if (signalStatus === "READY") score += 10;
+  score = clamp(score, 50, 98);
 
   const setupId = generateSetupId("INTRA", side, setupType, refinedZone.anchor);
 
@@ -461,7 +618,10 @@ function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h
     setupId,
     side,
     direction: side,
-    status: score >= INTRA_SIGNAL_SCORE ? "SIGNAL" : status,
+    zoneStatus,
+    signalStatus,
+    status: signalStatus,
+    confirmation,
     score,
     entry,
     sl,
@@ -476,15 +636,20 @@ function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h
       anchor: refinedZone.anchor,
       points: refinedZone.points,
       pips: refinedZone.pips,
+      locked: true,
+      status: zoneStatus,
     },
     setup: setupType,
     reason,
-    locked: true,
+    audit: {
+      m5Break: m5Break.details,
+      m1Confirm: m1Confirm.details,
+    },
   };
 }
 
 // =========================================================
-// 8. MAIN HANDLER (Vercel Serverless Function)
+// 9. MAIN HANDLER (Vercel Serverless Function)
 // =========================================================
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -505,22 +670,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // Parallel fetch H4, H1, M15, M5
-    const [h4Candles, h1Candles, m15Candles, m5Candles] = await Promise.all([
+    // Parallel fetch H4, H1, M15, M5, M1
+    const [h4Candles, h1Candles, m15Candles, m5Candles, m1Candles] = await Promise.all([
       fetchCandles("4h", 40, apiKey),
       fetchCandles("1h", 45, apiKey),
       fetchCandles("15min", 50, apiKey),
       fetchCandles("5min", 50, apiKey),
+      fetchCandles("1min", 30, apiKey),
     ]);
 
-    if (!m5Candles.length || !m15Candles.length || !h1Candles.length || !h4Candles.length) {
+    if (!m1Candles.length || !m5Candles.length || !m15Candles.length || !h1Candles.length || !h4Candles.length) {
       return res.status(502).json({
         status: "error",
         error: "Insufficient candle history returned from Twelve Data.",
       });
     }
 
-    const currentPrice = round(m5Candles[m5Candles.length - 1].close, 2);
+    const currentPrice = round(m1Candles[m1Candles.length - 1].close, 2);
 
     // Multi-timeframe structures
     const h4Struct = analyzeStructure(h4Candles);
@@ -530,30 +696,27 @@ export default async function handler(req, res) {
     const m15ATR = calculateATR(m15Candles, 14);
     const h1ATR = calculateATR(h1Candles, 14);
 
-    // Build Scalping & Intraday Sides
-    const scalpBuy = buildScalpSide("BUY", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR);
-    const scalpSell = buildScalpSide("SELL", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR);
-    const intraBuy = buildIntradaySide("BUY", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR);
-    const intraSell = buildIntradaySide("SELL", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR);
+    // Bina Setup Scalping & Intraday
+    const scalpBuy = buildScalpSide("BUY", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR, m5Candles, m1Candles);
+    const scalpSell = buildScalpSide("SELL", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR, m5Candles, m1Candles);
+    const intraBuy = buildIntradaySide("BUY", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR, m5Candles, m1Candles);
+    const intraSell = buildIntradaySide("SELL", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR, m5Candles, m1Candles);
 
-    // Dominant Setups
+    // Pemilihan setup utama
     const primaryScalp = scalpBuy.score >= scalpSell.score ? scalpBuy : scalpSell;
     const primaryIntra = intraBuy.score >= intraSell.score ? intraBuy : intraSell;
     const bestSetup = primaryScalp.score >= primaryIntra.score ? primaryScalp : primaryIntra;
 
-    const puncaPrice = bestSetup.zone.anchor;
-    const puncaSource = `${m15Struct.isSideway ? "M15 Range" : "M15 S/R"} (${bestSetup.setup})`;
-
     const calculatedRisk = round(Math.abs(bestSetup.entry - bestSetup.sl), 2);
-    const maxAllowedRisk = round(UNIFIED_SL_POINTS * POINT_VALUE, 2); // $3.00
+    const maxAllowedRisk = round(UNIFIED_SL_POINTS * POINT_VALUE, 2);
 
-    // Output JSON Payload (Kekal 100% serasi dengan HTML sedia ada)
+    // Output JSON Payload (Menyokong UI sedia ada & logic baharu)
     const responsePayload = {
       status: "success",
       engine: {
         name: "SINNCI MARKET ENGINE PRO",
         version: "PRO-3.0",
-        mode: "ACTIVE SCALPING / SELECTIVE INTRADAY",
+        flow: "H1 -> M15 -> EARLY ZONE LOCKED -> M5 BREAK -> M1 CONFIRM -> READY",
         standards: {
           unit: "10 points = 1 pip",
           zoneRange: "200 - 350 points (20 - 35 pips)",
@@ -569,18 +732,34 @@ export default async function handler(req, res) {
         H4: h4Struct.direction,
         H1: h1Struct.direction,
         M15: m15Struct.direction,
-        M5: m5Swings.highs.length ? "BULLISH" : "NEUTRAL",
+        M5: m5BreakDirection(m5Candles),
       },
       structure: {
         H4: h4Struct.structure,
         H1: h1Struct.structure,
         M15: m15Struct.structure,
       },
+      // Pemisahan Eksplisit: Zone vs Signal mengikut flow baru
+      zone: {
+        type: bestSetup.zone.type,
+        low: bestSetup.zone.low,
+        high: bestSetup.zone.high,
+        anchor: bestSetup.zone.anchor,
+        points: bestSetup.zone.points,
+        pips: bestSetup.zone.pips,
+        locked: true,
+        status: bestSetup.zoneStatus,
+      },
+      signal: {
+        direction: bestSetup.side,
+        status: bestSetup.signalStatus,
+        confirmation: bestSetup.confirmation,
+      },
       scalping: {
         signal: primaryScalp.side,
         direction: h1Struct.direction,
         structure: m15Struct.structure,
-        status: primaryScalp.status,
+        status: primaryScalp.signalStatus,
         score: primaryScalp.score,
         zone: primaryScalp.zone,
         entry: primaryScalp.entry,
@@ -595,7 +774,7 @@ export default async function handler(req, res) {
       intraday: {
         signal: primaryIntra.side,
         direction: h4Struct.direction,
-        status: primaryIntra.status,
+        status: primaryIntra.signalStatus,
         score: primaryIntra.score,
         zone: primaryIntra.zone,
         entry: primaryIntra.entry,
@@ -607,26 +786,22 @@ export default async function handler(req, res) {
         buy: intraBuy,
         sell: intraSell,
       },
-      signal: bestSetup.status === "SIGNAL" ? bestSetup.side : "WAIT",
-      status: bestSetup.status,
+      // Medan warisan untuk UI lama
+      status: bestSetup.signalStatus,
       score: bestSetup.score,
-      scores: {
-        buy: Math.max(scalpBuy.score, intraBuy.score),
-        sell: Math.max(scalpSell.score, intraSell.score),
-      },
       entry: bestSetup.entry,
       sl: bestSetup.sl,
       tp1: bestSetup.tp1,
       tp2: bestSetup.tp2,
-      zone: bestSetup.zone,
       punca: {
-        price: puncaPrice,
-        source: puncaSource,
+        price: bestSetup.zone.anchor,
+        source: `${m15Struct.isSideway ? "M15 Range" : "M15 S/R"} (${bestSetup.setup})`,
       },
       risk: calculatedRisk,
       maxAllowedRisk: maxAllowedRisk,
       reason: bestSetup.reason,
-      waitReason: bestSetup.status === "SIGNAL" ? null : "Approaching structure zone; waiting for reaction.",
+      waitReason: bestSetup.signalStatus === "READY" ? null : bestSetup.confirmation,
+      audit: bestSetup.audit,
     };
 
     return res.status(200).json(responsePayload);
@@ -637,4 +812,13 @@ export default async function handler(req, res) {
       error: error.message || "Market analysis failed.",
     });
   }
+}
+
+function m5BreakDirection(candles) {
+  if (!candles || candles.length < 2) return "NEUTRAL";
+  const c = candles[candles.length - 1];
+  const p = candles[candles.length - 2];
+  if (c.close > p.high) return "BULLISH_BREAK";
+  if (c.close < p.low) return "BEARISH_BREAK";
+  return "INSIDE";
 }

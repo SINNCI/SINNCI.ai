@@ -343,53 +343,23 @@ body::after{
 }
 
 @keyframes introWelcomeLetter{
-  0%{
-    opacity:0;
-    transform:translateX(-25px) translateY(-8px);
-  }
+  0%{opacity:0;transform:translateX(-25px) translateY(-8px);}
   65%{opacity:1}
-  100%{
-    opacity:1;
-    transform:translateX(0) translateY(0);
-  }
+  100%{opacity:1;transform:translateX(0) translateY(0);}
 }
 
 @keyframes introTitle{
-  0%{
-    opacity:0;
-    transform:translate(-50%,-50%) scale(.55);
-    filter:blur(14px);
-  }
-  45%{
-    opacity:1;
-    transform:translate(-50%,-50%) scale(1.12);
-    filter:blur(0);
-  }
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.55);filter:blur(14px);}
+  45%{opacity:1;transform:translate(-50%,-50%) scale(1.12);filter:blur(0);}
   65%{transform:translate(-50%,-50%) scale(.96)}
-  100%{
-    opacity:1;
-    transform:translate(-50%,-50%) scale(1);
-    filter:blur(0);
-  }
+  100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0);}
 }
 
 @keyframes introFlash{
-  0%{
-    opacity:0;
-    transform:translate(-50%,-50%) scale(0);
-  }
-  25%{
-    opacity:.9;
-    transform:translate(-50%,-50%) scale(1);
-  }
-  55%{
-    opacity:.12;
-    transform:translate(-50%,-50%) scale(22);
-  }
-  100%{
-    opacity:0;
-    transform:translate(-50%,-50%) scale(35);
-  }
+  0%{opacity:0;transform:translate(-50%,-50%) scale(0);}
+  25%{opacity:.9;transform:translate(-50%,-50%) scale(1);}
+  55%{opacity:.12;transform:translate(-50%,-50%) scale(22);}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(35);}
 }
 
 @keyframes introLine{
@@ -408,55 +378,25 @@ body::after{
 }
 
 @keyframes introParticle{
-  0%{
-    opacity:0;
-    transform:translateY(25px) scale(.5);
-  }
+  0%{opacity:0;transform:translateY(25px) scale(.5);}
   20%{opacity:.8}
   80%{opacity:.35}
-  100%{
-    opacity:0;
-    transform:translateY(-70px) scale(1.3);
-  }
+  100%{opacity:0;transform:translateY(-70px) scale(1.3);}
 }
 
 @keyframes sinnciIntroExit{
   0%{opacity:1;visibility:visible}
   70%{opacity:1;visibility:visible}
-  100%{
-    opacity:0;
-    visibility:hidden;
-    pointer-events:none;
-  }
+  100%{opacity:0;visibility:hidden;pointer-events:none;}
 }
 
 @media(max-width:600px){
-  .intro-beasts{
-    width:145vw;
-    max-width:none;
-    animation-name:introBeastsMobile;
-  }
-  .intro-vs{
-    top:50%;
-    font-size:9px;
-    letter-spacing:4px;
-  }
-  .intro-welcome{
-    top:40%;
-    font-size:8px;
-    letter-spacing:2.5px;
-  }
-  .intro-title{
-    top:50%;
-    font-size:43px;
-    letter-spacing:5px;
-  }
+  .intro-beasts{width:145vw;max-width:none;animation-name:introBeastsMobile;}
+  .intro-vs{top:50%;font-size:9px;letter-spacing:4px;}
+  .intro-welcome{top:40%;font-size:8px;letter-spacing:2.5px;}
+  .intro-title{top:50%;font-size:43px;letter-spacing:5px;}
   .intro-line{bottom:20%}
-  .intro-loading{
-    bottom:13%;
-    font-size:7px;
-    letter-spacing:3px;
-  }
+  .intro-loading{bottom:13%;font-size:7px;letter-spacing:3px;}
 
   @keyframes introBeastsMobile{
     0%{
@@ -989,21 +929,10 @@ body::after{
   box-shadow:0 14px 45px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.025);
 }
 
-.setup-card.buy{
-  border-color:rgba(32,217,139,.22);
-}
-
-.setup-card.sell{
-  border-color:rgba(255,82,104,.22);
-}
-
-.setup-card.setup{
-  border-color:rgba(216,180,90,.20);
-}
-
-.setup-card.wait{
-  border-color:rgba(242,201,76,.14);
-}
+.setup-card.buy{border-color:rgba(32,217,139,.22);}
+.setup-card.sell{border-color:rgba(255,82,104,.22);}
+.setup-card.setup{border-color:rgba(216,180,90,.20);}
+.setup-card.wait{border-color:rgba(242,201,76,.14);}
 
 .setup-card::after{
   content:"";
@@ -1073,13 +1002,8 @@ body::after{
   border:1px solid rgba(242,201,76,.11);
 }
 
-.setup-status.buy{
-  color:#9ff5ce;
-}
-
-.setup-status.sell{
-  color:#ff9aa6;
-}
+.setup-status.buy{color:#9ff5ce;}
+.setup-status.sell{color:#ff9aa6;}
 
 .setup-direction{
   margin-top:17px;
@@ -1119,17 +1043,9 @@ body::after{
   font-weight:900;
 }
 
-.setup-direction.buy .setup-direction-text{
-  color:var(--green);
-}
-
-.setup-direction.sell .setup-direction-text{
-  color:var(--red);
-}
-
-.setup-direction.wait .setup-direction-text{
-  color:var(--yellow);
-}
+.setup-direction.buy .setup-direction-text{color:var(--green);}
+.setup-direction.sell .setup-direction-text{color:var(--red);}
+.setup-direction.wait .setup-direction-text{color:var(--yellow);}
 
 .setup-score{
   margin-left:auto;
@@ -1184,16 +1100,6 @@ body::after{
   color:var(--gold);
   font-size:8px;
   letter-spacing:.4px;
-}
-
-.setup-empty{
-  padding:18px;
-  border-radius:14px;
-  background:rgba(255,255,255,.02);
-  border:1px solid var(--line);
-  color:var(--muted);
-  font-size:10px;
-  text-align:center;
 }
 
 .analyze-wrap{
@@ -1421,13 +1327,8 @@ body::after{
   border:1px solid rgba(255,255,255,.055);
 }
 
-.news-item.high{
-  border-color:rgba(255,82,104,.16);
-}
-
-.news-item.medium{
-  border-color:rgba(242,201,76,.13);
-}
+.news-item.high{border-color:rgba(255,82,104,.16);}
+.news-item.medium{border-color:rgba(242,201,76,.13);}
 
 .news-top{
   display:flex;
@@ -2302,7 +2203,7 @@ function updateSessionDisplay(){
 setInterval(updateSessionDisplay,60000);
 
 /* =========================================================
-   NEWS
+   NEWS ENGINE & ROBUST RESOLVER
    ========================================================= */
 let sinnciNews=[];
 let newsFilter="all";
@@ -2315,9 +2216,23 @@ function isUSGoldNews(event){
   if(category.includes("earnings") || category.includes("holiday")) return false;
 
   const explicitUS=text.includes("us ") || text.includes("u.s.") || text.includes("united states") || text.includes("united states of america");
-  const usSpecific=text.includes("fomc") || text.includes("federal reserve") || text.includes("fed ") || text.includes("non-farm") || text.includes("nonfarm") || text.includes("nfp") || text.includes("adp employment") || text.includes("initial jobless claims") || text.includes("jobless claims") || text.includes("beige book");
+  const usSpecific=text.includes("fomc") || text.includes("federal reserve") || text.includes("fed ") || text.includes("non-farm") || text.includes("nonfarm") || text.includes("nfp") || text.includes("adp employment") || text.includes("initial jobless claims") || text.includes("jobless claims") || text.includes("cpi") || text.includes("ppi") || text.includes("gdp") || text.includes("retail sales");
 
   return explicitUS || usSpecific;
+}
+
+// Resolver fleksibel untuk baca sebarang format kunci daripada pelbagai API
+function resolveNewsValue(event, keys) {
+  if (!event) return "—";
+  for (const k of keys) {
+    if (event[k] !== undefined && event[k] !== null) {
+      const str = String(event[k]).trim();
+      if (str !== "" && str !== "null" && str !== "undefined") {
+        return str;
+      }
+    }
+  }
+  return "—";
 }
 
 async function loadEconomicNews(){
@@ -2373,11 +2288,6 @@ function newsCountdown(date){
   return { text:`IN ${Math.max(0,minutes)}M`, live:false };
 }
 
-function newsValue(value){
-  if(value===null || value===undefined || value==="") return "—";
-  return value;
-}
-
 function renderEconomicNews(){
   const newsList=document.getElementById("newsList");
   if(!newsList) return;
@@ -2407,6 +2317,17 @@ function renderEconomicNews(){
     const countdown=newsCountdown(time);
     const name=event.name || event.title || "US Economic News";
 
+    // Pengecaman nilai Forecast, Previous, dan Actual secara serentak
+    const forecastVal = resolveNewsValue(event, [
+      'forecast', 'consensus', 'estimate', 'projected', 'expectation', 'forecastValue', 'expected'
+    ]);
+    const previousVal = resolveNewsValue(event, [
+      'prior', 'previous', 'prev', 'previousValue'
+    ]);
+    const actualVal = resolveNewsValue(event, [
+      'actual', 'actual_value', 'result', 'actualValue', 'value'
+    ]);
+
     return `
       <div class="news-item ${impact}" data-news-time="${time.toISOString()}">
         <div class="news-top">
@@ -2423,15 +2344,15 @@ function renderEconomicNews(){
         <div class="news-data">
           <div class="news-box">
             <div class="news-label">FORECAST</div>
-            <div class="news-value">${newsValue(event.consensus)}</div>
+            <div class="news-value">${forecastVal}</div>
           </div>
           <div class="news-box">
             <div class="news-label">PREVIOUS</div>
-            <div class="news-value">${newsValue(event.prior)}</div>
+            <div class="news-value">${previousVal}</div>
           </div>
           <div class="news-box">
             <div class="news-label">ACTUAL</div>
-            <div class="news-value">${newsValue(event.actual)}</div>
+            <div class="news-value">${actualVal}</div>
           </div>
         </div>
         ${impact==="high" ? `<div class="news-warning">⚠ High volatility potential on XAUUSD</div>` : ""}
@@ -2546,42 +2467,46 @@ function getBestModeSide(modeData, modeType, rootData = {}){
     );
 
     c._scoreVal = Number.isFinite(scoreVal) ? scoreVal : 0;
-
-    // Selalu pastikan arah tepat sama ada BUY atau SELL
     c.direction = c._sideType;
 
     if (c._scoreVal >= threshold) {
       c.status = "SIGNAL";
     }
 
-    // Resolusi paras harga
     const screenPrice = parseFloat(document.getElementById("price")?.textContent);
-    const refPrice = Number(
+    const liveRef = Number(
+      (Number.isFinite(screenPrice) && screenPrice > 0 ? screenPrice : currentLivePrice) ||
       rootData.entry ||
       rootData.punca?.price ||
-      (Number.isFinite(screenPrice) && screenPrice > 0 ? screenPrice : currentLivePrice) ||
       0
     );
 
-    let entry = resolvePrice(c, ['entry', 'entryPrice', 'openPrice', 'price'], Number(rootData.entry) || (refPrice > 0 ? refPrice : null));
-    let sl = resolvePrice(c, ['sl', 'slPrice', 'stopLoss', 'structureSL'], Number(rootData.sl) || null);
-    let tp1 = resolvePrice(c, ['tp1', 'tp1Price', 'takeProfit1'], Number(rootData.tp1) || null);
-    let tp2 = resolvePrice(c, ['tp2', 'tp2Price', 'takeProfit2'], Number(rootData.tp2) || null);
+    let entry = resolvePrice(c, ['entry', 'entryPrice', 'openPrice', 'price'], null);
+    let sl = resolvePrice(c, ['sl', 'slPrice', 'stopLoss', 'structureSL'], null);
+    let tp1 = resolvePrice(c, ['tp1', 'tp1Price', 'takeProfit1'], null);
+    let tp2 = resolvePrice(c, ['tp2', 'tp2Price', 'takeProfit2'], null);
 
-    // Sekiranya paras harga kosong sewaktu SIGNAL, buat zone piawai emas automatik
-    if (c.status === "SIGNAL" && entry) {
-      const p1 = (modeType === "scalping") ? 6.0 : 15.0;
-      const p2 = (modeType === "scalping") ? 12.0 : 23.0;
-      const slDist = (modeType === "scalping") ? 4.5 : 8.0;
+    if (c.status === "SIGNAL") {
+      const isScalp = (modeType === "scalping");
+      const pullOffset = isScalp ? 0.8 : 2.5; 
+      const tightSL = isScalp ? 2.0 : 4.0; 
+      const p1 = isScalp ? 6.0 : 15.0;
+      const p2 = isScalp ? 12.0 : 23.0;
 
-      if (!sl) {
-        sl = c.direction === "BUY" ? (entry - slDist) : (entry + slDist);
+      if (!entry && liveRef > 0) {
+        entry = c.direction === "SELL" ? (liveRef + pullOffset) : (liveRef - pullOffset);
       }
-      if (!tp1) {
-        tp1 = c.direction === "BUY" ? (entry + p1) : (entry - p1);
-      }
-      if (!tp2) {
-        tp2 = c.direction === "BUY" ? (entry + p2) : (entry - p2);
+
+      if (entry) {
+        if (!sl) {
+          sl = c.direction === "BUY" ? (entry - tightSL) : (entry + tightSL);
+        }
+        if (!tp1) {
+          tp1 = c.direction === "BUY" ? (entry + p1) : (entry - p1);
+        }
+        if (!tp2) {
+          tp2 = c.direction === "BUY" ? (entry + p2) : (entry - p2);
+        }
       }
     }
 
@@ -2593,10 +2518,7 @@ function getBestModeSide(modeData, modeType, rootData = {}){
     return c;
   });
 
-  // Pilih score yang paling tinggi
-  candidates.sort((a,b) => {
-    return (b._scoreVal || 0) - (a._scoreVal || 0);
-  });
+  candidates.sort((a,b) => (b._scoreVal || 0) - (a._scoreVal || 0));
 
   return candidates[0];
 }
@@ -2646,18 +2568,13 @@ function renderSetup(type, modeData, rootData = {}){
   const threshold = (type === "scalping") ? 65 : 90;
   const isSignal = score >= threshold;
 
-  // WAJIB SELL / BUY mengikut score terbaik
   let direction = setup._sideType || setup.direction || "WAIT";
   let status = isSignal ? "SIGNAL" : (setup.status || "WAIT");
 
-  // Format Card UI
   card.className = "setup-card " + (direction === "BUY" ? "buy" : direction === "SELL" ? "sell" : "wait");
-
-  // Format Status Badge
   statusEl.className = "setup-status " + (status === "SIGNAL" ? "signal" : "wait") + " " + (direction === "BUY" ? "buy" : "sell");
   statusEl.textContent = status;
 
-  // Format Teks Arah & Ikon
   if(direction === "BUY"){
     directionEl.className = "setup-direction buy";
     arrowEl.textContent = "↑";
@@ -2674,13 +2591,11 @@ function renderSetup(type, modeData, rootData = {}){
 
   scoreEl.textContent = "SCORE " + score;
 
-  // Nilai Paras Harga
   entryEl.textContent = formatSetupPrice(setup.entry);
   slEl.textContent = formatSetupPrice(setup.sl);
   tp1El.textContent = formatSetupPrice(setup.tp1);
   tp2El.textContent = formatSetupPrice(setup.tp2);
 
-  // Keterangan Setup
   reasonEl.textContent = setup.reason || setup.waitReason || setup.description || (
     status === "SIGNAL"
       ? "M5 confirmation aligned with the setup."
@@ -2705,7 +2620,7 @@ function resetSignal(){
 }
 
 /* =========================================================
-   APPLY PRIMARY SETUP (HERO CARD)
+   APPLY PRIMARY SETUP (HERO CARD & AI ENGINE)
    ========================================================= */
 function applyPrimarySetup(setup){
   if(!setup) return;
@@ -2739,7 +2654,7 @@ function applyPrimarySetup(setup){
 
     aiStatus.textContent = "WAIT";
     aiStatus.style.color = "var(--yellow)";
-    aiDescription.textContent = "Waiting for a cleaner market structure.";
+    aiDescription.textContent = "Waiting for market pullback confirmation.";
   }
 
   setText("entry", formatSetupPrice(setup.entry));
@@ -2789,7 +2704,6 @@ async function analyze(){
   signalSub.textContent="Searching scalping & intraday setups...";
 
   try{
-    // Dapatkan live price terlebih dahulu untuk pastikan formula harga tidak kosong
     await getLivePrice();
 
     const response = await fetch("/api/analyze", { cache:"no-store" });
@@ -2799,7 +2713,6 @@ async function analyze(){
       throw new Error(data.error || "Analysis failed");
     }
 
-    /* MULTI-TIMEFRAME DIRECTION */
     setDirection("h4", data.direction?.H4);
     setDirection("h1", data.direction?.H1);
     setDirection("m15", data.direction?.M15);
@@ -2807,14 +2720,12 @@ async function analyze(){
 
     resetSignal();
 
-    /* RENDER SETUPS */
     renderSetup("scalping", data.scalping, data);
     renderSetup("intraday", data.intraday, data);
 
-    /* PRIMARY SETUP (HERO) */
     const selectedSetup = chooseBestSetup(data);
 
-    if(selectedSetup && selectedSetup.status === "SIGNAL"){
+    if(selectedSetup && (selectedSetup.status === "SIGNAL" || selectedSetup.status === "READY" || selectedSetup.status === "SETUP")){
       applyPrimarySetup(selectedSetup);
     } else {
       const topSignal = String(data.signal || "WAIT").toUpperCase();
@@ -2825,6 +2736,7 @@ async function analyze(){
         signalSub.textContent="High-quality bullish setup";
         aiStatus.textContent="BUY";
         aiStatus.style.color="var(--green)";
+        aiDescription.textContent="Bullish structure aligned.";
       } else if(topSignal === "SELL"){
         signalCard.className="card signal-card sell";
         signalIcon.textContent="↓";
@@ -2832,6 +2744,7 @@ async function analyze(){
         signalSub.textContent="High-quality bearish setup";
         aiStatus.textContent="SELL";
         aiStatus.style.color="var(--red)";
+        aiDescription.textContent="Bearish structure aligned.";
       } else {
         signalCard.className="card signal-card wait";
         signalIcon.textContent="⏳";
@@ -2839,10 +2752,10 @@ async function analyze(){
         signalSub.textContent=data.waitReason || "No high-quality setup";
         aiStatus.textContent="WAIT";
         aiStatus.style.color="var(--yellow)";
+        aiDescription.textContent="Waiting for market pullback confirmation.";
       }
     }
 
-    /* FALLBACK HARGA */
     if(selectedSetup){
       if(!selectedSetup.entry && data.entry) setText("entry", formatSetupPrice(data.entry));
       if(!selectedSetup.sl && data.sl) setText("sl", formatSetupPrice(data.sl));
@@ -2850,7 +2763,6 @@ async function analyze(){
       if(!selectedSetup.tp2 && data.tp2) setText("tp2", formatSetupPrice(data.tp2));
     }
 
-    /* PUNCA */
     if(data.punca){
       const puncaPrice = data.punca.price !== undefined ? Number(data.punca.price).toFixed(2) : "---";
       setText("punca", puncaPrice + " • " + (data.punca.source || "---"));
@@ -2860,7 +2772,6 @@ async function analyze(){
       setText("puncaSource","---");
     }
 
-    /* RISK & REASON */
     if(data.risk !== null && data.risk !== undefined){
       setText("risk", Number(data.risk).toFixed(2));
     }
@@ -2873,7 +2784,6 @@ async function analyze(){
       setText("reason", data.waitReason || "WAIT");
     }
 
-    /* SCORE DISPLAY */
     const scalpBuyScore = Number(data.scalping?.buy?.score || 0);
     const scalpSellScore = Number(data.scalping?.sell?.score || 0);
     const intraBuyScore = Number(data.intraday?.buy?.score || 0);

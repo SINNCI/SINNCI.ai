@@ -2301,7 +2301,7 @@ supabaseClient.auth.onAuthStateChange(async(event,session)=>{
 })();
 
 /* =========================================================
-   TIMEFRAME MODE (SCALPING vs INTRADAY)
+   TIMEFRAME MODE SELECTION (SCALPING vs INTRADAY)
    ========================================================= */
 let activeTFMode = "scalp"; // "scalp" | "intra"
 
@@ -2628,7 +2628,7 @@ setInterval(updateNewsCountdowns,30000);
 setInterval(loadEconomicNews,300000);
 
 /* =========================================================
-   DIRECTION & TEXT UTILS (SUPPORTS M5 & M1)
+   TEXT & DIRECTION FORMATTERS
    ========================================================= */
 function setDirection(id,value){
   const el=document.getElementById(id);
@@ -2670,39 +2670,42 @@ function formatZoneDisplay(zone, fallbackEntry){
 }
 
 /* =========================================================
-   DATA PARSING ENGINE (PRIORITIZING NEW API FIELDS)
+   ROBUST API DATA EXTRACTOR (BACKWARD & NEW COMPATIBLE)
    ========================================================= */
-function extractSetup(modeData){
-  if(!modeData) return null;
-
-  const direction = modeData.signal || modeData.direction || (modeData.buy?.score >= modeData.sell?.score ? "BUY" : "SELL");
-  const branch = modeData[direction.toLowerCase()] || {};
+function extractSetup(modeData, rootData){
+  const source = modeData || rootData || {};
   
-  // Utamakan struktur baru
-  const zoneObj = modeData.zone || branch.zone || null;
-  const signalStatus = modeData.signalStatus || modeData.status || branch.status || "WAIT";
-  const zoneStatus = modeData.zoneStatus || zoneObj?.status || "WATCH";
-  const confirmation = modeData.confirmation || branch.confirmation || "Waiting for M5 break";
+  const direction = rootData?.signal?.direction 
+    || source.signal 
+    || source.direction 
+    || rootData?.zone?.type 
+    || (source.buy?.score >= source.sell?.score ? "BUY" : "SELL");
+
+  const branch = source[direction?.toLowerCase()] || {};
+
+  const zoneObj = rootData?.zone || source.zone || branch.zone || null;
+  const signalStatus = rootData?.signal?.status || source.signalStatus || source.status || branch.status || "WAIT";
+  const zoneStatus = rootData?.zone?.status || source.zoneStatus || zoneObj?.status || "WATCH";
+  const confirmation = rootData?.signal?.confirmation || source.confirmation || branch.confirmation || "Waiting for M5 break";
 
   return {
     direction: direction,
     zoneStatus: zoneStatus,
     signalStatus: signalStatus,
-    status: signalStatus,
     confirmation: confirmation,
-    score: Number(modeData.score ?? branch.score ?? 0),
+    score: Number(source.score ?? rootData?.score ?? branch.score ?? 85),
     zone: zoneObj,
-    entry: modeData.entry ?? branch.entry ?? null,
-    sl: modeData.sl ?? branch.sl ?? null,
-    tp1: modeData.tp1 ?? branch.tp1 ?? null,
-    tp2: modeData.tp2 ?? branch.tp2 ?? null,
-    reason: modeData.reason || branch.reason || "Key Structure SR"
+    entry: source.entry ?? rootData?.entry ?? branch.entry ?? null,
+    sl: source.sl ?? rootData?.risk?.sl ?? rootData?.sl ?? branch.sl ?? null,
+    tp1: source.tp1 ?? rootData?.tp1 ?? branch.tp1 ?? null,
+    tp2: source.tp2 ?? rootData?.tp2 ?? branch.tp2 ?? null,
+    reason: source.reason ?? rootData?.reason ?? branch.reason ?? "Structure mapped based on higher TF alignment."
   };
 }
 
-function renderSetup(type, modeData){
-  const prefix = type==="scalping" ? "scalping" : "intraday";
-  const setup = extractSetup(modeData);
+function renderSetupCard(type, modeData, rootData){
+  const prefix = type === "scalping" ? "scalping" : "intraday";
+  const setup = extractSetup(modeData, rootData);
 
   const card = document.getElementById(prefix+"Card");
   const statusEl = document.getElementById(prefix+"Status");
@@ -2719,27 +2722,8 @@ function renderSetup(type, modeData){
 
   if(!card) return;
 
-  if(!setup){
-    card.className="setup-card wait";
-    statusEl.className="setup-status wait";
-    statusEl.textContent="WAIT";
-    directionEl.className="setup-direction wait";
-    arrowEl.textContent="⏳";
-    directionTextEl.textContent="WAIT";
-    scoreEl.textContent="SCORE 0";
-    entryEl.textContent="---";
-    slEl.textContent="---";
-    tp1El.textContent="---";
-    tp2El.textContent="---";
-    reasonEl.textContent = type==="scalping"
-      ? "Waiting for a valid H1 → M15 → M5 → M1 scalping setup."
-      : "Waiting for a valid H4 → H1 → M15 → M5 → M1 intraday setup.";
-    confirmEl.textContent="M5 trigger pending";
-    return;
-  }
-
-  const direction = setup.direction;
-  const status = setup.signalStatus;
+  const direction = setup.direction || "BUY";
+  const status = String(setup.signalStatus || "WAIT").toUpperCase();
   const isBuy = direction === "BUY";
   const isSell = direction === "SELL";
   const isReady = status === "READY" || status === "SIGNAL" || status === "BUY READY" || status === "SELL READY";
@@ -2764,7 +2748,6 @@ function renderSetup(type, modeData){
   }
 
   scoreEl.textContent = "SCORE " + setup.score;
-
   entryEl.textContent = formatZoneDisplay(setup.zone, setup.entry);
   slEl.textContent = isReady ? formatSetupPrice(setup.sl) : "Waiting";
   tp1El.textContent = isReady ? formatSetupPrice(setup.tp1) : "Waiting";
@@ -2775,48 +2758,28 @@ function renderSetup(type, modeData){
 }
 
 /* =========================================================
-   RENDER DASHBOARD (STRICT LOGIC EXECUTION)
+   DASHBOARD DISPATCHER (SYNCS EXACTLY WITH ANALYZE.JS)
    ========================================================= */
 function renderCompleteDashboard(data){
   if(!data) return;
 
-  const cmp = Number(data.market?.price || data.cmp || currentLivePrice || 0);
+  // 1. KEMAS KINI CMP (CURRENT PRICE)
+  const cmp = Number(data.cmp || data.market?.price || currentLivePrice || 0);
   if(cmp > 0){
     currentLivePrice = cmp;
     priceEl.textContent = cmp.toFixed(2);
     document.getElementById("zoneCmpValue").textContent = cmp.toFixed(2);
   }
 
-  const scalpSetup = extractSetup(data.scalping);
-  const intraSetup = extractSetup(data.intraday);
+  // 2. DAPATKAN SETUP MENGIKUT MODE (SCALPING ATAU INTRADAY)
+  const scalpSetup = extractSetup(data.scalping, data);
+  const intraSetup = extractSetup(data.intraday, data);
+  const currentSetup = activeTFMode === "scalp" ? scalpSetup : intraSetup;
 
-  // Setup utama mengikut timeframe terpilih
-  let currentSetup = activeTFMode === "scalp" ? scalpSetup : intraSetup;
-  if (!currentSetup) {
-    currentSetup = scalpSetup || intraSetup;
-  }
+  const direction = currentSetup.direction || data.signal?.direction || data.zone?.type || "BUY";
+  const zoneObj = data.zone || currentSetup.zone;
 
-  // Fallback sekiranya struktur rata (flat structure)
-  if(!currentSetup && data.signal){
-    currentSetup = {
-      direction: data.signal?.direction || data.signal,
-      signalStatus: data.signal?.status || data.status || "WAIT",
-      zoneStatus: data.zone?.status || "WATCH",
-      confirmation: data.signal?.confirmation || data.waitReason || "Waiting for M5 break",
-      zone: data.zone || null,
-      score: data.score || 85,
-      entry: data.entry || null,
-      sl: data.sl || null,
-      tp1: data.tp1 || null,
-      tp2: data.tp2 || null,
-      reason: data.reason || "Key Structure SR"
-    };
-  }
-
-  // =======================================================
-  // 1. ZONE SETUP DISPLAY (STRICTLY LOCKED)
-  // =======================================================
-  const zoneObj = data.zone || currentSetup?.zone;
+  // 3. ZONE SETUP PANEL (LOCKED & NO CHASE)
   const zoneTypeTitle = document.getElementById("zoneTypeTitle");
   const zoneRangeText = document.getElementById("zoneRange");
   const zoneStatusText = document.getElementById("zoneStatusText");
@@ -2824,71 +2787,61 @@ function renderCompleteDashboard(data){
   const zoneReasonText = document.getElementById("zoneReasonText");
   const zoneLockBadge = document.getElementById("zoneLockBadge");
 
-  const setupDirection = currentSetup?.direction || (zoneObj?.type ? zoneObj.type : "BUY");
-  zoneTypeTitle.textContent = `${setupDirection} ZONE`;
+  zoneTypeTitle.textContent = `${direction} ZONE`;
 
   if(zoneObj && Number.isFinite(Number(zoneObj.low)) && Number.isFinite(Number(zoneObj.high))){
     const low = Number(zoneObj.low).toFixed(2);
     const high = Number(zoneObj.high).toFixed(2);
     zoneRangeText.textContent = `${low} – ${high}`;
-    zoneStatusText.textContent = zoneObj.status || currentSetup?.zoneStatus || "WATCH";
-    zoneLockBadge.textContent = "LOCKED 🔒";
+    zoneStatusText.textContent = zoneObj.status || currentSetup.zoneStatus || "WATCH";
+    zoneLockBadge.textContent = (zoneObj.locked !== false) ? "LOCKED 🔒" : "ACTIVE";
   } else {
     zoneRangeText.textContent = "----.– – ----.–";
     zoneStatusText.textContent = "WATCH";
   }
 
-  const finalScore = Number(currentSetup?.score || data.score || 85);
-  zoneScoreText.textContent = finalScore;
-  zoneReasonText.textContent = currentSetup?.reason || data.punca?.source || "SUPPORT / PULLBACK";
+  zoneScoreText.textContent = currentSetup.score || data.score || 85;
+  zoneReasonText.textContent = currentSetup.reason || data.punca?.source || "SUPPORT / PULLBACK";
 
-  // =======================================================
-  // 2. M5 & M1 STATUS RESOLUTION
-  // =======================================================
-  // M5: WAIT atau CMP BREAK CONFIRMED
+  // 4. M5 STATUS CHECK (WAIT vs CMP BREAK CONFIRMED)
   let m5Status = "WAIT";
-  const rawM5Audit = String(data.audit?.m5BreakDetails || data.audit?.m5Status || data.audit?.m5Break || "").toUpperCase();
-  const rawM5Dir = String(data.direction?.M5 || "").toUpperCase();
-  if(data.audit?.m5Break === true || rawM5Audit.includes("BREAK") || rawM5Dir.includes("BREAK")){
+  const m5Break = data.audit?.m5Break === true;
+  const m5Details = String(data.audit?.m5BreakDetails || data.audit?.m5Status || data.direction?.M5 || "").toUpperCase();
+  if (m5Break || m5Details.includes("BREAK") || m5Details.includes("BULLISH_BREAK") || m5Details.includes("BEARISH_BREAK")) {
     m5Status = "CMP BREAK CONFIRMED";
   }
+  setDirection("m5", m5Status);
 
-  // M1: WAIT, CHECKING, BULLISH CONFIRMED, BEARISH CONFIRMED, NO CONFIRMATION
+  // 5. M1 STATUS CHECK (WAIT, CHECKING, BULLISH/BEARISH CONFIRMED, NO CONFIRMATION)
   let m1Status = "WAIT";
-  const rawM1Status = String(data.m1?.status || data.audit?.m1Status || data.audit?.m1Details || "").toUpperCase();
-  const m1Confirmed = data.audit?.m1Confirmed === true || rawM1Status.includes("CONFIRMED") || rawM1Status.includes("RECLAIM");
-  
-  if (m1Confirmed) {
-    m1Status = setupDirection === "BUY" ? "BULLISH CONFIRMED" : "BEARISH CONFIRMED";
-  } else if (rawM1Status.includes("NO CONFIRMATION") || rawM1Status.includes("FAILED")) {
+  const m1Confirmed = data.audit?.m1Confirmed === true;
+  const m1Details = String(data.audit?.m1Details || data.audit?.m1Status || data.m1?.status || "").toUpperCase();
+  const rawSignalStatus = String(data.signal?.status || currentSetup.signalStatus || data.status || "WAIT").toUpperCase();
+
+  if (m1Confirmed || rawSignalStatus === "READY") {
+    m1Status = direction === "BUY" ? "BULLISH CONFIRMED" : "BEARISH CONFIRMED";
+  } else if (m1Details.includes("FAILED") || m1Details.includes("NO CONFIRMATION")) {
     m1Status = "NO CONFIRMATION";
-  } else if (m5Status === "CMP BREAK CONFIRMED" || rawM1Status.includes("CHECKING") || rawM1Status.includes("VALIDATING")) {
+  } else if (m5Status === "CMP BREAK CONFIRMED" || rawSignalStatus === "M1_CHECKING" || rawSignalStatus === "M1_CONFIRMATION" || m1Details.includes("CHECKING")) {
     m1Status = "CHECKING";
   } else {
     m1Status = "WAIT";
   }
-
-  setDirection("m5", m5Status);
   setDirection("m1", m1Status);
 
-  // =======================================================
-  // 3. ENTRY SIGNAL DISPLAY (GATED)
-  // "WAIT", "M1 CHECKING", "BUY READY", "SELL READY", "NO CONFIRMATION"
-  // =======================================================
+  // 6. ENTRY SIGNAL DISPLAY (WAIT, M1 CHECKING, BUY READY, SELL READY, NO CONFIRMATION)
   let displaySignal = "WAIT";
-  const rawSignal = String(data.signal?.status || currentSetup?.signalStatus || data.status || "WAIT").toUpperCase();
-
-  if (m1Status.includes("CONFIRMED") && (rawSignal === "READY" || rawSignal === "SIGNAL")) {
-    displaySignal = setupDirection === "BUY" ? "BUY READY" : "SELL READY";
+  if (rawSignalStatus === "READY" || (m1Status.includes("CONFIRMED") && rawSignalStatus === "SIGNAL")) {
+    displaySignal = direction === "BUY" ? "BUY READY" : "SELL READY";
   } else if (m1Status === "NO CONFIRMATION") {
     displaySignal = "NO CONFIRMATION";
-  } else if (m5Status === "CMP BREAK CONFIRMED" || m1Status === "CHECKING" || rawSignal.includes("CHECKING")) {
+  } else if (m5Status === "CMP BREAK CONFIRMED" || m1Status === "CHECKING" || rawSignalStatus.includes("CHECKING")) {
     displaySignal = "M1 CHECKING";
   } else {
     displaySignal = "WAIT";
   }
 
-  // UI Flow Breadcrumb
+  // Flow Breadcrumbs Tracker
   const stepZone = document.getElementById("stepZone");
   const stepM5 = document.getElementById("stepM5");
   const stepM1 = document.getElementById("stepM1");
@@ -2900,7 +2853,7 @@ function renderCompleteDashboard(data){
   stepSignal.className = "step-node";
 
   signalCard.className = "card signal-card";
-  const confirmationMsg = data.signal?.confirmation || currentSetup?.confirmation || "Waiting for M5 break";
+  const confirmationMsg = data.signal?.confirmation || currentSetup.confirmation || "Waiting for M5 break";
   signalConfirmationText.textContent = confirmationMsg;
 
   if (displaySignal === "BUY READY" || displaySignal === "SELL READY") {
@@ -2913,18 +2866,18 @@ function renderCompleteDashboard(data){
     stepM1.className = "step-node done";
     stepSignal.className = "step-node done";
 
-    aiStatus.textContent = setupDirection;
-    aiStatus.style.color = setupDirection === "BUY" ? "var(--green)" : "var(--red)";
+    aiStatus.textContent = direction;
+    aiStatus.style.color = direction === "BUY" ? "var(--green)" : "var(--red)";
     aiDescription.textContent = `${displaySignal} confirmed. Trade plan parameters active.`;
 
     // UNLOCK TRADE PLAN
     document.getElementById("tradePlanGrid").style.display = "grid";
     document.getElementById("tradePlanGate").style.display = "none";
 
-    const entryVal = currentSetup?.entry || data.entry || cmp;
-    const slVal = currentSetup?.sl || data.sl || (setupDirection === "BUY" ? cmp - 3.0 : cmp + 3.0);
-    const tp1Val = currentSetup?.tp1 || data.tp1 || (setupDirection === "BUY" ? cmp + 6.0 : cmp - 6.0);
-    const tp2Val = currentSetup?.tp2 || data.tp2 || (setupDirection === "BUY" ? cmp + 12.0 : cmp - 12.0);
+    const entryVal = currentSetup.entry || data.entry || cmp;
+    const slVal = data.risk?.sl || currentSetup.sl || data.sl || (direction === "BUY" ? cmp - 3.0 : cmp + 3.0);
+    const tp1Val = currentSetup.tp1 || data.tp1 || (direction === "BUY" ? cmp + 6.0 : cmp - 6.0);
+    const tp2Val = currentSetup.tp2 || data.tp2 || (direction === "BUY" ? cmp + 12.0 : cmp - 12.0);
 
     setText("planEntry", formatSetupPrice(entryVal));
     setText("planSL", formatSetupPrice(slVal));
@@ -2982,40 +2935,35 @@ function renderCompleteDashboard(data){
     document.getElementById("tradePlanGate").style.display = "block";
   }
 
-  // =======================================================
-  // 4. MULTI-TIMEFRAME RADAR (H4, H1, M15)
-  // =======================================================
+  // 7. MULTI-TIMEFRAME RADAR (H4, H1, M15)
   setDirection("h4", data.direction?.H4);
-  setDirection("h1", data.direction?.H1 || data.bias);
+  setDirection("h1", data.bias || data.direction?.H1);
   setDirection("m15", data.structure?.M15 || data.direction?.M15);
 
-  // =======================================================
-  // 5. MARKET INTELLIGENCE & SCORE
-  // =======================================================
+  // 8. MARKET INTELLIGENCE & SCORE
   if(data.punca){
-    const puncaPrice = data.punca.price !== undefined ? Number(data.punca.price).toFixed(2) : "---";
     setText("puncaSource", data.punca.source || "---");
   }
   setText("risk", "3.00");
   setText("maxRisk", "3.00 (30 pips)");
-  setText("reason", currentSetup?.reason || data.reason || "Key structure monitored.");
+  setText("reason", currentSetup.reason || data.reason || "Key structure monitored.");
 
   const scalpBuyScore = Number(data.scalping?.buy?.score || 0);
   const scalpSellScore = Number(data.scalping?.sell?.score || 0);
   const intraBuyScore = Number(data.intraday?.buy?.score || 0);
   const intraSellScore = Number(data.intraday?.sell?.score || 0);
 
-  const finalBuyScore = Math.max(scalpBuyScore, intraBuyScore, Number(data.scores?.buy || (setupDirection === "BUY" ? finalScore : 0)));
-  const finalSellScore = Math.max(scalpSellScore, intraSellScore, Number(data.scores?.sell || (setupDirection === "SELL" ? finalScore : 0)));
+  const finalBuyScore = Math.max(scalpBuyScore, intraBuyScore, Number(data.scores?.buy || (direction === "BUY" ? currentSetup.score : 0)));
+  const finalSellScore = Math.max(scalpSellScore, intraSellScore, Number(data.scores?.sell || (direction === "SELL" ? currentSetup.score : 0)));
   setText("score", `BUY ${finalBuyScore} • SELL ${finalSellScore}`);
 
-  // Render individual sub-cards
-  renderSetup("scalping", data.scalping);
-  renderSetup("intraday", data.intraday);
+  // Render Sub-Cards Scalping & Intraday
+  renderSetupCard("scalping", data.scalping, data);
+  renderSetupCard("intraday", data.intraday, data);
 }
 
 /* =========================================================
-   ANALYZE MARKET (TRIGGERED ON BUTTON CLICK ONLY)
+   ANALYZE MARKET (SINGLE MANUAL BUTTON TRIGGER)
    ========================================================= */
 async function analyze(){
   analyzeBtn.disabled=true;
@@ -3036,7 +2984,10 @@ async function analyze(){
     const response = await fetch("/api/analyze", { 
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: activeTFMode === "scalp" ? "scalping" : "intraday" })
+      body: JSON.stringify({ 
+        mode: activeTFMode === "scalp" ? "scalping" : "intraday",
+        currentPrice: currentLivePrice
+      })
     }).catch(() => fetch("/api/analyze", { cache: "no-store" }));
 
     const data = await response.json();

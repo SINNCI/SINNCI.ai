@@ -243,8 +243,6 @@ body::after{
 .intro-welcome span:nth-child(10){animation-delay:3.09s}
 .intro-welcome span:nth-child(11){animation-delay:3.15s}
 .intro-welcome span:nth-child(12){animation-delay:3.21s}
-.intro-welcome span:intro-welcomeLetter 3.27s forwards;
-}
 .intro-welcome span:nth-child(13){animation-delay:3.27s}
 .intro-welcome span:nth-child(14){animation-delay:3.33s}
 .intro-welcome span:nth-child(15){animation-delay:3.39s}
@@ -2208,10 +2206,15 @@ async function getLivePrice(){
     priceEl.textContent=price.toFixed(2);
     priceStatus.textContent="● Live XAUUSD market price";
     priceStatus.style.color="var(--green)";
+    return price;
   }catch(error){
-    priceEl.textContent="Unavailable";
+    const currentOnScreen = parseFloat(priceEl?.textContent);
+    if(Number.isFinite(currentOnScreen) && currentOnScreen > 0){
+      currentLivePrice = currentOnScreen;
+    }
     priceStatus.textContent="API: "+error.message;
     priceStatus.style.color="var(--red)";
+    return currentLivePrice;
   }
 }
 
@@ -2482,9 +2485,6 @@ function formatSetupPrice(value){
   return Number(value).toFixed(2);
 }
 
-/* =========================================================
-   EXTRACT PRICE VALUE FROM OBJECT
-   ========================================================= */
 function resolvePrice(obj, keys, fallback = null) {
   if (!obj) return fallback;
   for (const k of keys) {
@@ -2547,40 +2547,41 @@ function getBestModeSide(modeData, modeType, rootData = {}){
 
     c._scoreVal = Number.isFinite(scoreVal) ? scoreVal : 0;
 
-    let dir = String(c.direction || c.signal || "").toUpperCase();
-    if (!dir || (dir !== "BUY" && dir !== "SELL")) {
-      if (dir === "BULLISH") dir = "BUY";
-      else if (dir === "BEARISH") dir = "SELL";
-      else dir = c._sideType || "BUY";
-    }
+    // Selalu pastikan arah tepat sama ada BUY atau SELL
+    c.direction = c._sideType;
 
     if (c._scoreVal >= threshold) {
       c.status = "SIGNAL";
-      c.direction = c._sideType || dir;
-    } else {
-      c.direction = (dir === "BUY" || dir === "SELL") ? dir : c._sideType;
     }
 
-    const refPrice = Number(rootData.entry || rootData.punca?.price || currentLivePrice || 0);
+    // Resolusi paras harga
+    const screenPrice = parseFloat(document.getElementById("price")?.textContent);
+    const refPrice = Number(
+      rootData.entry ||
+      rootData.punca?.price ||
+      (Number.isFinite(screenPrice) && screenPrice > 0 ? screenPrice : currentLivePrice) ||
+      0
+    );
 
     let entry = resolvePrice(c, ['entry', 'entryPrice', 'openPrice', 'price'], Number(rootData.entry) || (refPrice > 0 ? refPrice : null));
     let sl = resolvePrice(c, ['sl', 'slPrice', 'stopLoss', 'structureSL'], Number(rootData.sl) || null);
     let tp1 = resolvePrice(c, ['tp1', 'tp1Price', 'takeProfit1'], Number(rootData.tp1) || null);
     let tp2 = resolvePrice(c, ['tp2', 'tp2Price', 'takeProfit2'], Number(rootData.tp2) || null);
 
+    // Sekiranya paras harga kosong sewaktu SIGNAL, buat zone piawai emas automatik
     if (c.status === "SIGNAL" && entry) {
       const p1 = (modeType === "scalping") ? 6.0 : 15.0;
       const p2 = (modeType === "scalping") ? 12.0 : 23.0;
       const slDist = (modeType === "scalping") ? 4.5 : 8.0;
 
       if (!sl) {
-        sl = c.direction === "BUY" ? entry - slDist : entry + slDist;
+        sl = c.direction === "BUY" ? (entry - slDist) : (entry + slDist);
       }
       if (!tp1) {
-        tp1 = c.direction === "BUY" ? entry + p1 : entry - p1;
+        tp1 = c.direction === "BUY" ? (entry + p1) : (entry - p1);
       }
       if (!tp2) {
-        tp2 = c.direction === "BUY" ? entry + p2 : entry - p2;
+        tp2 = c.direction === "BUY" ? (entry + p2) : (entry - p2);
       }
     }
 
@@ -2592,20 +2593,8 @@ function getBestModeSide(modeData, modeType, rootData = {}){
     return c;
   });
 
-  const priority = {
-    SIGNAL: 4,
-    READY: 3,
-    SETUP: 2,
-    WAITING: 1,
-    WAIT: 0
-  };
-
+  // Pilih score yang paling tinggi
   candidates.sort((a,b) => {
-    const statusA = String(a.status || "WAIT").toUpperCase();
-    const statusB = String(b.status || "WAIT").toUpperCase();
-    const priorityDiff = (priority[statusB] || 0) - (priority[statusA] || 0);
-
-    if (priorityDiff !== 0) return priorityDiff;
     return (b._scoreVal || 0) - (a._scoreVal || 0);
   });
 
@@ -2657,88 +2646,48 @@ function renderSetup(type, modeData, rootData = {}){
   const threshold = (type === "scalping") ? 65 : 90;
   const isSignal = score >= threshold;
 
-  let direction = String(setup.direction || "WAIT").toUpperCase();
-  if (direction !== "BUY" && direction !== "SELL") {
-    if (direction === "BULLISH") direction = "BUY";
-    else if (direction === "BEARISH") direction = "SELL";
-    else direction = setup._sideType || (isSignal ? "SELL" : "WAIT");
-  }
+  // WAJIB SELL / BUY mengikut score terbaik
+  let direction = setup._sideType || setup.direction || "WAIT";
+  let status = isSignal ? "SIGNAL" : (setup.status || "WAIT");
 
-  let status = String(setup.status || "WAIT").toUpperCase();
-  if (isSignal) {
-    status = "SIGNAL";
-    if (direction === "WAIT") {
-      direction = setup._sideType || "SELL";
-    }
-  } else if (status !== "SIGNAL" && status !== "READY" && status !== "SETUP" && status !== "WAITING") {
-    status = (direction === "BUY" || direction === "SELL") ? "SETUP" : "WAIT";
-  }
+  // Format Card UI
+  card.className = "setup-card " + (direction === "BUY" ? "buy" : direction === "SELL" ? "sell" : "wait");
 
-  // Card class
-  let cardClass = "setup-card";
-  if (direction === "BUY") cardClass += " buy";
-  else if (direction === "SELL") cardClass += " sell";
-  else cardClass += " wait";
-  card.className = cardClass;
-
-  // Status class & text
-  let statusClass = "setup-status ";
-  if (status === "SIGNAL") statusClass += "signal";
-  else if (status === "READY") statusClass += "ready";
-  else if (status === "SETUP") statusClass += "setup";
-  else statusClass += "wait";
-
-  if (direction === "BUY") statusClass += " buy";
-  else if (direction === "SELL") statusClass += " sell";
-
-  statusEl.className = statusClass;
+  // Format Status Badge
+  statusEl.className = "setup-status " + (status === "SIGNAL" ? "signal" : "wait") + " " + (direction === "BUY" ? "buy" : "sell");
   statusEl.textContent = status;
 
-  // Direction UI & Text (Teks besar)
-  let directionClass = "setup-direction ";
-  if (direction === "BUY") {
-    directionClass += "buy";
+  // Format Teks Arah & Ikon
+  if(direction === "BUY"){
+    directionEl.className = "setup-direction buy";
     arrowEl.textContent = "↑";
     directionTextEl.textContent = "BUY";
-  } else if (direction === "SELL") {
-    directionClass += "sell";
+  } else if(direction === "SELL"){
+    directionEl.className = "setup-direction sell";
     arrowEl.textContent = "↓";
     directionTextEl.textContent = "SELL";
   } else {
-    directionClass += "wait";
+    directionEl.className = "setup-direction wait";
     arrowEl.textContent = "⏳";
     directionTextEl.textContent = "WAIT";
   }
-  directionEl.className = directionClass;
 
   scoreEl.textContent = "SCORE " + score;
 
-  // Nilai Harga
+  // Nilai Paras Harga
   entryEl.textContent = formatSetupPrice(setup.entry);
   slEl.textContent = formatSetupPrice(setup.sl);
   tp1El.textContent = formatSetupPrice(setup.tp1);
   tp2El.textContent = formatSetupPrice(setup.tp2);
 
-  // Keterangan
+  // Keterangan Setup
   reasonEl.textContent = setup.reason || setup.waitReason || setup.description || (
     status === "SIGNAL"
       ? "M5 confirmation aligned with the setup."
-      : status === "READY"
-        ? "Setup is ready. Monitor M5 confirmation."
-        : status === "SETUP"
-          ? "Setup detected. Waiting for M5 confirmation."
-          : "No valid setup."
+      : "Setup detected. Waiting for M5 confirmation."
   );
 
-  if (status === "SIGNAL") {
-    confirmEl.textContent = "✓ M5 confirmation CONFIRMED";
-  } else if (status === "READY") {
-    confirmEl.textContent = "⚡ READY • M5 confirmation aligned";
-  } else if (status === "SETUP") {
-    confirmEl.textContent = "⏳ M5 confirmation pending";
-  } else {
-    confirmEl.textContent = "No valid setup yet";
-  }
+  confirmEl.textContent = status === "SIGNAL" ? "✓ M5 confirmation CONFIRMED" : "⏳ M5 confirmation pending";
 }
 
 /* =========================================================
@@ -2756,19 +2705,13 @@ function resetSignal(){
 }
 
 /* =========================================================
-   APPLY PRIMARY SETUP
+   APPLY PRIMARY SETUP (HERO CARD)
    ========================================================= */
 function applyPrimarySetup(setup){
   if(!setup) return;
 
-  let direction = String(setup.direction || setup.signal || "WAIT").toUpperCase();
-  if (direction !== "BUY" && direction !== "SELL") {
-    if (direction === "BULLISH") direction = "BUY";
-    else if (direction === "BEARISH") direction = "SELL";
-    else direction = setup._sideType || "WAIT";
-  }
-
-  const status = String(setup.status || "").toUpperCase();
+  const direction = setup._sideType || setup.direction || "WAIT";
+  const status = setup.status || "WAIT";
 
   if(direction === "BUY"){
     signalCard.className = "card signal-card buy";
@@ -2778,9 +2721,7 @@ function applyPrimarySetup(setup){
 
     aiStatus.textContent = status === "SIGNAL" ? "BUY" : "BUY SETUP";
     aiStatus.style.color = "var(--green)";
-    aiDescription.textContent = setup.reason || (
-      status === "SIGNAL" ? "M5 confirmation aligns with the setup." : "Setup detected. Waiting for M5 confirmation."
-    );
+    aiDescription.textContent = setup.reason || "M5 confirmation aligns with the setup.";
   } else if(direction === "SELL"){
     signalCard.className = "card signal-card sell";
     signalIcon.textContent = "↓";
@@ -2789,9 +2730,7 @@ function applyPrimarySetup(setup){
 
     aiStatus.textContent = status === "SIGNAL" ? "SELL" : "SELL SETUP";
     aiStatus.style.color = "var(--red)";
-    aiDescription.textContent = setup.reason || (
-      status === "SIGNAL" ? "M5 confirmation aligns with the setup." : "Setup detected. Waiting for M5 confirmation."
-    );
+    aiDescription.textContent = setup.reason || "M5 confirmation aligns with the setup.";
   } else {
     signalCard.className = "card signal-card wait";
     signalIcon.textContent = "⏳";
@@ -2820,29 +2759,14 @@ function chooseBestSetup(data){
   if(bestScalp) candidates.push(bestScalp);
   if(bestIntra) candidates.push(bestIntra);
 
-  if(data.primarySetup){
-    candidates.push({ ...data.primarySetup });
-  }
-
   if(!candidates.length) return null;
 
-  const priority = {
-    SIGNAL: 4,
-    READY: 3,
-    SETUP: 2,
-    WAITING: 1,
-    WAIT: 0
-  };
-
   candidates.sort((a,b) => {
-    const statusA = String(a.status || "WAIT").toUpperCase();
-    const statusB = String(b.status || "WAIT").toUpperCase();
-    const diff = (priority[statusB] || 0) - (priority[statusA] || 0);
-    if(diff !== 0) return diff;
+    const isSignalA = (a.status === "SIGNAL") ? 1 : 0;
+    const isSignalB = (b.status === "SIGNAL") ? 1 : 0;
+    if(isSignalA !== isSignalB) return isSignalB - isSignalA;
 
-    const scoreA = Number(a._scoreVal ?? a.score ?? a.buyScore ?? a.sellScore ?? 0);
-    const scoreB = Number(b._scoreVal ?? b.score ?? b.buyScore ?? b.sellScore ?? 0);
-    return scoreB - scoreA;
+    return (b._scoreVal || 0) - (a._scoreVal || 0);
   });
 
   return candidates[0] || null;
@@ -2865,6 +2789,9 @@ async function analyze(){
   signalSub.textContent="Searching scalping & intraday setups...";
 
   try{
+    // Dapatkan live price terlebih dahulu untuk pastikan formula harga tidak kosong
+    await getLivePrice();
+
     const response = await fetch("/api/analyze", { cache:"no-store" });
     const data = await response.json();
 
@@ -2872,7 +2799,7 @@ async function analyze(){
       throw new Error(data.error || "Analysis failed");
     }
 
-    /* TIMEFRAME DIRECTION */
+    /* MULTI-TIMEFRAME DIRECTION */
     setDirection("h4", data.direction?.H4);
     setDirection("h1", data.direction?.H1);
     setDirection("m15", data.direction?.M15);
@@ -2884,49 +2811,43 @@ async function analyze(){
     renderSetup("scalping", data.scalping, data);
     renderSetup("intraday", data.intraday, data);
 
-    /* PRIMARY SETUP */
+    /* PRIMARY SETUP (HERO) */
     const selectedSetup = chooseBestSetup(data);
-    const topSignal = String(data.signal || "WAIT").toUpperCase();
 
-    if(selectedSetup && (selectedSetup.status === "SIGNAL" || selectedSetup.status === "READY" || selectedSetup.status === "SETUP")){
+    if(selectedSetup && selectedSetup.status === "SIGNAL"){
       applyPrimarySetup(selectedSetup);
-    } else if(topSignal === "BUY"){
-      signalCard.className="card signal-card buy";
-      signalIcon.textContent="↑";
-      signalName.textContent="BUY SIGNAL";
-      signalSub.textContent="High-quality bullish setup";
-      aiStatus.textContent="BUY";
-      aiStatus.style.color="var(--green)";
-      aiDescription.textContent="Structure, direction and confirmation align.";
-    } else if(topSignal === "SELL"){
-      signalCard.className="card signal-card sell";
-      signalIcon.textContent="↓";
-      signalName.textContent="SELL SIGNAL";
-      signalSub.textContent="High-quality bearish setup";
-      aiStatus.textContent="SELL";
-      aiStatus.style.color="var(--red)";
-      aiDescription.textContent="Structure, direction and confirmation align.";
     } else {
-      signalCard.className="card signal-card wait";
-      signalIcon.textContent="⏳";
-      signalName.textContent="WAIT";
-      signalSub.textContent=data.waitReason || "No high-quality setup";
-      aiStatus.textContent="WAIT";
-      aiStatus.style.color="var(--yellow)";
-      aiDescription.textContent="No valid entry. Waiting for a cleaner setup.";
+      const topSignal = String(data.signal || "WAIT").toUpperCase();
+      if(topSignal === "BUY"){
+        signalCard.className="card signal-card buy";
+        signalIcon.textContent="↑";
+        signalName.textContent="BUY SIGNAL";
+        signalSub.textContent="High-quality bullish setup";
+        aiStatus.textContent="BUY";
+        aiStatus.style.color="var(--green)";
+      } else if(topSignal === "SELL"){
+        signalCard.className="card signal-card sell";
+        signalIcon.textContent="↓";
+        signalName.textContent="SELL SIGNAL";
+        signalSub.textContent="High-quality bearish setup";
+        aiStatus.textContent="SELL";
+        aiStatus.style.color="var(--red)";
+      } else {
+        signalCard.className="card signal-card wait";
+        signalIcon.textContent="⏳";
+        signalName.textContent="WAIT";
+        signalSub.textContent=data.waitReason || "No high-quality setup";
+        aiStatus.textContent="WAIT";
+        aiStatus.style.color="var(--yellow)";
+      }
     }
 
-    /* TOP LEVEL PRICE FALLBACK */
+    /* FALLBACK HARGA */
     if(selectedSetup){
       if(!selectedSetup.entry && data.entry) setText("entry", formatSetupPrice(data.entry));
       if(!selectedSetup.sl && data.sl) setText("sl", formatSetupPrice(data.sl));
       if(!selectedSetup.tp1 && data.tp1) setText("tp1", formatSetupPrice(data.tp1));
       if(!selectedSetup.tp2 && data.tp2) setText("tp2", formatSetupPrice(data.tp2));
-    } else {
-      if(data.entry !== null && data.entry !== undefined) setText("entry", formatSetupPrice(data.entry));
-      if(data.sl !== null && data.sl !== undefined) setText("sl", formatSetupPrice(data.sl));
-      if(data.tp1 !== null && data.tp1 !== undefined) setText("tp1", formatSetupPrice(data.tp1));
-      if(data.tp2 !== null && data.tp2 !== undefined) setText("tp2", formatSetupPrice(data.tp2));
     }
 
     /* PUNCA */
@@ -2939,41 +2860,27 @@ async function analyze(){
       setText("puncaSource","---");
     }
 
-    /* RISK */
+    /* RISK & REASON */
     if(data.risk !== null && data.risk !== undefined){
       setText("risk", Number(data.risk).toFixed(2));
-    } else {
-      setText("risk","---");
     }
-
-    /* MAX RISK */
     if(data.maxAllowedRisk !== null && data.maxAllowedRisk !== undefined){
       setText("maxRisk", Number(data.maxAllowedRisk).toFixed(2));
-    } else {
-      setText("maxRisk","---");
     }
-
-    /* REASON */
     if(selectedSetup){
-      setText("reason", selectedSetup.reason || selectedSetup.waitReason || data.waitReason || (
-        selectedSetup.status === "SIGNAL" ? "CONFIRMED SETUP" : "SETUP DETECTED"
-      ));
+      setText("reason", selectedSetup.reason || (selectedSetup.status === "SIGNAL" ? "CONFIRMED SETUP" : "SETUP DETECTED"));
     } else {
-      setText("reason", data.waitReason || (
-        topSignal === "BUY" ? "BUY SETUP" : topSignal === "SELL" ? "SELL SETUP" : "WAIT"
-      ));
+      setText("reason", data.waitReason || "WAIT");
     }
 
-    /* SCORE */
-    const buyScore = data.scores?.buy ?? data.scores?.scalpingBuy ?? data.scores?.intradayBuy ?? 0;
-    const sellScore = data.scores?.sell ?? data.scores?.scalpingSell ?? data.scores?.intradaySell ?? 0;
+    /* SCORE DISPLAY */
     const scalpBuyScore = Number(data.scalping?.buy?.score || 0);
     const scalpSellScore = Number(data.scalping?.sell?.score || 0);
     const intraBuyScore = Number(data.intraday?.buy?.score || 0);
     const intraSellScore = Number(data.intraday?.sell?.score || 0);
 
-    const finalBuyScore = Number(buyScore) > 0 ? Number(buyScore) : Math.max(scalpBuyScore, intraBuyScore);
-    const finalSellScore = Number(sellScore) > 0 ? Number(sellScore) : Math.max(scalpSellScore, intraSellScore);
+    const finalBuyScore = Math.max(scalpBuyScore, intraBuyScore, Number(data.scores?.buy || 0));
+    const finalSellScore = Math.max(scalpSellScore, intraSellScore, Number(data.scores?.sell || 0));
 
     setText("score", `BUY ${finalBuyScore} • SELL ${finalSellScore}`);
 

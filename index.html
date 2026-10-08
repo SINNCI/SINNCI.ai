@@ -4035,45 +4035,73 @@ function formatSetupPrice(value){
   IMPORTANT:
 
   API structure:
-
   data.scalping.buy
   data.scalping.sell
 
   data.intraday.buy
   data.intraday.sell
 
-  Jadi frontend mesti pilih side dahulu.
+  FRONTEND THRESHOLD RULES:
+  1. Scalping score 65 ke atas = SIGNAL
+  2. Intraday score 90 ke atas = SIGNAL
 */
 
-function getBestModeSide(modeData){
+function getBestModeSide(modeData, modeType){
 
   if(!modeData)
     return null;
 
-
   const buy=
-    modeData.buy || null;
+    modeData.buy ? {...modeData.buy} : null;
 
   const sell=
-    modeData.sell || null;
+    modeData.sell ? {...modeData.sell} : null;
 
-
-  const candidates=
+  const rawCandidates=
     [buy,sell]
       .filter(Boolean);
 
-
-  if(!candidates.length)
+  if(!rawCandidates.length)
     return null;
 
+  const candidates=rawCandidates.map(c=>{
+    const item={...c};
+    const scoreVal=
+      Number(
+        item.score ??
+        item.buyScore ??
+        item.sellScore ??
+        0
+      );
+
+    const dir=
+      String(
+        item.direction ||
+        item.signal ||
+        ""
+      ).toUpperCase();
+
+    // Nilai threshold khusus mengikut mode
+    if(modeType==="scalping"){
+      if(scoreVal>=65 && (dir==="BUY" || dir==="SELL")){
+        item.status="SIGNAL";
+      }
+    } else if(modeType==="intraday"){
+      if(scoreVal>=90 && (dir==="BUY" || dir==="SELL")){
+        item.status="SIGNAL";
+      }
+    }
+
+    return item;
+  });
 
   /*
     Priority:
-
     SIGNAL
     READY
     SETUP
     WAITING
+    WAIT
   */
 
   const priority={
@@ -4083,7 +4111,6 @@ function getBestModeSide(modeData){
     WAITING:1,
     WAIT:0
   };
-
 
   candidates.sort((a,b)=>{
 
@@ -4097,28 +4124,36 @@ function getBestModeSide(modeData){
         b.status || "WAIT"
       ).toUpperCase();
 
-
     const priorityDiff=
       (priority[statusB] || 0)-
       (priority[statusA] || 0);
-
 
     /*
       Kalau status sama,
       pilih score tertinggi.
     */
-
     if(priorityDiff!==0)
       return priorityDiff;
 
+    const scoreA=
+      Number(
+        a.score ??
+        a.buyScore ??
+        a.sellScore ??
+        0
+      );
 
-    return(
-      Number(b.score || 0)-
-      Number(a.score || 0)
-    );
+    const scoreB=
+      Number(
+        b.score ??
+        b.buyScore ??
+        b.sellScore ??
+        0
+      );
+
+    return scoreB-scoreA;
 
   });
-
 
   return candidates[0];
 
@@ -4136,17 +4171,11 @@ function renderSetup(type,modeData){
       ? "scalping"
       : "intraday";
 
-
   /*
-    FIX:
-
-    Jangan terus render modeData.
-
-    Cari BUY/SELL terbaik dahulu.
+    Cari BUY/SELL terbaik mengikut threshold mode
   */
-
   const setup=
-    getBestModeSide(modeData);
+    getBestModeSide(modeData, type);
 
 
   const card=
@@ -4268,8 +4297,6 @@ function renderSetup(type,modeData){
 
   /*
     STATUS
-
-    Keep READY as READY.
   */
 
   let status=
@@ -4406,16 +4433,6 @@ function renderSetup(type,modeData){
 
   /*
     TRADE PLAN
-
-    Untuk SIGNAL biasanya API ada:
-
-    setup.plan.entry
-    setup.plan.sl
-    setup.plan.tp1
-    setup.plan.tp2
-
-    Kalau API letak terus pada setup,
-    kita support kedua-duanya.
   */
 
   const plan=
@@ -4652,28 +4669,28 @@ function applyPrimarySetup(setup){
   setText(
     "entry",
     formatSetupPrice(
-      setup.entry
+      setup.entry ?? setup.plan?.entry
     )
   );
 
   setText(
     "sl",
     formatSetupPrice(
-      setup.sl
+      setup.sl ?? setup.plan?.sl
     )
   );
 
   setText(
     "tp1",
     formatSetupPrice(
-      setup.tp1
+      setup.tp1 ?? setup.plan?.tp1
     )
   );
 
   setText(
     "tp2",
     formatSetupPrice(
-      setup.tp2
+      setup.tp2 ?? setup.plan?.tp2
     )
   );
 
@@ -4686,48 +4703,21 @@ function applyPrimarySetup(setup){
 
 function chooseBestSetup(data){
 
-  /*
-    PrimarySetup dari API ialah confirmed plan.
+  const bestScalp = getBestModeSide(data.scalping, "scalping");
+  const bestIntra = getBestModeSide(data.intraday, "intraday");
 
-    Kalau ada, gunakan terus.
-  */
+  const candidates = [];
+
+  if(bestScalp) candidates.push(bestScalp);
+  if(bestIntra) candidates.push(bestIntra);
 
   if(data.primarySetup){
-
-    return data.primarySetup;
-
+    const ps = {...data.primarySetup};
+    candidates.push(ps);
   }
-
-
-  const modes=[
-    data.scalping,
-    data.intraday
-  ]
-  .filter(Boolean);
-
-
-  const candidates=[];
-
-
-  /*
-    Ambil BUY dan SELL
-    dari setiap mode.
-  */
-
-  modes.forEach(mode=>{
-
-    if(mode.buy)
-      candidates.push(mode.buy);
-
-    if(mode.sell)
-      candidates.push(mode.sell);
-
-  });
-
 
   if(!candidates.length)
     return null;
-
 
   const priority={
     SIGNAL:4,
@@ -4736,7 +4726,6 @@ function chooseBestSetup(data){
     WAITING:1,
     WAIT:0
   };
-
 
   candidates.sort((a,b)=>{
 
@@ -4750,28 +4739,32 @@ function chooseBestSetup(data){
         b.status || "WAIT"
       ).toUpperCase();
 
-
     const diff=
       (priority[statusB] || 0)-
       (priority[statusA] || 0);
 
-
     if(diff!==0)
       return diff;
 
+    const scoreA=
+      Number(
+        a.score ??
+        a.buyScore ??
+        a.sellScore ??
+        0
+      );
 
-    return(
-      Number(b.score || 0)-
-      Number(a.score || 0)
-    );
+    const scoreB=
+      Number(
+        b.score ??
+        b.buyScore ??
+        b.sellScore ??
+        0
+      );
+
+    return scoreB - scoreA;
 
   });
-
-
-  /*
-    Jangan jadikan WAIT sebagai
-    primary setup.
-  */
 
   const valid=
     candidates.find(item=>{
@@ -4788,7 +4781,6 @@ function chooseBestSetup(data){
       );
 
     });
-
 
   return valid || null;
 
@@ -4891,13 +4883,9 @@ async function analyze(){
 
 
     /*
-      IMPORTANT FIX:
-
-      data.scalping ada BUY + SELL.
-      data.intraday ada BUY + SELL.
-
-      renderSetup sekarang akan
-      pilih side terbaik secara automatik.
+      RENDER SETUPS
+      Scalping: buy dan sell sahaja
+      Intraday: buy dan sell sahaja
     */
 
     renderSetup(
@@ -4912,7 +4900,7 @@ async function analyze(){
 
 
     /*
-      PRIMARY
+      PRIMARY SETUP
     */
 
     const selectedSetup=
@@ -4927,10 +4915,6 @@ async function analyze(){
 
 
     if(selectedSetup){
-
-      /*
-        Untuk main card sahaja.
-      */
 
       applyPrimarySetup(
         selectedSetup
@@ -5225,11 +5209,6 @@ async function analyze(){
       0;
 
 
-    /*
-      Kalau API top-level scores kosong,
-      ambil score sebenar dari mode.
-    */
-
     const scalpBuyScore=
       Number(
         data.scalping?.buy?.score || 0
@@ -5390,4 +5369,4 @@ setInterval(
 </script>
 
 </body>
-  </html>
+</html>

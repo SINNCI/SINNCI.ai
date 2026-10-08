@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * SINNCI AI - MARKET ANALYSIS & ENTRY-ZONE MAPPING ENGINE (PRO-3.0)
+ * SINNCI MARKET ENGINE PRO (PRO-3.0)
  * Asset: XAUUSD (Gold)
  * File: api/analyze.js
  * Deployment: Vercel Serverless Function
@@ -9,61 +9,75 @@
 
 import crypto from "crypto";
 
-// ==========================================
-// 1. CONFIGURATION & CONSTANTS
-// ==========================================
-const SYMBOL = "XAUUSD";
+const SYMBOL = "XAU/USD";
 const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com/time_series";
 
-// Scalping Zone Width Parameters (in Gold points, e.g., 25 - 35 points = $2.5 - $3.5)
-const SCALP_ZONE_TARGET_MIN = 20.0;
-const SCALP_ZONE_TARGET_MAX = 35.0;
+// Scalping Risk / Reward Constants (Gold Points: 100 points = $1.00)
+const SCALP_SL_POINTS = 500;   // 50 pips / $5.00
+const SCALP_TP1_POINTS = 600;  // 60 pips / $6.00
+const SCALP_TP2_POINTS = 1200; // 120 pips / $12.00
 
-// Scalping TP Targets (in points: 600 points = $6.0, 1200 points = $12.0)
-const SCALP_TP1_POINTS = 600;
-const SCALP_TP2_POINTS = 1200;
+// Intraday Targets
+const INTRA_SL_POINTS = 600;
+const INTRA_TP1_POINTS = 1500;
+const INTRA_TP2_POINTS = 2300;
 
-// Intraday Fibonacci Retracement Levels ONLY (No 0.618, 0.705, 0.786)
-const FIB_LEVELS = [0.382, 0.5];
+// Zone sizing boundaries (points)
+const ZONE_WIDTH_MIN = 20.0;
+const ZONE_WIDTH_MAX = 35.0;
+
+// Thresholds
+const SCALP_SIGNAL_SCORE = 65;
+const INTRA_SIGNAL_SCORE = 90;
 
 // ==========================================
-// 2. HELPER FUNCTIONS & MATH
+// 1. HELPERS & MATH
 // ==========================================
-function roundPrice(val, decimals = 2) {
-  if (val === null || val === undefined || isNaN(val)) return 0;
-  return Number(Math.round(Number(val) + "e" + decimals) + "e-" + decimals);
+function safeNum(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function round(v, d = 2) {
+  const p = Math.pow(10, d);
+  return Math.round(v * p) / p;
+}
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
 }
 
 function calculateATR(candles, period = 14) {
-  if (!candles || candles.length < period + 1) return 25.0; // Fallback default normal Gold ATR points
+  if (!candles || candles.length < period + 1) return 25.0;
   let trSum = 0;
-  for (let i = 1; i <= period; i++) {
-    const current = candles[i];
+  for (let i = candles.length - period; i < candles.length; i++) {
+    const c = candles[i];
     const prev = candles[i - 1];
+    if (!prev) continue;
     const tr = Math.max(
-      current.high - current.low,
-      Math.abs(current.high - prev.close),
-      Math.abs(current.low - prev.close)
+      c.high - c.low,
+      Math.abs(c.high - prev.close),
+      Math.abs(c.low - prev.close)
     );
     trSum += tr;
   }
   return trSum / period;
 }
 
-// Generate Deterministic Setup Hash to LOCK Zone across serverless instances
+// Deterministic Zone Lock Hash
 function generateSetupId(tf, direction, setupType, anchorPrice) {
-  const roundedAnchor = Math.round(anchorPrice * 2) / 2; // Stabilize to nearest 0.5 step
+  const roundedAnchor = Math.round(anchorPrice * 2) / 2;
   const rawKey = `${tf}_${direction}_${setupType}_${roundedAnchor}`;
   return crypto.createHash("md5").update(rawKey).digest("hex").slice(0, 10);
 }
 
 // ==========================================
-// 3. MARKET DATA FETCHER (Twelve Data)
+// 2. MARKET DATA FETCHER (Twelve Data)
 // ==========================================
-async function fetchTimeframeCandles(symbol, interval, outputsize, apiKey) {
+async function fetchCandles(interval, outputsize, apiKey) {
   const url = `${TWELVE_DATA_BASE_URL}?symbol=${encodeURIComponent(
-    symbol
-  )}&interval=${interval}&outputsize=${outputsize}&apikey=${apiKey}`;
+    SYMBOL
+  )}&interval=${interval}&outputsize=${outputsize}&apikey=${encodeURIComponent(apiKey)}`;
 
   const res = await fetch(url);
   if (!res.ok) {
@@ -71,209 +85,179 @@ async function fetchTimeframeCandles(symbol, interval, outputsize, apiKey) {
   }
 
   const data = await res.json();
-  if (data.status === "error" || !data.values || !Array.isArray(data.values)) {
-    throw new Error(data.message || `Failed to fetch ${interval} data from Twelve Data.`);
+  if (data.status === "error" || data.code || !Array.isArray(data.values)) {
+    throw new Error(data.message || `No candle data for interval ${interval}`);
   }
 
-  // Convert & sort chronologically: index 0 = oldest, index length-1 = most recent
   return data.values
     .map((c) => ({
       datetime: c.datetime,
-      open: parseFloat(c.open),
-      high: parseFloat(c.high),
-      low: parseFloat(c.low),
-      close: parseFloat(c.close),
-      volume: parseFloat(c.volume || 0),
+      open: safeNum(c.open),
+      high: safeNum(c.high),
+      low: safeNum(c.low),
+      close: safeNum(c.close),
     }))
     .reverse();
 }
 
 // ==========================================
-// 4. MARKET STRUCTURE ENGINE (HH, HL, LH, LL)
+// 3. MARKET STRUCTURE ENGINE (HH / HL / LH / LL)
 // ==========================================
-function identifySwings(candles, left = 2, right = 2) {
-  const swingHighs = [];
-  const swingLows = [];
+function getSwings(candles, left = 2, right = 2) {
+  const highs = [];
+  const lows = [];
 
   for (let i = left; i < candles.length - right; i++) {
-    const currentHigh = candles[i].high;
-    const currentLow = candles[i].low;
-
+    const c = candles[i];
     let isHigh = true;
     let isLow = true;
 
     for (let j = 1; j <= left; j++) {
-      if (candles[i - j].high >= currentHigh) isHigh = false;
-      if (candles[i - j].low <= currentLow) isLow = false;
+      if (candles[i - j].high >= c.high) isHigh = false;
+      if (candles[i - j].low <= c.low) isLow = false;
     }
     for (let j = 1; j <= right; j++) {
-      if (candles[i + j].high > currentHigh) isHigh = false;
-      if (candles[i + j].low < currentLow) isLow = false;
+      if (candles[i + j].high > c.high) isHigh = false;
+      if (candles[i + j].low < c.low) isLow = false;
     }
 
-    if (isHigh) {
-      swingHighs.push({
-        index: i,
-        price: currentHigh,
-        candle: candles[i],
-        time: candles[i].datetime,
-      });
-    }
-    if (isLow) {
-      swingLows.push({
-        index: i,
-        price: currentLow,
-        candle: candles[i],
-        time: candles[i].datetime,
-      });
-    }
+    if (isHigh) highs.push({ index: i, price: c.high, datetime: c.datetime });
+    if (isLow) lows.push({ index: i, price: c.low, datetime: c.datetime });
   }
 
-  return { swingHighs, swingLows };
+  return { highs, lows };
 }
 
-function evaluateMarketStructure(candles) {
-  const { swingHighs, swingLows } = identifySwings(candles, 2, 2);
+function analyzeStructure(candles) {
+  const { highs, lows } = getSwings(candles, 2, 2);
 
-  if (swingHighs.length < 2 || swingLows.length < 2) {
+  if (highs.length < 2 || lows.length < 2) {
+    const lastClose = candles[candles.length - 1].close;
     return {
       direction: "NEUTRAL",
-      structure: "CONSOLIDATION",
-      swingHighs,
-      swingLows,
-      keyResistance: candles[candles.length - 1].high,
-      keySupport: candles[candles.length - 1].low,
+      structure: "RANGE",
+      highs,
+      lows,
+      keySupport: lastClose - 20,
+      keyResistance: lastClose + 20,
       isSideway: true,
+      lastHigh: highs.length ? highs[highs.length - 1].price : lastClose + 20,
+      lastLow: lows.length ? lows[lows.length - 1].price : lastClose - 20,
     };
   }
 
-  const recentH1 = swingHighs[swingHighs.length - 1];
-  const prevH2 = swingHighs[swingHighs.length - 2];
-  const recentL1 = swingLows[swingLows.length - 1];
-  const prevL2 = swingLows[swingLows.length - 2];
+  const h1 = highs[highs.length - 1];
+  const h2 = highs[highs.length - 2];
+  const l1 = lows[lows.length - 1];
+  const l2 = lows[lows.length - 2];
 
   let direction = "NEUTRAL";
-  let structure = "UNDEFINED";
+  let structPattern = "RANGE";
 
-  const isHigherHigh = recentH1.price > prevH2.price;
-  const isHigherLow = recentL1.price > prevL2.price;
-  const isLowerHigh = recentH1.price < prevH2.price;
-  const isLowerLow = recentL1.price < prevL2.price;
-
-  if (isHigherHigh && isHigherLow) {
+  if (h1.price > h2.price && l1.price > l2.price) {
     direction = "BULLISH";
-    structure = "HH_HL";
-  } else if (isLowerHigh && isLowerLow) {
+    structPattern = "HH_HL";
+  } else if (h1.price < h2.price && l1.price < l2.price) {
     direction = "BEARISH";
-    structure = "LH_LL";
-  } else if (isHigherHigh && isLowerLow) {
-    direction = "EXPANDING_RANGE";
-    structure = "RANGE";
+    structPattern = "LH_LL";
   } else {
     direction = "RANGING";
-    structure = "RANGE";
+    structPattern = "RANGE";
   }
 
-  // Calculate Range Boundaries
-  const lastNHighs = swingHighs.slice(-3).map((s) => s.price);
-  const lastNLows = swingLows.slice(-3).map((s) => s.price);
-  const keyResistance = Math.max(...lastNHighs);
-  const keySupport = Math.min(...lastNLows);
-
-  const rangeSpan = keyResistance - keySupport;
-  const isSideway = structure === "RANGE" || rangeSpan <= 80; // Gold consolidation threshold
+  const recentHighs = highs.slice(-3).map((s) => s.price);
+  const recentLows = lows.slice(-3).map((s) => s.price);
+  const keyResistance = Math.max(...recentHighs);
+  const keySupport = Math.min(...recentLows);
+  const isSideway = structPattern === "RANGE" || (keyResistance - keySupport) <= 85.0;
 
   return {
-    direction,
-    structure,
-    swingHighs,
-    swingLows,
-    recentH1,
-    prevH2,
-    recentL1,
-    prevL2,
+    direction: direction === "RANGING" ? "NEUTRAL" : direction,
+    structure: structPattern,
+    highs,
+    lows,
+    h1,
+    h2,
+    l1,
+    l2,
     keyResistance,
     keySupport,
     isSideway,
+    lastHigh: h1.price,
+    lastLow: l1.price,
   };
 }
 
 // ==========================================
-// 5. ZONE ENGINE & DETERMINISTIC LOCKING
+// 4. ZONE ENGINE & M5 REFINEMENT
 // ==========================================
-function buildZone(basePrice, direction, volatilityPoints = 25) {
-  // Constrain zone width strictly within 20 - 35 points (Gold points)
-  const zoneWidth = Math.min(
-    Math.max(volatilityPoints * 0.4, SCALP_ZONE_TARGET_MIN),
-    SCALP_ZONE_TARGET_MAX
-  );
-
+function constructZone(anchor, type, atrVal = 25.0) {
+  const width = clamp(atrVal * 0.45, ZONE_WIDTH_MIN, ZONE_WIDTH_MAX);
   let low, high;
-  if (direction === "BUY") {
-    high = basePrice;
-    low = basePrice - zoneWidth;
+
+  if (type === "BUY") {
+    high = anchor;
+    low = anchor - width;
   } else {
-    low = basePrice;
-    high = basePrice + zoneWidth;
+    low = anchor;
+    high = anchor + width;
   }
 
   return {
-    type: direction,
-    low: roundPrice(low, 2),
-    high: roundPrice(high, 2),
-    width: roundPrice(high - low, 2),
-    anchor: roundPrice(basePrice, 2),
+    type,
+    low: round(low, 2),
+    high: round(high, 2),
+    anchor: round(anchor, 2),
+    width: round(high - low, 2),
   };
 }
 
-// Refine M15 zone using M5 local reaction structures
-function refineZoneWithM5(m15Zone, m5Swings) {
-  if (!m15Zone) return null;
+function refineZoneWithM5(zone, m5Swings) {
+  if (!zone) return null;
 
-  if (m15Zone.type === "BUY") {
-    const validM5Lows = m5Swings.swingLows.filter(
-      (s) => s.price >= m15Zone.low - 5 && s.price <= m15Zone.high + 5
+  if (zone.type === "BUY") {
+    const validLows = m5Swings.lows.filter(
+      (s) => s.price >= zone.low - 5 && s.price <= zone.high + 5
     );
-    if (validM5Lows.length > 0) {
-      const bestM5Anchor = validM5Lows[validM5Lows.length - 1].price;
-      const refinedLow = Math.max(m15Zone.low, bestM5Anchor - 12);
-      const refinedHigh = Math.min(m15Zone.high, bestM5Anchor + 12);
-      if (refinedHigh - refinedLow >= 18) {
+    if (validLows.length > 0) {
+      const best = validLows[validLows.length - 1].price;
+      const refLow = Math.max(zone.low, best - 12);
+      const refHigh = Math.min(zone.high, best + 12);
+      if (refHigh - refLow >= 18) {
         return {
           type: "BUY",
-          low: roundPrice(refinedLow, 2),
-          high: roundPrice(refinedHigh, 2),
-          width: roundPrice(refinedHigh - refinedLow, 2),
-          anchor: roundPrice(bestM5Anchor, 2),
+          low: round(refLow, 2),
+          high: round(refHigh, 2),
+          anchor: round(best, 2),
+          width: round(refHigh - refLow, 2),
         };
       }
     }
-  } else if (m15Zone.type === "SELL") {
-    const validM5Highs = m5Swings.swingHighs.filter(
-      (s) => s.price >= m15Zone.low - 5 && s.price <= m15Zone.high + 5
+  } else if (zone.type === "SELL") {
+    const validHighs = m5Swings.highs.filter(
+      (s) => s.price >= zone.low - 5 && s.price <= zone.high + 5
     );
-    if (validM5Highs.length > 0) {
-      const bestM5Anchor = validM5Highs[validM5Highs.length - 1].price;
-      const refinedLow = Math.max(m15Zone.low, bestM5Anchor - 12);
-      const refinedHigh = Math.min(m15Zone.high, bestM5Anchor + 12);
-      if (refinedHigh - refinedLow >= 18) {
+    if (validHighs.length > 0) {
+      const best = validHighs[validHighs.length - 1].price;
+      const refLow = Math.max(zone.low, best - 12);
+      const refHigh = Math.min(zone.high, best + 12);
+      if (refHigh - refLow >= 18) {
         return {
           type: "SELL",
-          low: roundPrice(refinedLow, 2),
-          high: roundPrice(refinedHigh, 2),
-          width: roundPrice(refinedHigh - refinedLow, 2),
-          anchor: roundPrice(bestM5Anchor, 2),
+          low: round(refLow, 2),
+          high: round(refHigh, 2),
+          anchor: round(best, 2),
+          width: round(refHigh - refLow, 2),
         };
       }
     }
   }
 
-  return m15Zone;
+  return zone;
 }
 
-// Evaluate Signal Proximity Status
-function evaluateZoneStatus(cmp, zone, invalidationLevel) {
-  if (!zone) return "NO_SETUP";
+function evaluateStatus(cmp, zone, invalidationLevel) {
+  if (!zone) return "WAIT";
 
   if (zone.type === "BUY") {
     if (cmp < invalidationLevel) return "INVALID";
@@ -291,271 +275,182 @@ function evaluateZoneStatus(cmp, zone, invalidationLevel) {
 }
 
 // ==========================================
-// 6. SCALPING ENGINE (H1 -> M15 -> M5)
+// 5. SCALPING ENGINE (H1 -> M15 -> M5)
 // ==========================================
-function analyzeScalping(cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
-  let signal = "NEUTRAL";
-  let setupType = "MONITORING";
-  let baseAnchor = 0;
-  let invalidationLevel = 0;
-  let reason = "";
-
-  const h1Direction = h1Struct.direction;
-  const m15IsSideway = m15Struct.isSideway;
-
-  // QM Detection on M15
-  let m15BullishQM = false;
-  let m15BearishQM = false;
-
-  if (m15Struct.swingLows.length >= 2 && m15Struct.swingHighs.length >= 2) {
-    const l1 = m15Struct.swingLows[m15Struct.swingLows.length - 1];
-    const l2 = m15Struct.swingLows[m15Struct.swingLows.length - 2];
-    const h1 = m15Struct.swingHighs[m15Struct.swingHighs.length - 1];
-    const h2 = m15Struct.swingHighs[m15Struct.swingHighs.length - 2];
-
-    // Bullish QM: Lower Low followed by Higher High (breakout above previous high)
-    if (l1.price < l2.price && h1.price > h2.price) {
-      m15BullishQM = true;
-    }
-    // Bearish QM: Higher High followed by Lower Low
-    if (h1.price > h2.price && l1.price < l2.price) {
-      m15BearishQM = true;
-    }
-  }
-
-  // --- LOGIC 1: SIDEWAY / RANGE M15 (DO NOT WAIT FOR BREAKOUT) ---
-  if (m15IsSideway) {
-    if (h1Direction === "BULLISH") {
-      signal = "BUY";
-      setupType = "RANGE_SUPPORT";
-      baseAnchor = m15Struct.keySupport;
-      invalidationLevel = baseAnchor - 35;
-      reason = "H1 bullish context with M15 range support & continuation bias";
-    } else if (h1Direction === "BEARISH") {
-      signal = "SELL";
-      setupType = "RANGE_RESISTANCE";
-      baseAnchor = m15Struct.keyResistance;
-      invalidationLevel = baseAnchor + 35;
-      reason = "H1 bearish context with M15 range resistance & sell rejection bias";
-    } else {
-      // Neutral H1: Determine location within M15 range
-      const midPoint = (m15Struct.keyResistance + m15Struct.keySupport) / 2;
-      if (cmp <= midPoint) {
-        signal = "BUY";
-        setupType = "RANGE_SUPPORT";
-        baseAnchor = m15Struct.keySupport;
-        invalidationLevel = baseAnchor - 35;
-        reason = "M15 defined range trading, price situated at lower range support";
-      } else {
-        signal = "SELL";
-        setupType = "RANGE_RESISTANCE";
-        baseAnchor = m15Struct.keyResistance;
-        invalidationLevel = baseAnchor + 35;
-        reason = "M15 defined range trading, price situated at upper range resistance";
-      }
-    }
-  }
-  // --- LOGIC 2: QM (QUASIMODO) SETUP ---
-  else if (m15BullishQM && (h1Direction === "BULLISH" || h1Direction === "NEUTRAL")) {
-    signal = "BUY";
-    setupType = "QM_LEVEL";
-    baseAnchor = m15Struct.prevL2 ? m15Struct.prevL2.price : m15Struct.keySupport;
-    invalidationLevel = m15Struct.recentL1.price - 20;
-    reason = "M15 Bullish QM structure identified with higher high expansion";
-  } else if (m15BearishQM && (h1Direction === "BEARISH" || h1Direction === "NEUTRAL")) {
-    signal = "SELL";
-    setupType = "QM_LEVEL";
-    baseAnchor = m15Struct.prevH2 ? m15Struct.prevH2.price : m15Struct.keyResistance;
-    invalidationLevel = m15Struct.recentH1.price + 20;
-    reason = "M15 Bearish QM structure identified with lower low breakdown";
-  }
-  // --- LOGIC 3: TREND CONTINUATION & PULLBACK / RETEST ---
-  else if (m15Struct.direction === "BULLISH" && h1Direction !== "BEARISH") {
-    signal = "BUY";
-    // Check if broken resistance becomes support (RBS)
-    if (m15Struct.prevH2 && cmp >= m15Struct.prevH2.price) {
-      setupType = "BREAKOUT_RETEST";
-      baseAnchor = m15Struct.prevH2.price;
-      invalidationLevel = m15Struct.recentL1 ? m15Struct.recentL1.price : baseAnchor - 30;
-      reason = "Bullish structure breakout pullback to previous resistance (RBS)";
-    } else {
-      setupType = "TREND_CONTINUATION";
-      baseAnchor = m15Struct.recentL1 ? m15Struct.recentL1.price : m15Struct.keySupport;
-      invalidationLevel = baseAnchor - 30;
-      reason = "M15 HH/HL trend continuation supported by H1 bullish alignment";
-    }
-  } else if (m15Struct.direction === "BEARISH" && h1Direction !== "BULLISH") {
-    signal = "SELL";
-    // Check if broken support becomes resistance (SBR)
-    if (m15Struct.prevL2 && cmp <= m15Struct.prevL2.price) {
-      setupType = "BREAKOUT_RETEST";
-      baseAnchor = m15Struct.prevL2.price;
-      invalidationLevel = m15Struct.recentH1 ? m15Struct.recentH1.price : baseAnchor + 30;
-      reason = "Bearish structure breakdown pullback to previous support (SBR)";
-    } else {
-      setupType = "TREND_CONTINUATION";
-      baseAnchor = m15Struct.recentH1 ? m15Struct.recentH1.price : m15Struct.keyResistance;
-      invalidationLevel = baseAnchor + 30;
-      reason = "M15 LH/LL trend continuation supported by H1 bearish alignment";
-    }
-  } else {
-    // Fallback: Default to higher timeframe bias if available
-    signal = h1Direction === "BULLISH" ? "BUY" : "SELL";
-    setupType = "SR_CONTINUATION";
-    baseAnchor = signal === "BUY" ? m15Struct.keySupport : m15Struct.keyResistance;
-    invalidationLevel = signal === "BUY" ? baseAnchor - 35 : baseAnchor + 35;
-    reason = "Setup aligned with H1 dominant directional context and M15 levels";
-  }
-
-  // Zone Generation & M5 Refinement
-  const initialZone = buildZone(baseAnchor, signal, m15ATR);
-  const refinedZone = refineZoneWithM5(initialZone, m5Swings);
-
-  // Status Check
-  const status = evaluateZoneStatus(cmp, refinedZone, invalidationLevel);
-
-  // Targets (Points based calculation with structural clearance)
-  let tp1, tp2, sl;
-  if (signal === "BUY") {
-    tp1 = roundPrice(refinedZone.high + SCALP_TP1_POINTS / 100, 2);
-    tp2 = roundPrice(refinedZone.high + SCALP_TP2_POINTS / 100, 2);
-    sl = roundPrice(invalidationLevel, 2);
-  } else {
-    tp1 = roundPrice(refinedZone.low - SCALP_TP1_POINTS / 100, 2);
-    tp2 = roundPrice(refinedZone.low - SCALP_TP2_POINTS / 100, 2);
-    sl = roundPrice(invalidationLevel, 2);
-  }
-
-  // Quality Scoring (70 - 100, purely reflects quality without deleting zone)
-  let score = 75;
-  if (h1Direction === m15Struct.direction && h1Direction !== "NEUTRAL") score += 12;
-  if (setupType === "BREAKOUT_RETEST" || setupType === "QM_LEVEL") score += 8;
-  if (status === "READY" || status === "APPROACHING") score += 5;
-  score = Math.min(score, 98);
-
-  const setupId = generateSetupId("SCALP", signal, setupType, refinedZone.anchor);
-
-  return {
-    setupId,
-    signal,
-    direction: m15Struct.direction,
-    structure: m15Struct.structure,
-    zone: {
-      type: refinedZone.type,
-      low: refinedZone.low,
-      high: refinedZone.high,
-      anchor: refinedZone.anchor,
-    },
-    setup: setupType,
-    status,
-    score,
-    entry: roundPrice((refinedZone.low + refinedZone.high) / 2, 2),
-    sl,
-    tp1,
-    tp2,
-    tp1_points: SCALP_TP1_POINTS,
-    tp2_points: SCALP_TP2_POINTS,
-    locked: true,
-    reason,
-  };
-}
-
-// ==========================================
-// 7. INTRADAY ENGINE (H4 -> H1 -> M15 -> M5)
-// ==========================================
-function analyzeIntraday(cmp, h4Struct, h1Struct, m15Struct, m5Swings) {
-  let signal = "NEUTRAL";
+function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
+  const isBuy = side === "BUY";
+  let anchor = 0;
   let setupType = "SR_LEVEL";
-  let anchorPrice = 0;
   let reason = "";
 
-  const h4Direction = h4Struct.direction;
-  const h1Direction = h1Struct.direction;
-
-  if (h4Direction === "BULLISH" || (h4Direction === "NEUTRAL" && h1Direction === "BULLISH")) {
-    signal = "BUY";
-    // Check Fibonacci retracement (0.382 / 0.5 ONLY)
-    if (h1Struct.recentH1 && h1Struct.recentL1 && h1Struct.recentH1.price > h1Struct.recentL1.price) {
-      const swingRange = h1Struct.recentH1.price - h1Struct.recentL1.price;
-      const fib50 = h1Struct.recentH1.price - swingRange * 0.5;
-      anchorPrice = fib50;
-      setupType = "PULLBACK_FIB_50";
-      reason = "H4/H1 Bullish alignment with 50.0% structural Fibonacci pullback";
+  // 1. Sideway Market Logic (Range Support / Resistance)
+  if (m15Struct.isSideway) {
+    if (isBuy) {
+      anchor = m15Struct.keySupport;
+      setupType = "RANGE_SUPPORT";
+      reason = "M15 Range consolidation support holding; buy dip setup.";
     } else {
-      anchorPrice = h1Struct.keySupport;
-      setupType = "PULLBACK_SUPPORT";
-      reason = "H4/H1 Bullish structure holding above major demand support";
+      anchor = m15Struct.keyResistance;
+      setupType = "RANGE_RESISTANCE";
+      reason = "M15 Range consolidation resistance holding; sell rejection setup.";
     }
-  } else if (h4Direction === "BEARISH" || (h4Direction === "NEUTRAL" && h1Direction === "BEARISH")) {
-    signal = "SELL";
-    if (h1Struct.recentH1 && h1Struct.recentL1 && h1Struct.recentH1.price > h1Struct.recentL1.price) {
-      const swingRange = h1Struct.recentH1.price - h1Struct.recentL1.price;
-      const fib382 = h1Struct.recentL1.price + swingRange * 0.382;
-      anchorPrice = fib382;
-      setupType = "PULLBACK_FIB_382";
-      reason = "H4/H1 Bearish alignment with 38.2% structural Fibonacci pullback";
+  }
+  // 2. Trend Continuation & Pullback / Retest
+  else if (isBuy) {
+    if (m15Struct.h2 && cmp >= m15Struct.h2.price) {
+      anchor = m15Struct.h2.price;
+      setupType = "BREAKOUT_PULLBACK";
+      reason = "Bullish structure breakout; pullback to previous resistance (RBS).";
     } else {
-      anchorPrice = h1Struct.keyResistance;
-      setupType = "PULLBACK_RESISTANCE";
-      reason = "H4/H1 Bearish structure rejection at key higher-timeframe resistance";
+      anchor = m15Struct.l1 ? m15Struct.l1.price : m15Struct.keySupport;
+      setupType = "TREND_CONTINUATION";
+      reason = "Higher-High / Higher-Low progression; continuing bullish trend.";
     }
   } else {
-    signal = cmp < (h4Struct.keyResistance + h4Struct.keySupport) / 2 ? "BUY" : "SELL";
-    anchorPrice = signal === "BUY" ? h4Struct.keySupport : h4Struct.keyResistance;
-    setupType = "H4_RANGE_BOUNDARY";
-    reason = "Intraday consolidation inside major H4 market boundaries";
+    if (m15Struct.l2 && cmp <= m15Struct.l2.price) {
+      anchor = m15Struct.l2.price;
+      setupType = "BREAKOUT_PULLBACK";
+      reason = "Bearish structure breakdown; pullback to previous support (SBR).";
+    } else {
+      anchor = m15Struct.h1 ? m15Struct.h1.price : m15Struct.keyResistance;
+      setupType = "TREND_CONTINUATION";
+      reason = "Lower-High / Lower-Low progression; continuing bearish trend.";
+    }
   }
 
-  const initialZone = buildZone(anchorPrice, signal, 30.0);
-  const refinedZone = refineZoneWithM5(initialZone, m5Swings);
-  const invalidationLevel = signal === "BUY" ? refinedZone.low - 50 : refinedZone.high + 50;
-  const status = evaluateZoneStatus(cmp, refinedZone, invalidationLevel);
+  // Construct zone and refine with M5
+  const baseZone = constructZone(anchor, side, m15ATR);
+  const refinedZone = refineZoneWithM5(baseZone, m5Swings);
 
-  let tp1, tp2, sl;
-  if (signal === "BUY") {
-    tp1 = roundPrice(refinedZone.high + 10.0, 2); // 1000 points
-    tp2 = roundPrice(refinedZone.high + 25.0, 2); // 2500 points
-    sl = roundPrice(invalidationLevel, 2);
-  } else {
-    tp1 = roundPrice(refinedZone.low - 10.0, 2);
-    tp2 = roundPrice(refinedZone.low - 25.0, 2);
-    sl = roundPrice(invalidationLevel, 2);
-  }
+  const invalidationLevel = isBuy ? refinedZone.low - 35 : refinedZone.high + 35;
+  const status = evaluateStatus(cmp, refinedZone, invalidationLevel);
 
-  let score = 78;
-  if (h4Direction === h1Direction && h4Direction !== "NEUTRAL") score += 10;
-  if (setupType.includes("FIB")) score += 6;
-  score = Math.min(score, 95);
+  // Targets (TP1: 600 pts / $6.00, TP2: 1200 pts / $12.00)
+  const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
+  const sl = isBuy
+    ? round(refinedZone.low - (SCALP_SL_POINTS / 100), 2)
+    : round(refinedZone.high + (SCALP_SL_POINTS / 100), 2);
 
-  const setupId = generateSetupId("INTRADAY", signal, setupType, refinedZone.anchor);
+  const tp1 = isBuy
+    ? round(refinedZone.high + (SCALP_TP1_POINTS / 100), 2)
+    : round(refinedZone.low - (SCALP_TP1_POINTS / 100), 2);
+
+  const tp2 = isBuy
+    ? round(refinedZone.high + (SCALP_TP2_POINTS / 100), 2)
+    : round(refinedZone.low - (SCALP_TP2_POINTS / 100), 2);
+
+  // Scoring
+  let score = 65;
+  const targetDir = isBuy ? "BULLISH" : "BEARISH";
+  if (h1Struct.direction === targetDir) score += 15;
+  if (m15Struct.direction === targetDir) score += 10;
+  if (status === "READY" || status === "APPROACHING") score += 8;
+  score = clamp(score, 45, 96);
+
+  const setupId = generateSetupId("SCALP", side, setupType, refinedZone.anchor);
 
   return {
     setupId,
-    signal,
-    direction: h4Struct.direction,
+    side,
+    direction: side,
+    status: score >= SCALP_SIGNAL_SCORE ? "SIGNAL" : status,
+    score,
+    entry,
+    sl,
+    tp1,
+    tp2,
     zone: {
-      type: refinedZone.type,
+      type: side,
       low: refinedZone.low,
       high: refinedZone.high,
       anchor: refinedZone.anchor,
     },
     setup: setupType,
-    status,
-    score,
-    entry: roundPrice((refinedZone.low + refinedZone.high) / 2, 2),
-    sl,
-    tp1,
-    tp2,
-    locked: true,
     reason,
+    locked: true,
   };
 }
 
 // ==========================================
-// 8. MAIN VERCEL HANDLER EXPORT
+// 6. INTRADAY ENGINE (H4 -> H1 -> M15 -> M5)
+// ==========================================
+function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings) {
+  const isBuy = side === "BUY";
+  let anchor = 0;
+  let setupType = "SR_LEVEL";
+  let reason = "";
+
+  // Fibonacci Retracement (0.382 / 0.500 ONLY)
+  if (h1Struct.h1 && h1Struct.l1 && h1Struct.h1.price > h1Struct.l1.price) {
+    const range = h1Struct.h1.price - h1Struct.l1.price;
+    if (isBuy) {
+      anchor = h1Struct.h1.price - (range * 0.5);
+      setupType = "PULLBACK_FIB_50";
+      reason = "H4/H1 structural alignment with 50.0% Fibonacci pullback level.";
+    } else {
+      anchor = h1Struct.l1.price + (range * 0.382);
+      setupType = "PULLBACK_FIB_382";
+      reason = "H4/H1 structural alignment with 38.2% Fibonacci pullback rejection.";
+    }
+  } else {
+    anchor = isBuy ? h1Struct.keySupport : h1Struct.keyResistance;
+    setupType = isBuy ? "PULLBACK_SUPPORT" : "PULLBACK_RESISTANCE";
+    reason = isBuy ? "H4/H1 structural support demand." : "H4/H1 major resistance rejection.";
+  }
+
+  const baseZone = constructZone(anchor, side, 30.0);
+  const refinedZone = refineZoneWithM5(baseZone, m5Swings);
+
+  const invalidationLevel = isBuy ? refinedZone.low - 45 : refinedZone.high + 45;
+  const status = evaluateStatus(cmp, refinedZone, invalidationLevel);
+
+  const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
+  const sl = isBuy
+    ? round(refinedZone.low - (INTRA_SL_POINTS / 100), 2)
+    : round(refinedZone.high + (INTRA_SL_POINTS / 100), 2);
+
+  const tp1 = isBuy
+    ? round(refinedZone.high + (INTRA_TP1_POINTS / 100), 2)
+    : round(refinedZone.low - (INTRA_TP1_POINTS / 100), 2);
+
+  const tp2 = isBuy
+    ? round(refinedZone.high + (INTRA_TP2_POINTS / 100), 2)
+    : round(refinedZone.low - (INTRA_TP2_POINTS / 100), 2);
+
+  let score = 70;
+  const targetDir = isBuy ? "BULLISH" : "BEARISH";
+  if (h4Struct.direction === targetDir) score += 15;
+  if (h1Struct.direction === targetDir) score += 10;
+  score = clamp(score, 50, 95);
+
+  const setupId = generateSetupId("INTRA", side, setupType, refinedZone.anchor);
+
+  return {
+    setupId,
+    side,
+    direction: side,
+    status: score >= INTRA_SIGNAL_SCORE ? "SIGNAL" : status,
+    score,
+    entry,
+    sl,
+    tp1,
+    tp2,
+    zone: {
+      type: side,
+      low: refinedZone.low,
+      high: refinedZone.high,
+      anchor: refinedZone.anchor,
+    },
+    setup: setupType,
+    reason,
+    locked: true,
+  };
+}
+
+// ==========================================
+// 7. MAIN HANDLER (Vercel Serverless Function)
 // ==========================================
 export default async function handler(req, res) {
-  // CORS configuration
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -570,77 +465,131 @@ export default async function handler(req, res) {
     if (!apiKey) {
       return res.status(500).json({
         status: "error",
-        message: "TWELVE_DATA_API_KEY is not defined in environment variables.",
+        error: "TWELVE_DATA_API_KEY is not configured in Vercel environment variables.",
       });
     }
 
-    // Parallel fetch for H4, H1, M15, M5 (Strictly NO M1)
+    // Parallel fetch for H4, H1, M15, M5
     const [h4Candles, h1Candles, m15Candles, m5Candles] = await Promise.all([
-      fetchTimeframeCandles(SYMBOL, "4h", 40, apiKey),
-      fetchTimeframeCandles(SYMBOL, "1h", 45, apiKey),
-      fetchTimeframeCandles(SYMBOL, "15min", 50, apiKey),
-      fetchTimeframeCandles(SYMBOL, "5min", 50, apiKey),
+      fetchCandles("4h", 40, apiKey),
+      fetchCandles("1h", 45, apiKey),
+      fetchCandles("15min", 50, apiKey),
+      fetchCandles("5min", 50, apiKey),
     ]);
 
-    if (!m5Candles || m5Candles.length === 0) {
+    if (!m5Candles.length || !m15Candles.length || !h1Candles.length || !h4Candles.length) {
       return res.status(502).json({
         status: "error",
-        message: "Insufficient market candles received from data feed.",
+        error: "Insufficient candle history returned from Twelve Data.",
       });
     }
 
-    // Live Current Market Price (CMP) from the most recent M5 candle close
-    const cmp = roundPrice(m5Candles[m5Candles.length - 1].close, 2);
+    const currentPrice = round(m5Candles[m5Candles.length - 1].close, 2);
 
-    // Analyze Higher & Lower Timeframe Structures
-    const h4Struct = evaluateMarketStructure(h4Candles);
-    const h1Struct = evaluateMarketStructure(h1Candles);
-    const m15Struct = evaluateMarketStructure(m15Candles);
-    const m5Swings = identifySwings(m5Candles, 2, 2);
+    // Analyze Structures
+    const h4Struct = analyzeStructure(h4Candles);
+    const h1Struct = analyzeStructure(h1Candles);
+    const m15Struct = analyzeStructure(m15Candles);
+    const m5Swings = getSwings(m5Candles, 2, 2);
     const m15ATR = calculateATR(m15Candles, 14);
 
-    // Run Engine Analysis
-    const scalpingResult = analyzeScalping(cmp, h1Struct, m15Struct, m5Swings, m15ATR);
-    const intradayResult = analyzeIntraday(cmp, h4Struct, h1Struct, m15Struct, m5Swings);
+    // Build Scalping & Intraday Sides
+    const scalpBuy = buildScalpSide("BUY", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR);
+    const scalpSell = buildScalpSide("SELL", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR);
+    const intraBuy = buildIntradaySide("BUY", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings);
+    const intraSell = buildIntradaySide("SELL", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings);
 
-    // Response construction (maintains backward compatibility with frontends)
+    // Determine Dominant Side
+    const primaryScalp = scalpBuy.score >= scalpSell.score ? scalpBuy : scalpSell;
+    const primaryIntra = intraBuy.score >= intraSell.score ? intraBuy : intraSell;
+    const bestSetup = primaryScalp.score >= primaryIntra.score ? primaryScalp : primaryIntra;
+
+    // Punca S/R Level identification for UI
+    const puncaPrice = bestSetup.zone.anchor;
+    const puncaSource = `${m15Struct.isSideway ? "M15 Range" : "M15 S/R"} (${bestSetup.setup})`;
+
+    // Risk calculation
+    const calculatedRisk = round(Math.abs(bestSetup.entry - bestSetup.sl), 2);
+    const maxAllowedRisk = round(m15ATR * 1.5, 2);
+
+    // Structured JSON (Supports new engine format & existing HTML properties)
     const responsePayload = {
       status: "success",
-      timestamp: new Date().toISOString(),
       engine: {
         name: "SINNCI MARKET ENGINE PRO",
         version: "PRO-3.0",
         mode: "ACTIVE SCALPING / SELECTIVE INTRADAY",
       },
       market: {
-        symbol: SYMBOL,
-        price: cmp,
-        volatility_atr: roundPrice(m15ATR, 2),
+        symbol: "XAUUSD",
+        price: currentPrice,
+        atr: round(m15ATR, 2),
       },
-      timeframes: {
-        h4: { direction: h4Struct.direction, structure: h4Struct.structure },
-        h1: { direction: h1Struct.direction, structure: h1Struct.structure },
-        m15: {
-          direction: m15Struct.direction,
-          structure: m15Struct.structure,
-          isSideway: m15Struct.isSideway,
-          support: roundPrice(m15Struct.keySupport, 2),
-          resistance: roundPrice(m15Struct.keyResistance, 2),
-        },
+      direction: {
+        H4: h4Struct.direction,
+        H1: h1Struct.direction,
+        M15: m15Struct.direction,
+        M5: m5Swings.highs.length ? "BULLISH" : "NEUTRAL",
       },
-      scalping: scalpingResult,
-      intraday: intradayResult,
-
-      // Direct compatibility properties for legacy UI widgets
-      signal: scalpingResult.signal,
-      zone: scalpingResult.zone,
-      score: scalpingResult.score,
-      status: scalpingResult.status,
-      entry: scalpingResult.entry,
-      sl: scalpingResult.sl,
-      tp1: scalpingResult.tp1,
-      tp2: scalpingResult.tp2,
-      plan: `${scalpingResult.signal} XAUUSD at [${scalpingResult.zone.low} - ${scalpingResult.zone.high}] | Status: ${scalpingResult.status}`,
+      structure: {
+        H4: h4Struct.structure,
+        H1: h1Struct.structure,
+        M15: m15Struct.structure,
+      },
+      // Full Scalping Object with buy/sell branches for HTML compatibility
+      scalping: {
+        signal: primaryScalp.side,
+        direction: h1Struct.direction,
+        structure: m15Struct.structure,
+        status: primaryScalp.status,
+        score: primaryScalp.score,
+        zone: primaryScalp.zone,
+        entry: primaryScalp.entry,
+        sl: primaryScalp.sl,
+        tp1: primaryScalp.tp1,
+        tp2: primaryScalp.tp2,
+        reason: primaryScalp.reason,
+        locked: true,
+        buy: scalpBuy,
+        sell: scalpSell,
+      },
+      // Full Intraday Object with buy/sell branches for HTML compatibility
+      intraday: {
+        signal: primaryIntra.side,
+        direction: h4Struct.direction,
+        status: primaryIntra.status,
+        score: primaryIntra.score,
+        zone: primaryIntra.zone,
+        entry: primaryIntra.entry,
+        sl: primaryIntra.sl,
+        tp1: primaryIntra.tp1,
+        tp2: primaryIntra.tp2,
+        reason: primaryIntra.reason,
+        locked: true,
+        buy: intraBuy,
+        sell: intraSell,
+      },
+      // Legacy UI direct bindings
+      signal: bestSetup.status === "SIGNAL" ? bestSetup.side : "WAIT",
+      status: bestSetup.status,
+      score: bestSetup.score,
+      scores: {
+        buy: Math.max(scalpBuy.score, intraBuy.score),
+        sell: Math.max(scalpSell.score, intraSell.score),
+      },
+      entry: bestSetup.entry,
+      sl: bestSetup.sl,
+      tp1: bestSetup.tp1,
+      tp2: bestSetup.tp2,
+      zone: bestSetup.zone,
+      punca: {
+        price: puncaPrice,
+        source: puncaSource,
+      },
+      risk: calculatedRisk,
+      maxAllowedRisk: maxAllowedRisk,
+      reason: bestSetup.reason,
+      waitReason: bestSetup.status === "SIGNAL" ? null : "Approaching structure zone; waiting for reaction.",
     };
 
     return res.status(200).json(responsePayload);
@@ -648,7 +597,7 @@ export default async function handler(req, res) {
     console.error("SINNCI ENGINE ERROR:", error);
     return res.status(500).json({
       status: "error",
-      message: error.message || "An unexpected error occurred in market analysis engine.",
+      error: error.message || "Market analysis failed.",
     });
   }
 }

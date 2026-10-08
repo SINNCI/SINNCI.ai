@@ -14,22 +14,16 @@ export default async function handler(req, res) {
 
     // =========================================================
     // SINNCI MARKET ENGINE PRO
-    // ACTIVE SCALPING / SELECTIVE INTRADAY
+    // H4 → H1 → M15 → CMP → M5
+    // NO M30
     // =========================================================
 
     const POINT = 0.01;
 
-    // =========================================================
-    // OFFICIAL SIGNAL THRESHOLDS
-    // =========================================================
+    const SCALP_SIGNAL_SCORE = 65;
+    const INTRA_SIGNAL_SCORE = 90;
 
-    const SCALP_SIGNAL_SCORE = 55;
-    const INTRA_SIGNAL_SCORE = 85;
-
-    // =========================================================
-    // FIXED RISK MODEL
-    // =========================================================
-
+    // Fixed risk model
     const SCALP_SL_POINTS = 500;
     const SCALP_TP1_POINTS = 600;
     const SCALP_TP2_POINTS = 1200;
@@ -38,9 +32,9 @@ export default async function handler(req, res) {
     const INTRA_TP1_POINTS = 1600;
     const INTRA_TP2_POINTS = 2500;
 
-    // ---------------------------------------------------------
+    // =========================================================
     // CACHE
-    // ---------------------------------------------------------
+    // =========================================================
 
     const now = Date.now();
 
@@ -74,13 +68,13 @@ export default async function handler(req, res) {
       return Math.round(v * p) / p;
     };
 
-    const pointsToPrice = (points) =>
+    const pointsToPrice = points =>
       points * POINT;
 
-    const priceToPoints = (price) =>
+    const priceToPoints = price =>
       price / POINT;
 
-    const avg = (arr) => {
+    const avg = arr => {
       const a = arr.filter(Number.isFinite);
 
       if (!a.length) return 0;
@@ -97,42 +91,42 @@ export default async function handler(req, res) {
         Math.min(max, v)
       );
 
-    const candleBody = (c) =>
+    const candleBody = c =>
       Math.abs(
         safeNum(c.close) -
         safeNum(c.open)
       );
 
-    const candleRange = (c) =>
+    const candleRange = c =>
       Math.max(
         0.0001,
         safeNum(c.high) -
         safeNum(c.low)
       );
 
-    const upperWick = (c) =>
+    const upperWick = c =>
       safeNum(c.high) -
       Math.max(
         safeNum(c.open),
         safeNum(c.close)
       );
 
-    const lowerWick = (c) =>
+    const lowerWick = c =>
       Math.min(
         safeNum(c.open),
         safeNum(c.close)
       ) -
       safeNum(c.low);
 
-    const bullish = (c) =>
+    const bullish = c =>
       safeNum(c.close) >
       safeNum(c.open);
 
-    const bearish = (c) =>
+    const bearish = c =>
       safeNum(c.close) <
       safeNum(c.open);
 
-    const bodyRatio = (c) =>
+    const bodyRatio = c =>
       candleBody(c) /
       candleRange(c);
 
@@ -187,16 +181,18 @@ export default async function handler(req, res) {
           close: safeNum(c.close)
         }))
         .filter(c =>
-          c.open &&
-          c.high &&
-          c.low &&
-          c.close
+          Number.isFinite(c.open) &&
+          Number.isFinite(c.high) &&
+          Number.isFinite(c.low) &&
+          Number.isFinite(c.close)
         )
         .reverse();
     }
 
     // =========================================================
     // FETCH MTF
+    // ONLY 4 REQUESTS
+    // H4 / H1 / M15 / M5
     // =========================================================
 
     const [
@@ -291,8 +287,7 @@ export default async function handler(req, res) {
 
       for (
         let i = left;
-        i <
-        candles.length - right;
+        i < candles.length - right;
         i++
       ) {
         const c =
@@ -307,14 +302,15 @@ export default async function handler(req, res) {
           j++
         ) {
           if (
-            candles[i - j].high >=
-              c.high ||
-            candles[i - j].low <=
-              c.low
+            candles[i - j].high >= c.high
           ) {
             isHigh = false;
+          }
+
+          if (
+            candles[i - j].low <= c.low
+          ) {
             isLow = false;
-            break;
           }
         }
 
@@ -325,8 +321,7 @@ export default async function handler(req, res) {
             j++
           ) {
             if (
-              candles[i + j].high >=
-              c.high
+              candles[i + j].high >= c.high
             ) {
               isHigh = false;
               break;
@@ -341,8 +336,7 @@ export default async function handler(req, res) {
             j++
           ) {
             if (
-              candles[i + j].low <=
-              c.low
+              candles[i + j].low <= c.low
             ) {
               isLow = false;
               break;
@@ -395,39 +389,29 @@ export default async function handler(req, res) {
         lows.length >= 2
       ) {
         const h1 =
-          highs[
-            highs.length - 2
-          ].price;
+          highs[highs.length - 2].price;
 
         const h2 =
-          highs[
-            highs.length - 1
-          ].price;
+          highs[highs.length - 1].price;
 
         const l1 =
-          lows[
-            lows.length - 2
-          ].price;
+          lows[lows.length - 2].price;
 
         const l2 =
-          lows[
-            lows.length - 1
-          ].price;
+          lows[lows.length - 1].price;
 
         if (
           h2 > h1 &&
           l2 > l1
         ) {
-          direction =
-            "BULLISH";
+          direction = "BULLISH";
         }
 
         if (
           h2 < h1 &&
           l2 < l1
         ) {
-          direction =
-            "BEARISH";
+          direction = "BEARISH";
         }
       }
 
@@ -438,30 +422,22 @@ export default async function handler(req, res) {
 
         latestHigh:
           highs.length
-            ? highs[
-                highs.length - 1
-              ].price
+            ? highs[highs.length - 1].price
             : null,
 
         previousHigh:
           highs.length >= 2
-            ? highs[
-                highs.length - 2
-              ].price
+            ? highs[highs.length - 2].price
             : null,
 
         latestLow:
           lows.length
-            ? lows[
-                lows.length - 1
-              ].price
+            ? lows[lows.length - 1].price
             : null,
 
         previousLow:
           lows.length >= 2
-            ? lows[
-                lows.length - 2
-              ].price
+            ? lows[lows.length - 2].price
             : null
       };
     }
@@ -482,9 +458,7 @@ export default async function handler(req, res) {
     // DIRECTION
     // =========================================================
 
-    function getDirection(
-      candles
-    ) {
+    function getDirection(candles) {
       const s =
         structure(candles);
 
@@ -536,9 +510,7 @@ export default async function handler(req, res) {
 
     const currentPrice =
       safeNum(
-        M5[
-          M5.length - 1
-        ].close
+        M5[M5.length - 1].close
       );
 
     // =========================================================
@@ -548,7 +520,8 @@ export default async function handler(req, res) {
     function candleZone(
       c,
       type,
-      source
+      source,
+      index
     ) {
       const bodyHigh =
         Math.max(
@@ -565,30 +538,40 @@ export default async function handler(req, res) {
       return {
         type,
         source,
-        high: round(c.high, 2),
-        low: round(c.low, 2),
-        bodyHigh: round(
-          bodyHigh,
-          2
-        ),
-        bodyLow: round(
-          bodyLow,
-          2
-        ),
-        midpoint: round(
-          (c.high + c.low) / 2,
-          2
-        ),
+        index,
+
+        high:
+          round(c.high, 2),
+
+        low:
+          round(c.low, 2),
+
+        bodyHigh:
+          round(bodyHigh, 2),
+
+        bodyLow:
+          round(bodyLow, 2),
+
+        midpoint:
+          round(
+            (c.high + c.low) / 2,
+            2
+          ),
+
         datetime:
           c.datetime,
-        range: round(
-          c.high - c.low,
-          2
-        ),
-        body: round(
-          candleBody(c),
-          2
-        )
+
+        range:
+          round(
+            c.high - c.low,
+            2
+          ),
+
+        body:
+          round(
+            candleBody(c),
+            2
+          )
       };
     }
 
@@ -605,13 +588,12 @@ export default async function handler(req, res) {
       const start =
         Math.max(
           2,
-          candles.length - 35
+          candles.length - 40
         );
 
       for (
         let i = start;
-        i <
-        candles.length - 1;
+        i < candles.length - 1;
         i++
       ) {
         const c =
@@ -638,28 +620,28 @@ export default async function handler(req, res) {
 
         if (
           bullish(c) &&
-          body / range >=
-            0.45
+          body / range >= 0.45
         ) {
           zones.push(
             candleZone(
               c,
               "DEMAND",
-              source
+              source,
+              i
             )
           );
         }
 
         if (
           bearish(c) &&
-          body / range >=
-            0.45
+          body / range >= 0.45
         ) {
           zones.push(
             candleZone(
               c,
               "SUPPLY",
-              source
+              source,
+              i
             )
           );
         }
@@ -667,8 +649,7 @@ export default async function handler(req, res) {
         if (
           displacement >
           Math.max(
-            atr[source] *
-              0.45,
+            atr[source] * 0.45,
             POINT * 40
           )
         ) {
@@ -678,7 +659,8 @@ export default async function handler(req, res) {
               bullish(c)
                 ? "DEMAND"
                 : "SUPPLY",
-              source
+              source,
+              i
             )
           );
         }
@@ -706,9 +688,7 @@ export default async function handler(req, res) {
     // ZONE QUALITY
     // =========================================================
 
-    function zoneQuality(
-      zone
-    ) {
+    function zoneQuality(zone) {
       let score = 0;
 
       if (
@@ -736,9 +716,7 @@ export default async function handler(req, res) {
         );
 
       const distancePoints =
-        priceToPoints(
-          distance
-        );
+        priceToPoints(distance);
 
       if (
         distancePoints <= 80
@@ -779,32 +757,25 @@ export default async function handler(req, res) {
       );
     }
 
-    allZones.forEach(
-      z => {
-        z.quality =
-          zoneQuality(z);
-      }
-    );
+    allZones.forEach(z => {
+      z.quality =
+        zoneQuality(z);
+    });
 
     // =========================================================
     // SUPPORT / RESISTANCE
     // =========================================================
 
-    function nearestLevels(
-      candles
-    ) {
+    function nearestLevels(candles) {
       const swings =
-        getSwingPoints(
-          candles
-        );
+        getSwingPoints(candles);
 
       const supports =
         swings.lows
           .map(x => x.price)
           .filter(
             x =>
-              x <
-              currentPrice
+              x < currentPrice
           );
 
       const resistances =
@@ -812,28 +783,19 @@ export default async function handler(req, res) {
           .map(x => x.price)
           .filter(
             x =>
-              x >
-              currentPrice
+              x > currentPrice
           );
 
       supports.sort(
         (a, b) =>
-          Math.abs(
-            currentPrice - a
-          ) -
-          Math.abs(
-            currentPrice - b
-          )
+          Math.abs(currentPrice - a) -
+          Math.abs(currentPrice - b)
       );
 
       resistances.sort(
         (a, b) =>
-          Math.abs(
-            currentPrice - a
-          ) -
-          Math.abs(
-            currentPrice - b
-          )
+          Math.abs(currentPrice - a) -
+          Math.abs(currentPrice - b)
       );
 
       return {
@@ -860,19 +822,13 @@ export default async function handler(req, res) {
     // =========================================================
 
     const m15Current =
-      M15[
-        M15.length - 1
-      ];
+      M15[M15.length - 1];
 
     const m15Closed =
-      M15[
-        M15.length - 2
-      ];
+      M15[M15.length - 2];
 
     const m15Before =
-      M15[
-        M15.length - 3
-      ];
+      M15[M15.length - 3];
 
     // =========================================================
     // M15 BREAK
@@ -903,8 +859,7 @@ export default async function handler(req, res) {
         closed > rangeHigh
       ) {
         return {
-          type:
-            "BULLISH_BREAK",
+          type: "BULLISH_BREAK",
           confirmed: true,
           level: rangeHigh
         };
@@ -914,8 +869,7 @@ export default async function handler(req, res) {
         closed < rangeLow
       ) {
         return {
-          type:
-            "BEARISH_BREAK",
+          type: "BEARISH_BREAK",
           confirmed: true,
           level: rangeLow
         };
@@ -971,12 +925,11 @@ export default async function handler(req, res) {
       if (
         s.latestHigh &&
         m15Closed.close >
-          s.latestHigh
+        s.latestHigh
       ) {
         result.bullish = {
           role: "RBS",
-          level:
-            s.latestHigh,
+          level: s.latestHigh,
           status:
             "SUPPORT_AFTER_BREAK"
         };
@@ -985,12 +938,11 @@ export default async function handler(req, res) {
       if (
         s.latestLow &&
         m15Closed.close <
-          s.latestLow
+        s.latestLow
       ) {
         result.bearish = {
           role: "SBR",
-          level:
-            s.latestLow,
+          level: s.latestLow,
           status:
             "RESISTANCE_AFTER_BREAK"
         };
@@ -1020,9 +972,7 @@ export default async function handler(req, res) {
       }
 
       const last =
-        candles[
-          candles.length - 1
-        ];
+        candles[candles.length - 1];
 
       const previous =
         candles.slice(-7, -1);
@@ -1042,26 +992,21 @@ export default async function handler(req, res) {
         );
 
       const bullishSweep =
-        last.low <
-          previousLow &&
-        last.close >
-          previousLow &&
+        last.low < previousLow &&
+        last.close > previousLow &&
         lowerWick(last) >
-          candleBody(last) *
-            0.8;
+          candleBody(last) * 0.8;
 
       const bearishSweep =
-        last.high >
-          previousHigh &&
-        last.close <
-          previousHigh &&
+        last.high > previousHigh &&
+        last.close < previousHigh &&
         upperWick(last) >
-          candleBody(last) *
-            0.8;
+          candleBody(last) * 0.8;
 
       return {
         bullish:
           bullishSweep,
+
         bearish:
           bearishSweep,
 
@@ -1084,12 +1029,14 @@ export default async function handler(req, res) {
     // DOUBLE TOP / BOTTOM
     // =========================================================
 
-    function detectDouble(
-      candles
-    ) {
+    function detectDouble(candles) {
       const s =
-        getSwingPoints(
-          candles
+        getSwingPoints(candles);
+
+      const tolerance =
+        Math.max(
+          POINT * 35,
+          atr.M5 * 0.35
         );
 
       if (
@@ -1105,25 +1052,14 @@ export default async function handler(req, res) {
             s.highs.length - 1
           ].price;
 
-        const tolerance =
-          Math.max(
-            POINT * 35,
-            atr.M5 * 0.35
-          );
-
         if (
-          Math.abs(
-            h1 - h2
-          ) <= tolerance
+          Math.abs(h1 - h2) <=
+          tolerance
         ) {
           return {
-            type:
-              "DOUBLE_TOP",
+            type: "DOUBLE_TOP",
             level:
-              Math.max(
-                h1,
-                h2
-              )
+              Math.max(h1, h2)
           };
         }
       }
@@ -1141,25 +1077,15 @@ export default async function handler(req, res) {
             s.lows.length - 1
           ].price;
 
-        const tolerance =
-          Math.max(
-            POINT * 35,
-            atr.M5 * 0.35
-          );
-
         if (
-          Math.abs(
-            l1 - l2
-          ) <= tolerance
+          Math.abs(l1 - l2) <=
+          tolerance
         ) {
           return {
             type:
               "DOUBLE_BOTTOM",
             level:
-              Math.min(
-                l1,
-                l2
-              )
+              Math.min(l1, l2)
           };
         }
       }
@@ -1177,25 +1103,9 @@ export default async function handler(req, res) {
     // QUASIMODO
     // =========================================================
 
-    function l3Safe(
-      lows
-    ) {
-      if (!lows.length) {
-        return null;
-      }
-
-      return lows[
-        lows.length - 1
-      ].price;
-    }
-
-    function detectQM(
-      candles
-    ) {
+    function detectQM(candles) {
       const s =
-        getSwingPoints(
-          candles
-        );
+        getSwingPoints(candles);
 
       if (
         s.highs.length >= 3 &&
@@ -1232,8 +1142,7 @@ export default async function handler(req, res) {
           l2 < l1
         ) {
           return {
-            type:
-              "QM_SELL",
+            type: "QM_SELL",
             level: h3
           };
         }
@@ -1244,10 +1153,8 @@ export default async function handler(req, res) {
           l2 > l1
         ) {
           return {
-            type:
-              "QM_BUY",
-            level:
-              l3Safe(s.lows)
+            type: "QM_BUY",
+            level: l2
           };
         }
       }
@@ -1261,37 +1168,32 @@ export default async function handler(req, res) {
     const qmM5 =
       detectQM(M5);
 
+    const qmM15 =
+      detectQM(M15);
+
     // =========================================================
     // M5 TRIGGERS
     // =========================================================
 
     function detectM5Trigger() {
       const last =
-        M5[
-          M5.length - 1
-        ];
+        M5[M5.length - 1];
 
       const prev =
-        M5[
-          M5.length - 2
-        ];
+        M5[M5.length - 2];
 
       const prev2 =
-        M5[
-          M5.length - 3
-        ];
+        M5[M5.length - 3];
 
-      let buy = [];
-      let sell = [];
+      const buy = [];
+      const sell = [];
 
       // Bullish engulfing
       if (
         bearish(prev) &&
         bullish(last) &&
-        last.close >=
-          prev.open &&
-        last.open <=
-          prev.close
+        last.close >= prev.open &&
+        last.open <= prev.close
       ) {
         buy.push(
           "BULLISH_ENGULFING"
@@ -1302,10 +1204,8 @@ export default async function handler(req, res) {
       if (
         bullish(prev) &&
         bearish(last) &&
-        last.close <=
-          prev.open &&
-        last.open >=
-          prev.close
+        last.close <= prev.open &&
+        last.open >= prev.close
       ) {
         sell.push(
           "BEARISH_ENGULFING"
@@ -1315,12 +1215,10 @@ export default async function handler(req, res) {
       // Bullish rejection
       if (
         lowerWick(last) >
-          candleBody(last) *
-            1.2 &&
+          candleBody(last) * 1.2 &&
         last.close >
           last.low +
-          candleRange(last) *
-            0.55
+          candleRange(last) * 0.55
       ) {
         buy.push(
           "BULLISH_REJECTION"
@@ -1330,53 +1228,46 @@ export default async function handler(req, res) {
       // Bearish rejection
       if (
         upperWick(last) >
-          candleBody(last) *
-            1.2 &&
+          candleBody(last) * 1.2 &&
         last.close <
           last.low +
-          candleRange(last) *
-            0.45
+          candleRange(last) * 0.45
       ) {
         sell.push(
           "BEARISH_REJECTION"
         );
       }
 
-      // Strong bullish candle
+      // Bullish displacement
       if (
         bullish(last) &&
-        bodyRatio(last) >=
-          0.65 &&
+        bodyRatio(last) >= 0.65 &&
         last.close >
           last.low +
-          candleRange(last) *
-            0.75
+          candleRange(last) * 0.75
       ) {
         buy.push(
           "BULLISH_DISPLACEMENT"
         );
       }
 
-      // Strong bearish candle
+      // Bearish displacement
       if (
         bearish(last) &&
-        bodyRatio(last) >=
-          0.65 &&
+        bodyRatio(last) >= 0.65 &&
         last.close <
           last.low +
-          candleRange(last) *
-            0.25
+          candleRange(last) * 0.25
       ) {
         sell.push(
           "BEARISH_DISPLACEMENT"
         );
       }
 
-      // Micro structure shift
+      // M5 structure shift
       if (
         prev2 &&
-        last.close >
-          prev2.high
+        last.close > prev2.high
       ) {
         buy.push(
           "M5_STRUCTURE_SHIFT"
@@ -1385,8 +1276,7 @@ export default async function handler(req, res) {
 
       if (
         prev2 &&
-        last.close <
-          prev2.low
+        last.close < prev2.low
       ) {
         sell.push(
           "M5_STRUCTURE_SHIFT"
@@ -1398,11 +1288,9 @@ export default async function handler(req, res) {
         sell,
 
         strongest:
-          buy.length >
-          sell.length
+          buy.length > sell.length
             ? "BUY"
-            : sell.length >
-              buy.length
+            : sell.length > buy.length
             ? "SELL"
             : "NEUTRAL"
       };
@@ -1416,11 +1304,8 @@ export default async function handler(req, res) {
     // =========================================================
 
     function getCmpLocation() {
-      let nearestZone =
-        null;
-
-      let minDistance =
-        Infinity;
+      let nearestZone = null;
+      let minDistance = Infinity;
 
       for (
         const z of allZones
@@ -1434,18 +1319,15 @@ export default async function handler(req, res) {
             ? 0
             : Math.min(
                 Math.abs(
-                  currentPrice -
-                    z.low
+                  currentPrice - z.low
                 ),
                 Math.abs(
-                  currentPrice -
-                    z.high
+                  currentPrice - z.high
                 )
               );
 
         if (
-          distance <
-          minDistance
+          distance < minDistance
         ) {
           minDistance =
             distance;
@@ -1492,8 +1374,7 @@ export default async function handler(req, res) {
 
       return {
         state,
-        zone:
-          nearestZone,
+        zone: nearestZone,
         distancePoints:
           round(
             distancePoints,
@@ -1506,14 +1387,573 @@ export default async function handler(req, res) {
       getCmpLocation();
 
     // =========================================================
+    // FRESH ZONE
+    // =========================================================
+
+    function detectFreshZone(zone) {
+      if (!zone) {
+        return {
+          fresh: false,
+          firstTouch: false,
+          touches: 0
+        };
+      }
+
+      const sourceCandles =
+        zone.source === "H1"
+          ? H1
+          : zone.source === "M15"
+          ? M15
+          : M5;
+
+      const createdIndex =
+        sourceCandles.findIndex(
+          c =>
+            c.datetime ===
+            zone.datetime
+        );
+
+      if (
+        createdIndex < 0
+      ) {
+        return {
+          fresh: false,
+          firstTouch: false,
+          touches: 0
+        };
+      }
+
+      let touches = 0;
+
+      for (
+        let i = createdIndex + 1;
+        i < sourceCandles.length - 1;
+        i++
+      ) {
+        const c =
+          sourceCandles[i];
+
+        if (
+          c.high >= zone.low &&
+          c.low <= zone.high
+        ) {
+          touches++;
+        }
+      }
+
+      return {
+        fresh:
+          touches === 0,
+
+        firstTouch:
+          touches <= 1,
+
+        touches
+      };
+    }
+
+    const freshZone =
+      detectFreshZone(
+        cmpLocation.zone
+      );
+
+    // =========================================================
+    // FIBONACCI
+    // ONLY 0.382 / 0.500
+    // =========================================================
+
+    function detectFibonacci(
+      candles
+    ) {
+      const s =
+        getSwingPoints(candles);
+
+      if (
+        s.highs.length < 2 ||
+        s.lows.length < 2
+      ) {
+        return {
+          buy: false,
+          sell: false,
+          near382: false,
+          near500: false,
+          fib382: null,
+          fib500: null
+        };
+      }
+
+      const recentHigh =
+        s.highs[
+          s.highs.length - 1
+        ];
+
+      const recentLow =
+        s.lows[
+          s.lows.length - 1
+        ];
+
+      const high =
+        recentHigh.price;
+
+      const low =
+        recentLow.price;
+
+      const range =
+        Math.abs(
+          high - low
+        );
+
+      if (
+        range <= 0
+      ) {
+        return {
+          buy: false,
+          sell: false,
+          near382: false,
+          near500: false,
+          fib382: null,
+          fib500: null
+        };
+      }
+
+      const fib382 =
+        low +
+        range * 0.382;
+
+      const fib500 =
+        low +
+        range * 0.500;
+
+      const tolerance =
+        Math.max(
+          POINT * 35,
+          atr.M5 * 0.25
+        );
+
+      const near382 =
+        Math.abs(
+          currentPrice -
+          fib382
+        ) <= tolerance;
+
+      const near500 =
+        Math.abs(
+          currentPrice -
+          fib500
+        ) <= tolerance;
+
+      const bullishSwing =
+        recentLow.index <
+        recentHigh.index;
+
+      const bearishSwing =
+        recentHigh.index <
+        recentLow.index;
+
+      return {
+        buy:
+          bullishSwing &&
+          (
+            near382 ||
+            near500
+          ),
+
+        sell:
+          bearishSwing &&
+          (
+            near382 ||
+            near500
+          ),
+
+        near382,
+        near500,
+
+        fib382:
+          round(
+            fib382,
+            2
+          ),
+
+        fib500:
+          round(
+            fib500,
+            2
+          )
+      };
+    }
+
+    const fibonacciM15 =
+      detectFibonacci(M15);
+
+    const fibonacciM5 =
+      detectFibonacci(M5);
+
+    // =========================================================
+    // BOS
+    // =========================================================
+
+    function detectBOS(candles) {
+      const s =
+        structure(candles);
+
+      const last =
+        candles[candles.length - 1];
+
+      return {
+        bullish:
+          !!s.latestHigh &&
+          last.close >
+          s.latestHigh,
+
+        bearish:
+          !!s.latestLow &&
+          last.close <
+          s.latestLow,
+
+        bullishLevel:
+          s.latestHigh,
+
+        bearishLevel:
+          s.latestLow
+      };
+    }
+
+    const bosM5 =
+      detectBOS(M5);
+
+    const bosM15 =
+      detectBOS(M15);
+
+    // =========================================================
+    // CHoCH
+    // =========================================================
+
+    function detectCHoCH(candles) {
+      const s =
+        getSwingPoints(candles);
+
+      if (
+        s.highs.length < 3 ||
+        s.lows.length < 3
+      ) {
+        return {
+          bullish: false,
+          bearish: false
+        };
+      }
+
+      const h1 =
+        s.highs[
+          s.highs.length - 3
+        ].price;
+
+      const h2 =
+        s.highs[
+          s.highs.length - 2
+        ].price;
+
+      const h3 =
+        s.highs[
+          s.highs.length - 1
+        ].price;
+
+      const l1 =
+        s.lows[
+          s.lows.length - 3
+        ].price;
+
+      const l2 =
+        s.lows[
+          s.lows.length - 2
+        ].price;
+
+      const l3 =
+        s.lows[
+          s.lows.length - 1
+        ].price;
+
+      return {
+        bullish:
+          h2 < h1 &&
+          l2 < l1 &&
+          h3 > h2,
+
+        bearish:
+          h2 > h1 &&
+          l2 > l1 &&
+          l3 < l2
+      };
+    }
+
+    const chochM5 =
+      detectCHoCH(M5);
+
+    const chochM15 =
+      detectCHoCH(M15);
+
+    // =========================================================
+    // BREAK + RETEST
+    // =========================================================
+
+    function detectBreakRetest(
+      candles
+    ) {
+      if (
+        candles.length < 8
+      ) {
+        return {
+          bullish: false,
+          bearish: false,
+          bullishLevel: null,
+          bearishLevel: null
+        };
+      }
+
+      const last =
+        candles[candles.length - 1];
+
+      const prev =
+        candles[candles.length - 2];
+
+      const range =
+        candles.slice(-8, -2);
+
+      const high =
+        Math.max(
+          ...range.map(
+            c => c.high
+          )
+        );
+
+      const low =
+        Math.min(
+          ...range.map(
+            c => c.low
+          )
+        );
+
+      return {
+        bullish:
+          prev.close > high &&
+          last.low <= high &&
+          last.close > high,
+
+        bearish:
+          prev.close < low &&
+          last.high >= low &&
+          last.close < low,
+
+        bullishLevel: high,
+        bearishLevel: low
+      };
+    }
+
+    const breakRetestM5 =
+      detectBreakRetest(M5);
+
+    const breakRetestM15 =
+      detectBreakRetest(M15);
+
+    // =========================================================
+    // TRENDLINE BREAK / RETEST
+    // =========================================================
+
+    function detectTrendlineRetest(
+      candles
+    ) {
+      const s =
+        getSwingPoints(candles);
+
+      if (
+        s.highs.length < 2 ||
+        s.lows.length < 2
+      ) {
+        return {
+          bullish: false,
+          bearish: false
+        };
+      }
+
+      const last =
+        candles[candles.length - 1];
+
+      const h1 =
+        s.highs[
+          s.highs.length - 2
+        ];
+
+      const h2 =
+        s.highs[
+          s.highs.length - 1
+        ];
+
+      const l1 =
+        s.lows[
+          s.lows.length - 2
+        ];
+
+      const l2 =
+        s.lows[
+          s.lows.length - 1
+        ];
+
+      const bullishSlope =
+        l2.price > l1.price;
+
+      const bearishSlope =
+        h2.price < h1.price;
+
+      const bullish =
+        bullishSlope &&
+        last.close > l2.price;
+
+      const bearish =
+        bearishSlope &&
+        last.close < h2.price;
+
+      return {
+        bullish,
+        bearish
+      };
+    }
+
+    const trendlineM5 =
+      detectTrendlineRetest(M5);
+
+    const trendlineM15 =
+      detectTrendlineRetest(M15);
+
+    // =========================================================
+    // RBR / DBD / RBD / DBR
+    // =========================================================
+
+    function detectBasePattern(
+      candles
+    ) {
+      if (
+        candles.length < 6
+      ) {
+        return {
+          bullish: false,
+          bearish: false,
+          type: "NONE"
+        };
+      }
+
+      const a =
+        candles[candles.length - 5];
+
+      const b =
+        candles[candles.length - 4];
+
+      const c =
+        candles[candles.length - 3];
+
+      const d =
+        candles[candles.length - 2];
+
+      const e =
+        candles[candles.length - 1];
+
+      const avgBody =
+        avg(
+          candles
+            .slice(-10)
+            .map(
+              x => candleBody(x)
+            )
+        );
+
+      const smallBase =
+        candleBody(b) <=
+          avgBody * 0.8 &&
+        candleBody(c) <=
+          avgBody * 0.8 &&
+        candleBody(d) <=
+          avgBody * 0.9;
+
+      const bullishImpulse =
+        candleBody(e) >=
+          avgBody * 1.15 &&
+        bullish(e);
+
+      const bearishImpulse =
+        candleBody(e) >=
+          avgBody * 1.15 &&
+        bearish(e);
+
+      // RBR
+      if (
+        bullish(a) &&
+        smallBase &&
+        bullishImpulse
+      ) {
+        return {
+          bullish: true,
+          bearish: false,
+          type: "RBR"
+        };
+      }
+
+      // DBD
+      if (
+        bearish(a) &&
+        smallBase &&
+        bearishImpulse
+      ) {
+        return {
+          bullish: false,
+          bearish: true,
+          type: "DBD"
+        };
+      }
+
+      // RBD
+      if (
+        bullish(a) &&
+        smallBase &&
+        bearishImpulse
+      ) {
+        return {
+          bullish: false,
+          bearish: true,
+          type: "RBD"
+        };
+      }
+
+      // DBR
+      if (
+        bearish(a) &&
+        smallBase &&
+        bullishImpulse
+      ) {
+        return {
+          bullish: true,
+          bearish: false,
+          type: "DBR"
+        };
+      }
+
+      return {
+        bullish: false,
+        bearish: false,
+        type: "NONE"
+      };
+    }
+
+    const baseM5 =
+      detectBasePattern(M5);
+
+    const baseM15 =
+      detectBasePattern(M15);
+
+    // =========================================================
     // CMP REACTION
     // =========================================================
 
     function cmpReaction() {
       const last =
-        M5[
-          M5.length - 1
-        ];
+        M5[M5.length - 1];
 
       if (
         cmpLocation.state ===
@@ -1574,9 +2014,7 @@ export default async function handler(req, res) {
 
     function detectEarlyM5Break() {
       const last =
-        M5[
-          M5.length - 1
-        ];
+        M5[M5.length - 1];
 
       const support =
         levelsM15.support;
@@ -1593,20 +2031,16 @@ export default async function handler(req, res) {
 
       if (
         support &&
-        last.close <
-          support
+        last.close < support
       ) {
-        result.bearish =
-          true;
+        result.bearish = true;
       }
 
       if (
         resistance &&
-        last.close >
-          resistance
+        last.close > resistance
       ) {
-        result.bullish =
-          true;
+        result.bullish = true;
       }
 
       return result;
@@ -1629,24 +2063,20 @@ export default async function handler(req, res) {
         levelsM15.support &&
         Math.abs(
           currentPrice -
-            levelsM15.support
-        ) <=
-          POINT * 80
+          levelsM15.support
+        ) <= POINT * 80
       ) {
-        result.support =
-          true;
+        result.support = true;
       }
 
       if (
         levelsM15.resistance &&
         Math.abs(
           currentPrice -
-            levelsM15.resistance
-        ) <=
-          POINT * 80
+          levelsM15.resistance
+        ) <= POINT * 80
       ) {
-        result.resistance =
-          true;
+        result.resistance = true;
       }
 
       return result;
@@ -1669,18 +2099,13 @@ export default async function handler(req, res) {
 
       const bullishCount =
         dirs.filter(
-          x =>
-            x === "BULLISH"
+          x => x === "BULLISH"
         ).length;
 
       const bearishCount =
         dirs.filter(
-          x =>
-            x === "BEARISH"
+          x => x === "BEARISH"
         ).length;
-
-      const atrNow =
-        atr.M5;
 
       const recentRanges =
         M5.slice(-15).map(
@@ -1694,8 +2119,7 @@ export default async function handler(req, res) {
 
       const volatilityRatio =
         avgRange > 0
-          ? atrNow /
-            avgRange
+          ? atr.M5 / avgRange
           : 1;
 
       if (
@@ -1751,9 +2175,7 @@ export default async function handler(req, res) {
     // ZONE DIRECTION
     // =========================================================
 
-    function zoneDirection(
-      zone
-    ) {
+    function zoneDirection(zone) {
       if (!zone) {
         return "NEUTRAL";
       }
@@ -1782,17 +2204,12 @@ export default async function handler(req, res) {
 
     // =========================================================
     // SCALPING ENGINE
-    // ACTIVE MODE
+    // ACTIVE / MULTI-TECHNIQUE
+    // SIGNAL = 65+
     // =========================================================
 
-    function scalpSide(
-      side
-    ) {
-      let context = 0;
-      let location = 0;
-      let trigger = 0;
-      let pattern = 0;
-      let quality = 0;
+    function scalpSide(side) {
+      let score = 0;
 
       const reasons = [];
 
@@ -1801,35 +2218,31 @@ export default async function handler(req, res) {
           ? "BULLISH"
           : "BEARISH";
 
+      const isBuy =
+        side === "BUY";
+
       // -------------------------------------------------------
-      // H1 CONTEXT
+      // H1 BIAS
       // -------------------------------------------------------
 
       if (
-        direction.H1 ===
-        wanted
+        direction.H1 === wanted
       ) {
-        context += 20;
+        score += 15;
 
         reasons.push(
           `H1 ${side} bias`
         );
-      } else if (
-        direction.H1 ===
-        "NEUTRAL"
-      ) {
-        context += 7;
       }
 
       // -------------------------------------------------------
-      // M15 CONTEXT
+      // M15 STRUCTURE
       // -------------------------------------------------------
 
       if (
-        direction.M15 ===
-        wanted
+        direction.M15 === wanted
       ) {
-        context += 15;
+        score += 15;
 
         reasons.push(
           `M15 ${side} structure`
@@ -1837,16 +2250,16 @@ export default async function handler(req, res) {
       }
 
       // -------------------------------------------------------
-      // CMP LOCATION
+      // SUPPLY / DEMAND
       // -------------------------------------------------------
 
       if (
         zoneDir === side
       ) {
-        location += 25;
+        score += 10;
 
         reasons.push(
-          `${side} zone at CMP`
+          `${side} supply-demand zone`
         );
       }
 
@@ -1854,42 +2267,151 @@ export default async function handler(req, res) {
         cmpLocation.state ===
         "INSIDE_ZONE"
       ) {
-        location += 10;
-      }
-
-      if (
-        cmpLocation.state ===
-          "APPROACHING_ZONE" &&
-        zoneDir === side
-      ) {
-        location += 7;
+        score += 8;
 
         reasons.push(
-          `${side} zone approaching`
-        );
-      }
-
-      if (
-        cmpLocation.state ===
-        "NEAR_ZONE" &&
-        zoneDir === side
-      ) {
-        location += 5;
-
-        reasons.push(
-          `${side} zone nearby`
+          "CMP inside zone"
         );
       }
 
       // -------------------------------------------------------
-      // LIQUIDITY
+      // FRESH / FIRST TOUCH
       // -------------------------------------------------------
 
       if (
-        side === "BUY" &&
+        zoneDir === side &&
+        freshZone.fresh
+      ) {
+        score += 5;
+
+        reasons.push(
+          "Fresh zone"
+        );
+      }
+
+      if (
+        zoneDir === side &&
+        freshZone.firstTouch
+      ) {
+        score += 4;
+
+        reasons.push(
+          "First touch"
+        );
+      }
+
+      // -------------------------------------------------------
+      // FIBONACCI
+      // ONLY 0.382 / 0.500
+      // -------------------------------------------------------
+
+      const fibAligned =
+        isBuy
+          ? (
+              fibonacciM15.buy ||
+              fibonacciM5.buy
+            )
+          : (
+              fibonacciM15.sell ||
+              fibonacciM5.sell
+            );
+
+      if (fibAligned) {
+        score += 8;
+
+        reasons.push(
+          "Fibonacci 0.382 / 0.500"
+        );
+      }
+
+      // -------------------------------------------------------
+      // FIBO + ZONE CONFLUENCE
+      // -------------------------------------------------------
+
+      if (
+        fibAligned &&
+        zoneDir === side
+      ) {
+        score += 5;
+
+        reasons.push(
+          "Fibonacci + SNR confluence"
+        );
+      }
+
+      // -------------------------------------------------------
+      // BOS
+      // -------------------------------------------------------
+
+      if (
+        isBuy &&
+        (
+          bosM5.bullish ||
+          bosM15.bullish
+        )
+      ) {
+        score += 5;
+
+        reasons.push(
+          "Bullish BOS"
+        );
+      }
+
+      if (
+        !isBuy &&
+        (
+          bosM5.bearish ||
+          bosM15.bearish
+        )
+      ) {
+        score += 5;
+
+        reasons.push(
+          "Bearish BOS"
+        );
+      }
+
+      // -------------------------------------------------------
+      // CHoCH
+      // -------------------------------------------------------
+
+      if (
+        isBuy &&
+        (
+          chochM5.bullish ||
+          chochM15.bullish
+        )
+      ) {
+        score += 5;
+
+        reasons.push(
+          "Bullish CHoCH"
+        );
+      }
+
+      if (
+        !isBuy &&
+        (
+          chochM5.bearish ||
+          chochM15.bearish
+        )
+      ) {
+        score += 5;
+
+        reasons.push(
+          "Bearish CHoCH"
+        );
+      }
+
+      // -------------------------------------------------------
+      // LIQUIDITY SWEEP
+      // -------------------------------------------------------
+
+      if (
+        isBuy &&
         liquidityM5.bullish
       ) {
-        trigger += 18;
+        score += 5;
 
         reasons.push(
           "M5 bullish liquidity sweep"
@@ -1897,10 +2419,10 @@ export default async function handler(req, res) {
       }
 
       if (
-        side === "SELL" &&
+        !isBuy &&
         liquidityM5.bearish
       ) {
-        trigger += 18;
+        score += 5;
 
         reasons.push(
           "M5 bearish liquidity sweep"
@@ -1908,15 +2430,15 @@ export default async function handler(req, res) {
       }
 
       // -------------------------------------------------------
-      // DOUBLE
+      // DOUBLE TOP / BOTTOM
       // -------------------------------------------------------
 
       if (
-        side === "BUY" &&
+        isBuy &&
         doubleM5.type ===
-          "DOUBLE_BOTTOM"
+        "DOUBLE_BOTTOM"
       ) {
-        pattern += 15;
+        score += 8;
 
         reasons.push(
           "M5 double bottom"
@@ -1924,11 +2446,11 @@ export default async function handler(req, res) {
       }
 
       if (
-        side === "SELL" &&
+        !isBuy &&
         doubleM5.type ===
-          "DOUBLE_TOP"
+        "DOUBLE_TOP"
       ) {
-        pattern += 15;
+        score += 8;
 
         reasons.push(
           "M5 double top"
@@ -1936,74 +2458,222 @@ export default async function handler(req, res) {
       }
 
       // -------------------------------------------------------
-      // QM
+      // QUASIMODO
       // -------------------------------------------------------
 
-      if (
-        side === "BUY" &&
-        qmM5.type ===
-          "QM_BUY"
-      ) {
-        pattern += 15;
+      const qmAligned =
+        isBuy
+          ? (
+              qmM5.type === "QM_BUY" ||
+              qmM15.type === "QM_BUY"
+            )
+          : (
+              qmM5.type === "QM_SELL" ||
+              qmM15.type === "QM_SELL"
+            );
+
+      if (qmAligned) {
+        score += 5;
 
         reasons.push(
-          "QM buy structure"
-        );
-      }
-
-      if (
-        side === "SELL" &&
-        qmM5.type ===
-          "QM_SELL"
-      ) {
-        pattern += 15;
-
-        reasons.push(
-          "QM sell structure"
+          `QM ${side}`
         );
       }
 
       // -------------------------------------------------------
-      // M5 TRIGGER
+      // TRENDLINE BREAK / RETEST
       // -------------------------------------------------------
 
-      const sideTriggers =
-        side === "BUY"
-          ? m5Trigger.buy
-          : m5Trigger.sell;
+      if (
+        isBuy &&
+        (
+          trendlineM5.bullish ||
+          trendlineM15.bullish
+        )
+      ) {
+        score += 10;
 
-      const hasM5Confirmation =
-        sideTriggers.length >
-        0;
+        reasons.push(
+          "Bullish trendline break/retest"
+        );
+      }
 
       if (
-        hasM5Confirmation
+        !isBuy &&
+        (
+          trendlineM5.bearish ||
+          trendlineM15.bearish
+        )
       ) {
-        trigger += Math.min(
-          35,
-          sideTriggers.length *
-            12
-        );
+        score += 10;
 
         reasons.push(
-          ...sideTriggers
-        );
-
-        reasons.push(
-          `M5 ${side} confirmation aligned`
+          "Bearish trendline break/retest"
         );
       }
 
       // -------------------------------------------------------
-      // REJECTION
+      // BREAK + RETEST
       // -------------------------------------------------------
 
       if (
-        side === "BUY" &&
+        isBuy &&
+        (
+          breakRetestM5.bullish ||
+          breakRetestM15.bullish
+        )
+      ) {
+        score += 7;
+
+        reasons.push(
+          "Bullish breakout + retest"
+        );
+      }
+
+      if (
+        !isBuy &&
+        (
+          breakRetestM5.bearish ||
+          breakRetestM15.bearish
+        )
+      ) {
+        score += 7;
+
+        reasons.push(
+          "Bearish breakout + retest"
+        );
+      }
+
+      // -------------------------------------------------------
+      // RBR / DBD / RBD / DBR
+      // -------------------------------------------------------
+
+      const baseAligned =
+        isBuy
+          ? (
+              baseM5.bullish ||
+              baseM15.bullish
+            )
+          : (
+              baseM5.bearish ||
+              baseM15.bearish
+            );
+
+      if (baseAligned) {
+        score += 5;
+
+        const baseType =
+          isBuy
+            ? (
+                baseM5.bullish
+                  ? baseM5.type
+                  : baseM15.type
+              )
+            : (
+                baseM5.bearish
+                  ? baseM5.type
+                  : baseM15.type
+              );
+
+        reasons.push(
+          `${baseType} base pattern`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 ENGULFING
+      // -------------------------------------------------------
+
+      const engulfing =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "BULLISH_ENGULFING"
+            )
+          : m5Trigger.sell.includes(
+              "BEARISH_ENGULFING"
+            );
+
+      if (engulfing) {
+        score += 10;
+
+        reasons.push(
+          `${side} engulfing`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 REJECTION
+      // -------------------------------------------------------
+
+      const rejection =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "BULLISH_REJECTION"
+            )
+          : m5Trigger.sell.includes(
+              "BEARISH_REJECTION"
+            );
+
+      if (rejection) {
+        score += 8;
+
+        reasons.push(
+          `${side} rejection`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 DISPLACEMENT
+      // -------------------------------------------------------
+
+      const displacement =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "BULLISH_DISPLACEMENT"
+            )
+          : m5Trigger.sell.includes(
+              "BEARISH_DISPLACEMENT"
+            );
+
+      if (displacement) {
+        score += 10;
+
+        reasons.push(
+          `${side} displacement`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 STRUCTURE SHIFT
+      // -------------------------------------------------------
+
+      const structureShift =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "M5_STRUCTURE_SHIFT"
+            )
+          : m5Trigger.sell.includes(
+              "M5_STRUCTURE_SHIFT"
+            );
+
+      if (structureShift) {
+        score += 7;
+
+        reasons.push(
+          `M5 ${side} structure shift`
+        );
+      }
+
+      // -------------------------------------------------------
+      // CMP REACTION
+      // -------------------------------------------------------
+
+      if (
+        isBuy &&
         reaction ===
-          "REJECTING_DEMAND"
+        "REJECTING_DEMAND"
       ) {
-        trigger += 12;
+        score += 5;
 
         reasons.push(
           "CMP rejecting demand"
@@ -2011,11 +2681,11 @@ export default async function handler(req, res) {
       }
 
       if (
-        side === "SELL" &&
+        !isBuy &&
         reaction ===
-          "REJECTING_SUPPLY"
+        "REJECTING_SUPPLY"
       ) {
-        trigger += 12;
+        score += 5;
 
         reasons.push(
           "CMP rejecting supply"
@@ -2023,107 +2693,38 @@ export default async function handler(req, res) {
       }
 
       // -------------------------------------------------------
-      // BREAKOUT
+      // TREND ENVIRONMENT
       // -------------------------------------------------------
 
       if (
-        side === "BUY" &&
-        m15Break.type ===
-          "BULLISH_BREAK"
-      ) {
-        trigger += 12;
-
-        reasons.push(
-          "M15 bullish breakout"
-        );
-      }
-
-      if (
-        side === "SELL" &&
-        m15Break.type ===
-          "BEARISH_BREAK"
-      ) {
-        trigger += 12;
-
-        reasons.push(
-          "M15 bearish breakout"
-        );
-      }
-
-      // -------------------------------------------------------
-      // EARLY M5 BREAK
-      // -------------------------------------------------------
-
-      if (
-        side === "SELL" &&
-        earlyBreak.bearish
-      ) {
-        pattern += 8;
-
-        reasons.push(
-          "M5 broke support early"
-        );
-      }
-
-      if (
-        side === "BUY" &&
-        earlyBreak.bullish
-      ) {
-        pattern += 8;
-
-        reasons.push(
-          "M5 broke resistance early"
-        );
-      }
-
-      // -------------------------------------------------------
-      // ZONE QUALITY
-      // -------------------------------------------------------
-
-      if (
-        cmpLocation.zone &&
-        zoneDir === side
-      ) {
-        quality =
-          Math.round(
-            cmpLocation.zone.quality *
-              0.25
-          );
-      }
-
-      // -------------------------------------------------------
-      // TREND CONTINUATION
-      // -------------------------------------------------------
-
-      if (
-        side === "BUY" &&
+        isBuy &&
         (
           marketRegime ===
-            "TRENDING_BULLISH" ||
+          "TRENDING_BULLISH" ||
           marketRegime ===
-            "BREAKOUT_BULLISH"
+          "BREAKOUT_BULLISH"
         )
       ) {
-        context += 10;
+        score += 5;
 
         reasons.push(
-          "bullish continuation environment"
+          "Bullish trend environment"
         );
       }
 
       if (
-        side === "SELL" &&
+        !isBuy &&
         (
           marketRegime ===
-            "TRENDING_BEARISH" ||
+          "TRENDING_BEARISH" ||
           marketRegime ===
-            "BREAKOUT_BEARISH"
+          "BREAKOUT_BEARISH"
         )
       ) {
-        context += 10;
+        score += 5;
 
         reasons.push(
-          "bearish continuation environment"
+          "Bearish trend environment"
         );
       }
 
@@ -2132,242 +2733,211 @@ export default async function handler(req, res) {
       // -------------------------------------------------------
 
       if (
-        side === "BUY" &&
+        isBuy &&
         marketRegime ===
-          "REVERSAL_BULLISH"
+        "REVERSAL_BULLISH"
       ) {
-        trigger += 15;
+        score += 5;
 
         reasons.push(
-          "bullish reversal condition"
+          "Bullish reversal"
         );
       }
 
       if (
-        side === "SELL" &&
+        !isBuy &&
         marketRegime ===
-          "REVERSAL_BEARISH"
+        "REVERSAL_BEARISH"
       ) {
-        trigger += 15;
+        score += 5;
 
         reasons.push(
-          "bearish reversal condition"
+          "Bearish reversal"
         );
       }
 
-      // -------------------------------------------------------
-      // MOMENTUM
-      // -------------------------------------------------------
+      // =======================================================
+      // CAP SCORE
+      // =======================================================
 
-      const lastM5 =
-        M5[
-          M5.length - 1
-        ];
-
-      const momentumBull =
-        bullish(lastM5) &&
-        bodyRatio(lastM5) >=
-          0.45;
-
-      const momentumBear =
-        bearish(lastM5) &&
-        bodyRatio(lastM5) >=
-          0.45;
-
-      if (
-        side === "BUY" &&
-        momentumBull
-      ) {
-        trigger += 6;
-
-        reasons.push(
-          "M5 bullish momentum"
-        );
-      }
-
-      if (
-        side === "SELL" &&
-        momentumBear
-      ) {
-        trigger += 6;
-
-        reasons.push(
-          "M5 bearish momentum"
-        );
-      }
-
-      // -------------------------------------------------------
-      // TOTAL SCORE
-      // -------------------------------------------------------
-
-      const total =
+      score =
         clamp(
-          context +
-          location +
-          trigger +
-          pattern +
-          quality,
+          Math.round(score),
           0,
           100
         );
 
       // =======================================================
-      // SCALPING STATUS
-      //
-      // OFFICIAL RULE:
-      // SCORE >= 55
-      // +
-      // SIDE-SPECIFIC M5 CONFIRMATION
-      // =
-      // SIGNAL
+      // CONFIRMATION
       // =======================================================
 
-      let status = "WAIT";
+      const hasM5Trigger =
+        isBuy
+          ? m5Trigger.buy.length > 0
+          : m5Trigger.sell.length > 0;
+
+      const hasLiquidity =
+        isBuy
+          ? liquidityM5.bullish
+          : liquidityM5.bearish;
+
+      const hasPattern =
+        isBuy
+          ? (
+              doubleM5.type ===
+              "DOUBLE_BOTTOM" ||
+              qmM5.type ===
+              "QM_BUY"
+            )
+          : (
+              doubleM5.type ===
+              "DOUBLE_TOP" ||
+              qmM5.type ===
+              "QM_SELL"
+            );
+
+      const hasStructure =
+        isBuy
+          ? (
+              bosM5.bullish ||
+              chochM5.bullish ||
+              breakRetestM5.bullish
+            )
+          : (
+              bosM5.bearish ||
+              chochM5.bearish ||
+              breakRetestM5.bearish
+            );
+
+      const hasConfirmation =
+        hasM5Trigger ||
+        hasLiquidity ||
+        hasPattern ||
+        hasStructure;
 
       const hasLocation =
         zoneDir === side ||
         cmpLocation.state ===
-          "INSIDE_ZONE" ||
-        (
-          cmpLocation.state ===
-            "APPROACHING_ZONE" &&
-          zoneDir === side
-        ) ||
-        (
-          cmpLocation.state ===
-            "NEAR_ZONE" &&
-          zoneDir === side
-        );
+        "INSIDE_ZONE" ||
+        cmpLocation.state ===
+        "NEAR_ZONE";
 
-      const hasLiquidityConfirmation =
-        (
-          side === "BUY" &&
-          liquidityM5.bullish
-        ) ||
-        (
-          side === "SELL" &&
-          liquidityM5.bearish
-        );
+      // =======================================================
+      // STATUS
+      // =======================================================
 
-      const hasPatternConfirmation =
-        (
-          side === "BUY" &&
-          (
-            doubleM5.type ===
-              "DOUBLE_BOTTOM" ||
-            qmM5.type ===
-              "QM_BUY"
-          )
-        ) ||
-        (
-          side === "SELL" &&
-          (
-            doubleM5.type ===
-              "DOUBLE_TOP" ||
-            qmM5.type ===
-              "QM_SELL"
-          )
-        );
-
-      const hasConfirmation =
-        hasM5Confirmation ||
-        hasLiquidityConfirmation ||
-        hasPatternConfirmation;
-
-      const trendAligned =
-        marketRegime ===
-          (
-            side === "BUY"
-              ? "TRENDING_BULLISH"
-              : "TRENDING_BEARISH"
-          ) ||
-        marketRegime ===
-          (
-            side === "BUY"
-              ? "BREAKOUT_BULLISH"
-              : "BREAKOUT_BEARISH"
-          );
-
-      // -------------------------------------------------------
-      // SETUP
-      // -------------------------------------------------------
+      let status =
+        "WAIT";
 
       if (
-        total >= 28 &&
+        score >= 30 &&
         (
           hasLocation ||
-          hasConfirmation ||
-          trendAligned
+          hasConfirmation
         )
       ) {
         status = "SETUP";
       }
 
-      // -------------------------------------------------------
-      // READY
-      // -------------------------------------------------------
-
       if (
-        total >= 38 &&
-        (
-          (
-            hasLocation &&
-            hasConfirmation
-          ) ||
-          (
-            trendAligned &&
-            context >= 20
-          )
-        )
+        score >= 45 &&
+        hasLocation &&
+        hasConfirmation
       ) {
         status = "READY";
       }
 
-      // -------------------------------------------------------
-      // FINAL SIGNAL
-      // NO EXTRA LOCATION/TREND REQUIREMENT
-      // -------------------------------------------------------
-
+      // SCALPING SIGNAL 65+
       if (
-        total >= SCALP_SIGNAL_SCORE &&
-        hasM5Confirmation
+        score >= SCALP_SIGNAL_SCORE &&
+        hasConfirmation &&
+        (
+          hasLocation ||
+          direction.H1 === wanted ||
+          direction.M15 === wanted
+        )
       ) {
         status = "SIGNAL";
       }
 
       return {
         side,
-
         status,
-
-        score: total,
-
-        signalThreshold:
-          SCALP_SIGNAL_SCORE,
+        score,
 
         contextScore:
-          context,
+          (
+            direction.H1 === wanted
+              ? 15
+              : 0
+          ) +
+          (
+            direction.M15 === wanted
+              ? 15
+              : 0
+          ),
 
         locationScore:
-          location,
+          (
+            zoneDir === side
+              ? 10
+              : 0
+          ) +
+          (
+            cmpLocation.state ===
+            "INSIDE_ZONE"
+              ? 8
+              : 0
+          ),
 
         triggerScore:
-          trigger,
+          (
+            engulfing
+              ? 10
+              : 0
+          ) +
+          (
+            rejection
+              ? 8
+              : 0
+          ) +
+          (
+            displacement
+              ? 10
+              : 0
+          ) +
+          (
+            hasLiquidity
+              ? 5
+              : 0
+          ),
 
         patternScore:
-          pattern,
+          (
+            hasPattern
+              ? 8
+              : 0
+          ) +
+          (
+            baseAligned
+              ? 5
+              : 0
+          ),
 
         qualityScore:
-          quality,
+          (
+            freshZone.fresh &&
+            zoneDir === side
+          )
+            ? 5
+            : 0,
 
         m5Confirmed:
-          hasM5Confirmation,
+          hasM5Trigger,
 
         reasons: [
-          ...new Set(
-            reasons
-          )
-        ].slice(0, 10)
+          ...new Set(reasons)
+        ].slice(0, 12)
       };
     }
 
@@ -2379,11 +2949,11 @@ export default async function handler(req, res) {
 
     // =========================================================
     // INTRADAY ENGINE
+    // SELECTIVE MULTI-TECHNIQUE
+    // SIGNAL = 90+
     // =========================================================
 
-    function intradaySide(
-      side
-    ) {
+    function intradaySide(side) {
       let score = 0;
 
       const reasons = [];
@@ -2393,15 +2963,17 @@ export default async function handler(req, res) {
           ? "BULLISH"
           : "BEARISH";
 
+      const isBuy =
+        side === "BUY";
+
       // -------------------------------------------------------
       // H4
       // -------------------------------------------------------
 
       if (
-        direction.H4 ===
-        wanted
+        direction.H4 === wanted
       ) {
-        score += 30;
+        score += 20;
 
         reasons.push(
           `H4 ${side} bias`
@@ -2413,10 +2985,9 @@ export default async function handler(req, res) {
       // -------------------------------------------------------
 
       if (
-        direction.H1 ===
-        wanted
+        direction.H1 === wanted
       ) {
-        score += 25;
+        score += 20;
 
         reasons.push(
           `H1 ${side} bias`
@@ -2428,10 +2999,9 @@ export default async function handler(req, res) {
       // -------------------------------------------------------
 
       if (
-        direction.M15 ===
-        wanted
+        direction.M15 === wanted
       ) {
-        score += 20;
+        score += 15;
 
         reasons.push(
           `M15 ${side} structure`
@@ -2439,77 +3009,364 @@ export default async function handler(req, res) {
       }
 
       // -------------------------------------------------------
-      // ZONE
+      // SNR / SUPPLY DEMAND
       // -------------------------------------------------------
 
       if (
         zoneDir === side
       ) {
-        score += 15;
+        score += 10;
 
         reasons.push(
           `${side} MTF zone`
         );
       }
 
-      // -------------------------------------------------------
-      // SIDE-SPECIFIC M5 CONFIRMATION
-      // -------------------------------------------------------
-
-      const hasM5Confirmation =
-        side === "BUY"
-          ? m5Trigger.buy.length > 0
-          : m5Trigger.sell.length > 0;
-
       if (
-        hasM5Confirmation
+        cmpLocation.state ===
+        "INSIDE_ZONE"
       ) {
-        score += 12;
+        score += 5;
 
         reasons.push(
-          `M5 ${side} confirmation`
+          "CMP inside zone"
         );
       }
 
       // -------------------------------------------------------
-      // M15 LIQUIDITY
+      // FRESH ZONE
       // -------------------------------------------------------
 
       if (
-        side === "BUY" &&
-        liquidityM15.bullish
+        zoneDir === side &&
+        freshZone.fresh
       ) {
+        score += 5;
+
+        reasons.push(
+          "Fresh zone"
+        );
+      }
+
+      // -------------------------------------------------------
+      // FIBONACCI
+      // -------------------------------------------------------
+
+      const fibAligned =
+        isBuy
+          ? (
+              fibonacciM15.buy ||
+              fibonacciM5.buy
+            )
+          : (
+              fibonacciM15.sell ||
+              fibonacciM5.sell
+            );
+
+      if (fibAligned) {
         score += 8;
 
         reasons.push(
-          "M15 bullish liquidity sweep"
+          "Fibonacci 0.382 / 0.500"
         );
       }
 
+      // -------------------------------------------------------
+      // FIBO + SNR
+      // -------------------------------------------------------
+
       if (
-        side === "SELL" &&
-        liquidityM15.bearish
+        fibAligned &&
+        zoneDir === side
       ) {
+        score += 5;
+
+        reasons.push(
+          "Fibonacci + SNR confluence"
+        );
+      }
+
+      // -------------------------------------------------------
+      // BOS
+      // -------------------------------------------------------
+
+      const bosAligned =
+        isBuy
+          ? (
+              bosM15.bullish ||
+              bosM5.bullish
+            )
+          : (
+              bosM15.bearish ||
+              bosM5.bearish
+            );
+
+      if (bosAligned) {
+        score += 5;
+
+        reasons.push(
+          `${side} BOS`
+        );
+      }
+
+      // -------------------------------------------------------
+      // CHoCH
+      // -------------------------------------------------------
+
+      const chochAligned =
+        isBuy
+          ? (
+              chochM15.bullish ||
+              chochM5.bullish
+            )
+          : (
+              chochM15.bearish ||
+              chochM5.bearish
+            );
+
+      if (chochAligned) {
+        score += 5;
+
+        reasons.push(
+          `${side} CHoCH`
+        );
+      }
+
+      // -------------------------------------------------------
+      // LIQUIDITY
+      // -------------------------------------------------------
+
+      const liquidityAligned =
+        isBuy
+          ? (
+              liquidityM15.bullish ||
+              liquidityM5.bullish
+            )
+          : (
+              liquidityM15.bearish ||
+              liquidityM5.bearish
+            );
+
+      if (liquidityAligned) {
+        score += 5;
+
+        reasons.push(
+          `${side} liquidity sweep`
+        );
+      }
+
+      // -------------------------------------------------------
+      // TRENDLINE
+      // -------------------------------------------------------
+
+      const trendlineAligned =
+        isBuy
+          ? (
+              trendlineM15.bullish ||
+              trendlineM5.bullish
+            )
+          : (
+              trendlineM15.bearish ||
+              trendlineM5.bearish
+            );
+
+      if (trendlineAligned) {
+        score += 5;
+
+        reasons.push(
+          `${side} trendline break/retest`
+        );
+      }
+
+      // -------------------------------------------------------
+      // BREAK + RETEST
+      // -------------------------------------------------------
+
+      const breakRetestAligned =
+        isBuy
+          ? (
+              breakRetestM15.bullish ||
+              breakRetestM5.bullish
+            )
+          : (
+              breakRetestM15.bearish ||
+              breakRetestM5.bearish
+            );
+
+      if (breakRetestAligned) {
+        score += 5;
+
+        reasons.push(
+          `${side} breakout + retest`
+        );
+      }
+
+      // -------------------------------------------------------
+      // QM
+      // -------------------------------------------------------
+
+      const qmAligned =
+        isBuy
+          ? (
+              qmM15.type === "QM_BUY" ||
+              qmM5.type === "QM_BUY"
+            )
+          : (
+              qmM15.type === "QM_SELL" ||
+              qmM5.type === "QM_SELL"
+            );
+
+      if (qmAligned) {
+        score += 5;
+
+        reasons.push(
+          `QM ${side}`
+        );
+      }
+
+      // -------------------------------------------------------
+      // BASE PATTERN
+      // -------------------------------------------------------
+
+      const baseAligned =
+        isBuy
+          ? (
+              baseM15.bullish ||
+              baseM5.bullish
+            )
+          : (
+              baseM15.bearish ||
+              baseM5.bearish
+            );
+
+      if (baseAligned) {
+        score += 5;
+
+        reasons.push(
+          `${side} base pattern`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 ENGULFING
+      // -------------------------------------------------------
+
+      const engulfing =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "BULLISH_ENGULFING"
+            )
+          : m5Trigger.sell.includes(
+              "BEARISH_ENGULFING"
+            );
+
+      if (engulfing) {
+        score += 7;
+
+        reasons.push(
+          `${side} engulfing`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 REJECTION
+      // -------------------------------------------------------
+
+      const rejection =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "BULLISH_REJECTION"
+            )
+          : m5Trigger.sell.includes(
+              "BEARISH_REJECTION"
+            );
+
+      if (rejection) {
+        score += 6;
+
+        reasons.push(
+          `${side} rejection`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 DISPLACEMENT
+      // -------------------------------------------------------
+
+      const displacement =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "BULLISH_DISPLACEMENT"
+            )
+          : m5Trigger.sell.includes(
+              "BEARISH_DISPLACEMENT"
+            );
+
+      if (displacement) {
         score += 8;
 
         reasons.push(
-          "M15 bearish liquidity sweep"
+          `${side} displacement`
         );
       }
+
+      // -------------------------------------------------------
+      // DOUBLE TOP / BOTTOM
+      // -------------------------------------------------------
+
+      const doubleAligned =
+        isBuy
+          ? doubleM5.type ===
+            "DOUBLE_BOTTOM"
+          : doubleM5.type ===
+            "DOUBLE_TOP";
+
+      if (doubleAligned) {
+        score += 5;
+
+        reasons.push(
+          `${side} double pattern`
+        );
+      }
+
+      // -------------------------------------------------------
+      // M5 STRUCTURE SHIFT
+      // -------------------------------------------------------
+
+      const structureShift =
+        isBuy
+          ? m5Trigger.buy.includes(
+              "M5_STRUCTURE_SHIFT"
+            )
+          : m5Trigger.sell.includes(
+              "M5_STRUCTURE_SHIFT"
+            );
+
+      if (structureShift) {
+        score += 5;
+
+        reasons.push(
+          `M5 ${side} structure shift`
+        );
+      }
+
+      // -------------------------------------------------------
+      // TOTAL
+      // -------------------------------------------------------
 
       score =
         clamp(
-          score,
+          Math.round(score),
           0,
           100
         );
 
+      // =======================================================
+      // STATUS
+      // =======================================================
+
       let status =
         "WAIT";
-
-      // -------------------------------------------------------
-      // SETUP
-      // -------------------------------------------------------
 
       if (
         score >= 45
@@ -2518,33 +3375,32 @@ export default async function handler(req, res) {
           "SETUP";
       }
 
-      // -------------------------------------------------------
-      // READY
-      // -------------------------------------------------------
-
       if (
-        score >= 58
+        score >= 65 &&
+        direction.H4 === wanted &&
+        direction.H1 === wanted
       ) {
         status =
           "READY";
       }
 
-      // -------------------------------------------------------
-      // FINAL INTRADAY SIGNAL
-      //
-      // OFFICIAL RULE:
-      // SCORE >= 85
-      // +
-      // M5 CONFIRMATION
-      // =
-      // SIGNAL
-      //
-      // NO EXTRA H4/H1/M15 GATE
-      // -------------------------------------------------------
+      const intradayConfirmation =
+        engulfing ||
+        rejection ||
+        displacement ||
+        liquidityAligned ||
+        bosAligned ||
+        chochAligned ||
+        breakRetestAligned ||
+        qmAligned;
 
+      // INTRADAY SIGNAL 90+
       if (
         score >= INTRA_SIGNAL_SCORE &&
-        hasM5Confirmation
+        direction.H4 === wanted &&
+        direction.H1 === wanted &&
+        direction.M15 === wanted &&
+        intradayConfirmation
       ) {
         status =
           "SIGNAL";
@@ -2552,22 +3408,18 @@ export default async function handler(req, res) {
 
       return {
         side,
-
         status,
-
         score,
 
-        signalThreshold:
-          INTRA_SIGNAL_SCORE,
+        reasons: [
+          ...new Set(reasons)
+        ].slice(0, 12),
 
         m5Confirmed:
-          hasM5Confirmation,
-
-        reasons: [
-          ...new Set(
-            reasons
-          )
-        ].slice(0, 10)
+          engulfing ||
+          rejection ||
+          displacement ||
+          structureShift
       };
     }
 
@@ -2623,16 +3475,16 @@ export default async function handler(req, res) {
         side === "BUY"
           ? round(
               entry -
-                pointsToPrice(
-                  slPoints
-                ),
+              pointsToPrice(
+                slPoints
+              ),
               2
             )
           : round(
               entry +
-                pointsToPrice(
-                  slPoints
-                ),
+              pointsToPrice(
+                slPoints
+              ),
               2
             );
 
@@ -2640,16 +3492,16 @@ export default async function handler(req, res) {
         side === "BUY"
           ? round(
               entry +
-                pointsToPrice(
-                  tp1Points
-                ),
+              pointsToPrice(
+                tp1Points
+              ),
               2
             )
           : round(
               entry -
-                pointsToPrice(
-                  tp1Points
-                ),
+              pointsToPrice(
+                tp1Points
+              ),
               2
             );
 
@@ -2657,22 +3509,21 @@ export default async function handler(req, res) {
         side === "BUY"
           ? round(
               entry +
-                pointsToPrice(
-                  tp2Points
-                ),
+              pointsToPrice(
+                tp2Points
+              ),
               2
             )
           : round(
               entry -
-                pointsToPrice(
-                  tp2Points
-                ),
+              pointsToPrice(
+                tp2Points
+              ),
               2
             );
 
       return {
         direction: side,
-
         mode,
 
         status:
@@ -2680,22 +3531,13 @@ export default async function handler(req, res) {
             ? "SIGNAL"
             : "SETUP",
 
-        score,
-
-        signalThreshold,
-
         entry,
-
         sl,
-
         tp1,
-
         tp2,
 
         slPoints,
-
         tp1Points,
-
         tp2Points,
 
         slPips:
@@ -2714,76 +3556,36 @@ export default async function handler(req, res) {
     // =========================================================
 
     const scalpCandidate =
-      scalpBuy.score >=
-      scalpSell.score
+      scalpBuy.score >= scalpSell.score
         ? scalpBuy
         : scalpSell;
 
     const intraCandidate =
-      intraBuy.score >=
-      intraSell.score
+      intraBuy.score >= intraSell.score
         ? intraBuy
         : intraSell;
-
-    // =========================================================
-    // VALID SIGNAL CANDIDATES
-    // =========================================================
-
-    const validScalpCandidates = [
-      scalpBuy,
-      scalpSell
-    ].filter(
-      x =>
-        x.status ===
-        "SIGNAL"
-    );
-
-    const validIntradayCandidates = [
-      intraBuy,
-      intraSell
-    ].filter(
-      x =>
-        x.status ===
-        "SIGNAL"
-    );
-
-    const bestScalpSignal =
-      validScalpCandidates.length
-        ? validScalpCandidates.sort(
-            (a, b) =>
-              b.score -
-              a.score
-          )[0]
-        : null;
-
-    const bestIntradaySignal =
-      validIntradayCandidates.length
-        ? validIntradayCandidates.sort(
-            (a, b) =>
-              b.score -
-              a.score
-          )[0]
-        : null;
 
     // =========================================================
     // PLANS
     // =========================================================
 
     const scalpingPlan =
-      bestScalpSignal
+      scalpCandidate.status ===
+      "SIGNAL"
         ? buildTradePlan(
-            bestScalpSignal.side,
+            scalpCandidate.side,
             "SCALPING",
-            bestScalpSignal.score
+            scalpCandidate.score
           )
         : null;
 
     const intradayPlan =
-      bestIntradaySignal
+      intraCandidate.status ===
+      "SIGNAL"
         ? buildTradePlan(
-            bestIntradaySignal.side,
+            intraCandidate.side,
             "INTRADAY",
-            bestIntradaySignal.score
+            intraCandidate.score
           )
         : null;
 
@@ -2795,60 +3597,10 @@ export default async function handler(req, res) {
       side,
       mode
     ) {
-      const candidate =
-        mode === "SCALPING"
-          ? (
-              side === "BUY"
-                ? scalpBuy
-                : scalpSell
-            )
-          : (
-              side === "BUY"
-                ? intraBuy
-                : intraSell
-            );
-
-      const threshold =
-        mode === "SCALPING"
-          ? SCALP_SIGNAL_SCORE
-          : INTRA_SIGNAL_SCORE;
-
-      const hasSideM5Confirmation =
-        mode === "SCALPING"
-          ? (
-              side === "BUY"
-                ? m5Trigger.buy.length > 0
-                : m5Trigger.sell.length > 0
-            )
-          : (
-              side === "BUY"
-                ? m5Trigger.buy.length > 0
-                : m5Trigger.sell.length > 0
-            );
-
-      // -------------------------------------------------------
-      // SCORE CUKUP TAPI M5 TAK CONFIRM
-      // -------------------------------------------------------
-
-      if (
-        candidate.score >=
-          threshold &&
-        !hasSideM5Confirmation
-      ) {
-        return `WAITING FOR M5 ${side} CONFIRMATION`;
-      }
-
-      // -------------------------------------------------------
-      // M5 CONFIRM TAPI SCORE BELUM CUKUP
-      // -------------------------------------------------------
-
-      if (
-        candidate.score <
-          threshold &&
-        hasSideM5Confirmation
-      ) {
-        return `${mode} SCORE ${candidate.score}/${threshold} — WAITING FOR HIGHER SCORE`;
-      }
+      const wanted =
+        side === "BUY"
+          ? "BULLISH"
+          : "BEARISH";
 
       if (
         mode === "SCALPING"
@@ -2857,14 +3609,20 @@ export default async function handler(req, res) {
           m15Test.support &&
           earlyBreak.bearish
         ) {
-          return "M15 SUPPORT UNDER TEST — M5 BROKE SUPPORT EARLY";
+          return (
+            "M15 SUPPORT UNDER TEST — " +
+            "M5 BROKE SUPPORT EARLY"
+          );
         }
 
         if (
           m15Test.resistance &&
           earlyBreak.bullish
         ) {
-          return "M15 RESISTANCE UNDER TEST — M5 BROKE RESISTANCE EARLY";
+          return (
+            "M15 RESISTANCE UNDER TEST — " +
+            "M5 BROKE RESISTANCE EARLY"
+          );
         }
 
         if (
@@ -2872,52 +3630,96 @@ export default async function handler(req, res) {
             "FORMING"
           )
         ) {
-          return "M15 CANDLE NOT CLOSED — WAITING FOR CONFIRMATION";
+          return (
+            "M15 CANDLE NOT CLOSED — " +
+            "WAITING FOR CONFIRMATION"
+          );
         }
 
         if (
           cmpLocation.state ===
           "FAR_FROM_ZONE"
         ) {
-          return "ZONE TOO FAR FROM CMP";
+          return (
+            "ZONE TOO FAR FROM CMP"
+          );
         }
 
         if (
           cmpLocation.state ===
           "APPROACHING_ZONE"
         ) {
-          return `WAITING FOR CMP TO ENTER ${zoneDir} ZONE`;
+          return (
+            `WAITING FOR CMP TO ENTER ${zoneDir} ZONE`
+          );
         }
 
         if (
           cmpLocation.state ===
             "INSIDE_ZONE" &&
-          !hasSideM5Confirmation
+          !(
+            side === "BUY"
+              ? m5Trigger.buy.length
+              : m5Trigger.sell.length
+          )
         ) {
-          return `WAITING FOR M5 ${side} CONFIRMATION`;
+          return (
+            `WAITING FOR M5 ${side} CONFIRMATION`
+          );
         }
 
         if (
           m15Break.confirmed
         ) {
-          return "WAITING FOR RETEST";
+          return (
+            "WAITING FOR RETEST"
+          );
         }
 
-        return `WAITING FOR ${side} SCALPING TRIGGER`;
+        return (
+          `WAITING FOR ${side} SCALPING TRIGGER`
+        );
       }
 
-      // -------------------------------------------------------
+      // =======================================================
       // INTRADAY WAIT
-      // -------------------------------------------------------
+      // =======================================================
 
       if (
-        candidate.score <
-        INTRA_SIGNAL_SCORE
+        direction.H4 !== wanted
       ) {
-        return `INTRADAY SCORE ${candidate.score}/${INTRA_SIGNAL_SCORE} — WAITING FOR HIGHER SCORE`;
+        return (
+          `WAITING FOR H4 ${side} ALIGNMENT`
+        );
       }
 
-      return `WAITING FOR M5 ${side} CONFIRMATION`;
+      if (
+        direction.H1 !== wanted
+      ) {
+        return (
+          `WAITING FOR H1 ${side} ALIGNMENT`
+        );
+      }
+
+      if (
+        direction.M15 !== wanted
+      ) {
+        return (
+          `WAITING FOR M15 ${side} ALIGNMENT`
+        );
+      }
+
+      if (
+        zoneDir !== side
+      ) {
+        return (
+          `WAITING FOR ${side} M15 ZONE`
+        );
+      }
+
+      return (
+        `WAITING FOR STRONGER ${side} CONFLUENCE`
+      );
     }
 
     // =========================================================
@@ -2929,6 +3731,10 @@ export default async function handler(req, res) {
       mode
     ) {
       const parts = [];
+
+      parts.push(
+        `H4 ${direction.H4.toLowerCase()}`
+      );
 
       parts.push(
         `H1 ${direction.H1.toLowerCase()}`
@@ -2943,15 +3749,6 @@ export default async function handler(req, res) {
       ) {
         parts.push(
           `CMP ${cmpLocation.state.toLowerCase()} ${cmpLocation.zone.type.toLowerCase()}`
-        );
-      }
-
-      if (
-        m15Break.type !==
-        "NONE"
-      ) {
-        parts.push(
-          m15Break.type
         );
       }
 
@@ -2983,114 +3780,79 @@ export default async function handler(req, res) {
     }
 
     // =========================================================
-    // PRIMARY / MAIN SIGNAL
-    //
-    // RULE:
-    // 1. Only VALID SIGNAL can become MAIN
-    // 2. If only SCALPING valid -> SCALPING
-    // 3. If only INTRADAY valid -> INTRADAY
-    // 4. If BOTH valid -> HIGHER SCORE wins
+    // PRIMARY SETUP
+    // MAIN SIGNAL = STRONGEST VALID SIGNAL
+    // DOES NOT CHANGE SCALPING / INTRADAY
     // =========================================================
 
-    let primarySetup =
-      null;
+    const primaryCandidates = [];
 
     if (
-      bestScalpSignal &&
-      bestIntradaySignal
+      scalpingPlan
     ) {
-      if (
-        bestScalpSignal.score >=
-        bestIntradaySignal.score
-      ) {
-        primarySetup = {
-          ...scalpingPlan,
-
-          source:
-            "SCALPING",
-
-          score:
-            bestScalpSignal.score,
-
-          reasons:
-            bestScalpSignal.reasons,
-
-          narrative:
-            narrative(
-              bestScalpSignal.side,
-              "SCALPING"
-            )
-        };
-      } else {
-        primarySetup = {
-          ...intradayPlan,
-
-          source:
-            "INTRADAY",
-
-          score:
-            bestIntradaySignal.score,
-
-          reasons:
-            bestIntradaySignal.reasons,
-
-          narrative:
-            narrative(
-              bestIntradaySignal.side,
-              "INTRADAY"
-            )
-        };
-      }
-    }
-
-    else if (
-      bestScalpSignal
-    ) {
-      primarySetup = {
+      primaryCandidates.push({
         ...scalpingPlan,
 
-        source:
-          "SCALPING",
-
         score:
-          bestScalpSignal.score,
+          scalpCandidate.score,
 
         reasons:
-          bestScalpSignal.reasons,
+          scalpCandidate.reasons,
 
         narrative:
           narrative(
-            bestScalpSignal.side,
+            scalpCandidate.side,
             "SCALPING"
           )
-      };
+      });
     }
 
-    else if (
-      bestIntradaySignal
+    if (
+      intradayPlan
     ) {
-      primarySetup = {
+      primaryCandidates.push({
         ...intradayPlan,
 
-        source:
-          "INTRADAY",
-
         score:
-          bestIntradaySignal.score,
+          intraCandidate.score,
 
         reasons:
-          bestIntradaySignal.reasons,
+          intraCandidate.reasons,
 
         narrative:
           narrative(
-            bestIntradaySignal.side,
+            intraCandidate.side,
             "INTRADAY"
           )
-      };
+      });
     }
 
+    primaryCandidates.sort(
+      (a, b) => {
+        if (
+          b.score !== a.score
+        ) {
+          return b.score - a.score;
+        }
+
+        // Tie → prefer scalping
+        if (
+          a.mode === "SCALPING"
+        ) {
+          return -1;
+        }
+
+        return 1;
+      }
+    );
+
+    const primarySetup =
+      primaryCandidates.length
+        ? primaryCandidates[0]
+        : null;
+
     // =========================================================
-    // SIGNAL COUNTER
+    // SIGNAL COUNTERS
     // =========================================================
 
     const scalpSignals = [
@@ -3107,15 +3869,12 @@ export default async function handler(req, res) {
       scalpSell
     ].filter(
       x =>
-        x.status ===
-          "SETUP" ||
-        x.status ===
-          "READY" ||
-        x.status ===
-          "SIGNAL"
+        x.status === "SETUP" ||
+        x.status === "READY" ||
+        x.status === "SIGNAL"
     );
 
-    const intradaySignals = [
+    const intraSignals = [
       intraBuy,
       intraSell
     ].filter(
@@ -3166,7 +3925,7 @@ export default async function handler(req, res) {
           "SINNCI MARKET ENGINE PRO",
 
         version:
-          "PRO-2.0",
+          "PRO-3.0",
 
         mode:
           "ACTIVE SCALPING / SELECTIVE INTRADAY",
@@ -3175,18 +3934,24 @@ export default async function handler(req, res) {
           "H4 → H1 → M15 → CMP → M5",
 
         signalStyle:
-          "ACTIVE SCALPING / SELECTIVE INTRADAY",
+          "MULTI-TECHNIQUE",
 
-        signalRules: {
-          scalping:
-            "SCORE >= 55 + M5 CONFIRMATION",
+        dataRequests:
+          "H4 + H1 + M15 + M5"
+      },
 
-          intraday:
-            "SCORE >= 85 + M5 CONFIRMATION",
+      thresholds: {
+        scalpingSignal:
+          SCALP_SIGNAL_SCORE,
 
-          main:
-            "VALID SIGNAL WITH HIGHEST SCORE"
-        }
+        intradaySignal:
+          INTRA_SIGNAL_SCORE,
+
+        fibonacci:
+          [
+            "0.382",
+            "0.500"
+          ]
       },
 
       market: {
@@ -3295,12 +4060,34 @@ export default async function handler(req, res) {
                   cmpLocation.zone.bodyLow,
 
                 quality:
-                  cmpLocation.zone.quality
+                  cmpLocation.zone.quality,
+
+                fresh:
+                  freshZone.fresh,
+
+                firstTouch:
+                  freshZone.firstTouch,
+
+                touches:
+                  freshZone.touches
               }
             : null,
 
         distancePoints:
           cmpLocation.distancePoints
+      },
+
+      fibonacci: {
+        M15:
+          fibonacciM15,
+
+        M5:
+          fibonacciM5,
+
+        allowedLevels: [
+          0.382,
+          0.500
+        ]
       },
 
       breakout: {
@@ -3310,14 +4097,37 @@ export default async function handler(req, res) {
         M5EarlyBreak:
           earlyBreak,
 
-        flip
+        flip,
+
+        breakRetestM15:
+          breakRetestM15,
+
+        breakRetestM5:
+          breakRetestM5
+      },
+
+      structureTechniques: {
+        bosM15,
+        bosM5,
+
+        chochM15,
+        chochM5,
+
+        trendlineM15,
+        trendlineM5
       },
 
       patterns: {
         liquidityM5,
         liquidityM15,
+
         doubleM5,
-        qmM5
+
+        qmM5,
+        qmM15,
+
+        baseM5,
+        baseM15
       },
 
       confirmation: {
@@ -3331,13 +4141,11 @@ export default async function handler(req, res) {
           m5Trigger.strongest
       },
 
+      // =======================================================
+      // SCALPING
+      // =======================================================
+
       scalping: {
-        signalThreshold:
-          SCALP_SIGNAL_SCORE,
-
-        rule:
-          "SCORE >= 55 + SIDE-SPECIFIC M5 CONFIRMATION",
-
         buy: {
           ...scalpBuy,
 
@@ -3385,13 +4193,11 @@ export default async function handler(req, res) {
         }
       },
 
+      // =======================================================
+      // INTRADAY
+      // =======================================================
+
       intraday: {
-        signalThreshold:
-          INTRA_SIGNAL_SCORE,
-
-        rule:
-          "SCORE >= 85 + SIDE-SPECIFIC M5 CONFIRMATION",
-
         buy: {
           ...intraBuy,
 
@@ -3419,7 +4225,7 @@ export default async function handler(req, res) {
         },
 
         activeSignals:
-          intradaySignals.length,
+          intraSignals.length,
 
         plan:
           intradayPlan,
@@ -3436,7 +4242,15 @@ export default async function handler(req, res) {
         }
       },
 
+      // =======================================================
+      // MAIN SIGNAL
+      // =======================================================
+
       primarySetup,
+
+      // =======================================================
+      // CANDLE STATUS
+      // =======================================================
 
       candleStatus: {
         M15Current:
@@ -3450,6 +4264,10 @@ export default async function handler(req, res) {
             M5.length - 1
           ].datetime
       },
+
+      // =======================================================
+      // ATR
+      // =======================================================
 
       atr: {
         H4:
@@ -3477,6 +4295,10 @@ export default async function handler(req, res) {
           )
       },
 
+      // =======================================================
+      // CANDLE COUNT
+      // =======================================================
+
       candles: {
         H4:
           H4.length,
@@ -3496,7 +4318,7 @@ export default async function handler(req, res) {
     };
 
     // =========================================================
-    // CACHE
+    // SAVE CACHE
     // =========================================================
 
     globalThis.__SINNCI_PRO_CACHE = {
@@ -3526,4 +4348,4 @@ export default async function handler(req, res) {
         "Market analysis failed"
     });
   }
-      }
+            }

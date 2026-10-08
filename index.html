@@ -663,12 +663,13 @@ body::after{
   display:flex;
   align-items:center;
   gap:7px;
-  padding:8px 12px;
+  padding:8px 14px;
   border:1px solid rgba(32,217,139,.2);
   border-radius:30px;
   background:rgba(32,217,139,.05);
   font-size:11px;
   color:#9ff5ce;
+  font-weight:700;
 }
 
 .live-dot{
@@ -769,20 +770,21 @@ body::after{
 }
 
 .tf{
-  padding:7px 12px;
-  border-radius:9px;
+  padding:8px 14px;
+  border-radius:10px;
   border:1px solid var(--line);
   color:var(--muted);
   font-size:10px;
   cursor:pointer;
   transition:all .2s;
+  user-select:none;
 }
 
 .tf.active{
   color:#111;
   background:var(--gold);
   border-color:var(--gold);
-  font-weight:800;
+  font-weight:900;
 }
 
 .ai-card{
@@ -838,9 +840,9 @@ body::after{
   line-height:1.5;
 }
 
-/* ==============================
-   DUAL MAIN ENGINE: ZONE VS SIGNAL
-   ============================== */
+/* =========================================================
+   2 BAHAGIAN UTAMA: ZONE SETUP vs ENTRY SIGNAL
+   ========================================================= */
 
 .engine-duo{
   display:grid;
@@ -853,13 +855,9 @@ body::after{
   padding:24px;
   border-radius:22px;
   background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));
-  border:1px solid var(--line);
+  border:1px solid rgba(216,180,90,.3);
   position:relative;
   overflow:hidden;
-}
-
-.zone-panel.locked{
-  border-color:rgba(216,180,90,.3);
 }
 
 .zone-header{
@@ -869,18 +867,18 @@ body::after{
 }
 
 .badge-locked{
-  padding:5px 9px;
+  padding:5px 10px;
   border-radius:8px;
-  font-size:8px;
+  font-size:9px;
   font-weight:900;
   letter-spacing:.6px;
   background:rgba(216,180,90,.12);
   color:var(--gold2);
-  border:1px solid rgba(216,180,90,.25);
+  border:1px solid rgba(216,180,90,.3);
 }
 
 .zone-box{
-  margin:18px 0 12px;
+  margin:16px 0 14px;
   padding:16px;
   border-radius:16px;
   background:rgba(255,255,255,.025);
@@ -889,26 +887,60 @@ body::after{
 }
 
 .zone-title{
-  font-size:10px;
-  color:var(--muted);
+  font-size:11px;
+  color:var(--gold);
   letter-spacing:1px;
-  font-weight:700;
+  font-weight:900;
 }
 
 .zone-range-text{
-  font-size:26px;
+  font-size:28px;
   font-weight:900;
   margin-top:6px;
   letter-spacing:.5px;
 }
 
-.zone-sub-info{
-  margin-top:6px;
-  font-size:11px;
+.zone-cmp-row{
+  margin-top:8px;
+  font-size:12px;
   color:var(--muted);
   display:flex;
   justify-content:center;
-  gap:10px;
+  align-items:center;
+  gap:8px;
+}
+
+.zone-cmp-val{
+  font-weight:900;
+  color:var(--white);
+}
+
+.zone-meta-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-top:10px;
+}
+
+.zone-meta-box{
+  padding:10px;
+  border-radius:10px;
+  background:rgba(255,255,255,.02);
+  border:1px solid rgba(255,255,255,.04);
+  text-align:center;
+}
+
+.zone-meta-label{
+  font-size:8px;
+  color:var(--muted);
+  letter-spacing:.5px;
+}
+
+.zone-meta-val{
+  font-size:11px;
+  font-weight:900;
+  margin-top:4px;
+  color:var(--gold2);
 }
 
 .signal-card{
@@ -920,7 +952,7 @@ body::after{
 .signal-card.ready{border-color:rgba(32,217,139,.35);box-shadow:0 0 35px rgba(32,217,139,.1);}
 .signal-card.checking{border-color:rgba(56,189,248,.35);}
 .signal-card.wait{border-color:rgba(242,201,76,.2);}
-.signal-card.invalid{border-color:rgba(255,82,104,.25);}
+.signal-card.noconfirm{border-color:rgba(255,82,104,.25);}
 
 .signal-top{
   display:flex;
@@ -945,25 +977,10 @@ body::after{
   font-weight:900;
 }
 
-.ready .signal-icon{
-  color:var(--green);
-  background:rgba(32,217,139,.12);
-}
-
-.checking .signal-icon{
-  color:var(--blue);
-  background:rgba(56,189,248,.12);
-}
-
-.wait .signal-icon{
-  color:var(--yellow);
-  background:rgba(242,201,76,.08);
-}
-
-.invalid .signal-icon{
-  color:var(--red);
-  background:rgba(255,82,104,.1);
-}
+.ready .signal-icon{color:var(--green);background:rgba(32,217,139,.12);}
+.checking .signal-icon{color:var(--blue);background:rgba(56,189,248,.12);}
+.wait .signal-icon{color:var(--yellow);background:rgba(242,201,76,.08);}
+.noconfirm .signal-icon{color:var(--red);background:rgba(255,82,104,.1);}
 
 .signal-name{
   font-size:22px;
@@ -978,7 +995,7 @@ body::after{
 
 .flow-tracker{
   margin-top:16px;
-  padding:10px 14px;
+  padding:11px 14px;
   border-radius:12px;
   background:rgba(0,0,0,.45);
   border:1px solid rgba(255,255,255,.05);
@@ -991,12 +1008,12 @@ body::after{
 }
 
 .step-node{color:var(--muted)}
-.step-node.active{color:var(--gold2)}
+.step-node.active{color:var(--blue)}
 .step-node.done{color:var(--green)}
 
-/* ==============================
-   TRADE PLAN (GATED)
-   ============================== */
+/* =========================================================
+   TRADE PLAN (GATED BEFORE SIGNAL READY)
+   ========================================================= */
 
 .plan-section{
   margin-bottom:16px;
@@ -1035,12 +1052,56 @@ body::after{
   border:1px dashed rgba(255,255,255,.1);
   color:var(--muted);
   font-size:11px;
-  margin-top:10px;
+  line-height:1.6;
 }
 
-/* ==============================
-   TRADING SETUPS
-   ============================== */
+/* =========================================================
+   MULTI-TIMEFRAME RADAR
+   ========================================================= */
+
+.direction-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  transition:all .3s ease;
+}
+
+.direction-grid.show-h4{
+  grid-template-columns:repeat(5,1fr);
+}
+
+.direction{
+  padding:14px 8px;
+  text-align:center;
+  border-radius:14px;
+  background:var(--panel);
+  border:1px solid var(--line);
+}
+
+.tf-name{
+  color:var(--muted);
+  font-size:9px;
+  letter-spacing:1px;
+  font-weight:700;
+}
+
+.dir{
+  margin-top:8px;
+  font-size:11px;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.bullish{color:var(--green)}
+.bearish{color:var(--red)}
+.neutral{color:var(--yellow)}
+.checking-color{color:var(--blue)}
+
+/* =========================================================
+   TRADING SETUPS (CARDS)
+   ========================================================= */
 
 .setup-section{
   margin-top:4px;
@@ -1120,12 +1181,6 @@ body::after{
   color:var(--yellow);
   background:rgba(242,201,76,.06);
   border:1px solid rgba(242,201,76,.11);
-}
-
-.setup-status.invalid{
-  color:var(--red);
-  background:rgba(255,82,104,.06);
-  border:1px solid rgba(255,82,104,.11);
 }
 
 .setup-direction{
@@ -1251,45 +1306,9 @@ body::after{
   font-weight:800;
 }
 
-/* Multi-Timeframe Radar (H4 / H1 / M15 / M5 / M1) */
-.direction-grid{
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:8px;
-}
-
-.direction{
-  padding:14px 8px;
-  text-align:center;
-  border-radius:14px;
-  background:var(--panel);
-  border:1px solid var(--line);
-}
-
-.tf-name{
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:1px;
-  font-weight:700;
-}
-
-.dir{
-  margin-top:8px;
-  font-size:11px;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.bullish{color:var(--green)}
-.bearish{color:var(--red)}
-.neutral{color:var(--yellow)}
-.checking-color{color:var(--blue)}
-
-/* ==============================
+/* =========================================================
    FOREX SESSIONS
-   ============================== */
+   ========================================================= */
 
 .session-grid{
   display:grid;
@@ -1379,9 +1398,9 @@ body::after{
   border:1px solid rgba(32,217,139,.08);
 }
 
-/* ==============================
+/* =========================================================
    NEWS
-   ============================== */
+   ========================================================= */
 
 .news-list{
   display:flex;
@@ -1547,9 +1566,9 @@ body::after{
   font-size:10px;
 }
 
-/* ==============================
+/* =========================================================
    MARKET DATA
-   ============================== */
+   ========================================================= */
 
 .data-grid{
   display:grid;
@@ -1602,7 +1621,7 @@ body::after{
   .session-grid{grid-template-columns:repeat(2,1fr);}
   .data-grid{grid-template-columns:repeat(2,1fr);}
   .setup-grid{grid-template-columns:1fr;}
-  .direction-grid{grid-template-columns:repeat(5,1fr);gap:5px;}
+  .direction-grid{gap:6px;}
   .direction{padding:10px 4px;}
   .tf-name{font-size:8px;}
   .dir{font-size:10px;}
@@ -1630,7 +1649,7 @@ body::after{
   .setup-metrics{grid-template-columns:repeat(2,1fr);}
   .setup-title{font-size:14px;}
   .setup-direction-text{font-size:16px;}
-  .direction-grid{grid-template-columns:repeat(5,1fr);gap:4px;}
+  .direction-grid{gap:4px;}
   .direction{padding:8px 2px;}
   .tf-name{font-size:7px;}
   .dir{font-size:8.5px;}
@@ -1763,34 +1782,48 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 </section>
 
 <!-- =========================================================
-     CORE DUO: ZONE SETUP (EARLY) VS ENTRY SIGNAL (GATED)
+     2 BAHAGIAN UTAMA: ZONE SETUP vs ENTRY SIGNAL
      ========================================================= -->
 <div class="engine-duo">
   
-  <!-- 1. ZONE SETUP -->
-  <section id="zonePanel" class="zone-panel locked">
+  <!-- 1. ZONE SETUP (LOCKED & PREVENT CHASE) -->
+  <section id="zonePanel" class="zone-panel">
     <div class="zone-header">
-      <div style="font-size:12px;font-weight:900;letter-spacing:1px;color:var(--gold);">ZONE SETUP (EARLY ALERT)</div>
-      <div id="zoneLockBadge" class="badge-locked">🔒 ZONE LOCKED</div>
+      <div style="font-size:12px;font-weight:900;letter-spacing:1px;color:var(--gold);">ZONE SETUP</div>
+      <div id="zoneLockBadge" class="badge-locked">LOCKED 🔒</div>
     </div>
 
     <div class="zone-box">
-      <div id="zoneSetupTitle" class="zone-title">STRUCTURE DEMAND / SUPPLY</div>
-      <div id="zoneRange" class="zone-range-text">----.– &ndash; ----.–</div>
-      <div class="zone-sub-info">
-        <span>Span: <strong id="zoneSpanPoints" style="color:var(--white);">-- pts (-- pips)</strong></span>
-        <span>•</span>
-        <span>Status: <strong id="zoneStatus" style="color:var(--gold2);">WATCH</strong></span>
+      <div id="zoneTypeTitle" class="zone-title">BUY ZONE</div>
+      <div id="zoneRange" class="zone-range-text">----.– – ----.–</div>
+      <div class="zone-cmp-row">
+        <span>Current Price:</span>
+        <span id="zoneCmpValue" class="zone-cmp-val">----.--</span>
       </div>
     </div>
 
-    <div style="font-size:9.5px;color:var(--muted);line-height:1.5;">
+    <div class="zone-meta-grid">
+      <div class="zone-meta-box">
+        <div class="zone-meta-label">STATUS</div>
+        <div id="zoneStatusText" class="zone-meta-val">WATCH</div>
+      </div>
+      <div class="zone-meta-box">
+        <div class="zone-meta-label">SCORE</div>
+        <div id="zoneScoreText" class="zone-meta-val">--</div>
+      </div>
+      <div class="zone-meta-box">
+        <div class="zone-meta-label">SETUP / PUNCA</div>
+        <div id="zoneReasonText" class="zone-meta-val">SUPPORT / PULLBACK</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;font-size:9.5px;color:var(--muted);line-height:1.5;">
       • Fixed structural boundaries (20–35 pips).<br>
-      • <span style="color:var(--gold);">Strictly no price chasing</span>: Price movement outside zone does not shift boundaries.
+      • <span style="color:var(--gold);">Zone kekal pada aras asal</span> dan tidak mengejar pergerakan harga semasa.
     </div>
   </section>
 
-  <!-- 2. ENTRY SIGNAL -->
+  <!-- 2. ENTRY SIGNAL (GATED) -->
   <section id="signalCard" class="card signal-card wait">
     <div class="signal-top">
       <div class="signal-main">
@@ -1814,51 +1847,59 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <span id="stepSignal" class="step-node">SIGNAL READY</span>
     </div>
 
-    <div style="margin-top:12px;font-size:9px;color:var(--muted);">
-      Confirmation Gate: <strong id="signalConfirmationText" style="color:var(--gold);">M5 Break → M1 Confirmation</strong>
+    <div style="margin-top:12px;font-size:9.5px;color:var(--muted);">
+      Confirmation Gate: <strong id="signalConfirmationText" style="color:var(--gold);">Awaiting M5 trigger</strong>
     </div>
   </section>
 </div>
 
 <!-- =========================================================
-     TRADE PLAN (GATED ONLY ON SIGNAL READY)
+     TRADE PLAN (GATED BEFORE SIGNAL READY)
      ========================================================= -->
 <div class="section-title">RIGID EXECUTION PLAN • 30 PIPS SL MODEL</div>
 <section class="plan-section">
+  <!-- Paparan bila READY -->
   <div id="tradePlanGrid" class="signal-grid" style="display:none;">
     <div class="metric">
-      <div class="metric-label">PLANNED ENTRY</div>
-      <div id="entry" class="metric-value">---</div>
+      <div class="metric-label">ENTRY</div>
+      <div id="planEntry" class="metric-value">---</div>
     </div>
     <div class="metric">
-      <div class="metric-label">FIXED SL (30 PIPS)</div>
-      <div id="sl" class="metric-value" style="color:var(--red);">---</div>
+      <div class="metric-label">SL (30 PIPS)</div>
+      <div id="planSL" class="metric-value" style="color:var(--red);">---</div>
     </div>
     <div class="metric">
       <div class="metric-label">TP1</div>
-      <div id="tp1" class="metric-value" style="color:var(--green);">---</div>
+      <div id="planTP1" class="metric-value" style="color:var(--green);">---</div>
     </div>
     <div class="metric">
       <div class="metric-label">TP2 (RUNNER)</div>
-      <div id="tp2" class="metric-value" style="color:var(--green);">---</div>
+      <div id="planTP2" class="metric-value" style="color:var(--green);">---</div>
     </div>
     <div class="metric">
       <div class="metric-label">PUNCA ARAS</div>
-      <div id="punca" class="metric-value">---</div>
+      <div id="planPunca" class="metric-value">---</div>
     </div>
   </div>
 
+  <!-- Paparan sebelum READY -->
   <div id="tradePlanGate" class="plan-gate-overlay">
-    🔒 <strong>TRADE PLAN LOCKED</strong> — Waiting for M5 Break &amp; M1 Confirmation before displaying entry execution parameters.
+    🔒 <strong>TRADE PLAN LOCKED</strong><br>
+    Entry: <span id="gateEntry">Waiting</span> &bull; 
+    SL: <span id="gateSL">Waiting</span> &bull; 
+    TP1: <span id="gateTP1">Waiting</span> &bull; 
+    TP2: <span id="gateTP2">Waiting</span><br>
+    <span style="font-size:9.5px;color:var(--muted);">Trade plan hanya aktif apabila signal berstatus BUY READY atau SELL READY.</span>
   </div>
 </section>
 
 <!-- =========================================================
-     MULTI-TIMEFRAME RADAR (INCLUDES M1)
+     MULTI-TIMEFRAME RADAR (SCALPING & INTRADAY)
      ========================================================= -->
 <div class="section-title">MULTI-TIMEFRAME RADAR • ALIGNMENT ENGINE</div>
-<section class="direction-grid">
-  <div class="direction">
+<section id="directionRadarGrid" class="direction-grid">
+  <!-- H4: Tersembunyi pada Scalping, Muncul pada Intraday -->
+  <div id="tfCardH4" class="direction" style="display:none;">
     <div class="tf-name">H4 MAJOR</div>
     <div id="h4" class="dir neutral">---</div>
   </div>
@@ -1880,7 +1921,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   </div>
 </section>
 
-<!-- SETUPS (SCALPING & INTRADAY) -->
+<!-- SETUPS (SCALPING & INTRADAY CARDS) -->
 <div class="section-title">SINNCI TRADING SETUPS</div>
 <section class="setup-section">
 <div class="setup-grid">
@@ -1921,7 +1962,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   </div>
 
   <div id="scalpingReason" class="setup-reason">Waiting for a valid H1 → M15 → M5 → M1 scalping setup.</div>
-  <div id="scalpingConfirm" class="setup-confirm">M5 break trigger pending</div>
+  <div id="scalpingConfirm" class="setup-confirm">M5 trigger pending</div>
 </div>
 
 <!-- INTRADAY -->
@@ -1960,7 +2001,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   </div>
 
   <div id="intradayReason" class="setup-reason">Waiting for a valid H4 → H1 → M15 → M5 → M1 intraday setup.</div>
-  <div id="intradayConfirm" class="setup-confirm">M5 break trigger pending</div>
+  <div id="intradayConfirm" class="setup-confirm">M5 trigger pending</div>
 </div>
 
 </div>
@@ -2260,7 +2301,7 @@ supabaseClient.auth.onAuthStateChange(async(event,session)=>{
 })();
 
 /* =========================================================
-   TIMEFRAME MODE STATE
+   TIMEFRAME MODE (SCALPING vs INTRADAY)
    ========================================================= */
 let activeTFMode = "scalp"; // "scalp" | "intra"
 
@@ -2269,13 +2310,24 @@ function selectTimeframeMode(mode){
   document.getElementById("tfModeScalp").classList.toggle("active", mode === "scalp");
   document.getElementById("tfModeIntra").classList.toggle("active", mode === "intra");
 
+  const h4Card = document.getElementById("tfCardH4");
+  const radarGrid = document.getElementById("directionRadarGrid");
+
+  if(mode === "intra"){
+    h4Card.style.display = "block";
+    radarGrid.classList.add("show-h4");
+  } else {
+    h4Card.style.display = "none";
+    radarGrid.classList.remove("show-h4");
+  }
+
   if(window.lastAnalyzedData){
     renderCompleteDashboard(window.lastAnalyzedData);
   }
 }
 
 /* =========================================================
-   PRICE
+   LIVE PRICE (FETCH ONLY ON INITIAL / EXPLICIT CALL)
    ========================================================= */
 const priceEl=document.getElementById("price");
 const priceStatus=document.getElementById("priceStatus");
@@ -2305,6 +2357,7 @@ async function getLivePrice(){
     }
     currentLivePrice = price;
     priceEl.textContent=price.toFixed(2);
+    document.getElementById("zoneCmpValue").textContent = price.toFixed(2);
     priceStatus.textContent="● Live XAUUSD market price";
     priceStatus.style.color="var(--green)";
     return price;
@@ -2312,6 +2365,7 @@ async function getLivePrice(){
     const currentOnScreen = parseFloat(priceEl?.textContent);
     if(Number.isFinite(currentOnScreen) && currentOnScreen > 0){
       currentLivePrice = currentOnScreen;
+      document.getElementById("zoneCmpValue").textContent = currentOnScreen.toFixed(2);
     }
     priceStatus.textContent="API: "+error.message;
     priceStatus.style.color="var(--red)";
@@ -2574,7 +2628,7 @@ setInterval(updateNewsCountdowns,30000);
 setInterval(loadEconomicNews,300000);
 
 /* =========================================================
-   DIRECTION & TEXT UTILS (SUPPORTS M1)
+   DIRECTION & TEXT UTILS (SUPPORTS M5 & M1)
    ========================================================= */
 function setDirection(id,value){
   const el=document.getElementById(id);
@@ -2587,7 +2641,7 @@ function setDirection(id,value){
     el.classList.add("bullish");
   }else if(str.includes("BEARISH") || str.includes("SELL")){
     el.classList.add("bearish");
-  }else if(str.includes("CHECKING")){
+  }else if(str.includes("CHECKING") || str.includes("BREAK")){
     el.classList.add("checking-color");
   }else{
     el.classList.add("neutral");
@@ -2610,25 +2664,25 @@ function formatSetupPrice(value){
 
 function formatZoneDisplay(zone, fallbackEntry){
   if (zone && Number.isFinite(Number(zone.low)) && Number.isFinite(Number(zone.high))) {
-    return `${Number(zone.low).toFixed(1)}–${Number(zone.high).toFixed(1)}`;
+    return `${Number(zone.low).toFixed(2)} – ${Number(zone.high).toFixed(2)}`;
   }
   return formatSetupPrice(fallbackEntry);
 }
 
 /* =========================================================
-   EXTRACT BACKEND SETUP (BACKWARD COMPATIBLE & HYBRID)
+   DATA PARSING ENGINE (PRIORITIZING NEW API FIELDS)
    ========================================================= */
 function extractSetup(modeData){
   if(!modeData) return null;
 
-  // New API Structure
   const direction = modeData.signal || modeData.direction || (modeData.buy?.score >= modeData.sell?.score ? "BUY" : "SELL");
   const branch = modeData[direction.toLowerCase()] || {};
   
+  // Utamakan struktur baru
   const zoneObj = modeData.zone || branch.zone || null;
   const signalStatus = modeData.signalStatus || modeData.status || branch.status || "WAIT";
   const zoneStatus = modeData.zoneStatus || zoneObj?.status || "WATCH";
-  const confirmation = modeData.confirmation || branch.confirmation || "Awaiting confirmation";
+  const confirmation = modeData.confirmation || branch.confirmation || "Waiting for M5 break";
 
   return {
     direction: direction,
@@ -2642,13 +2696,10 @@ function extractSetup(modeData){
     sl: modeData.sl ?? branch.sl ?? null,
     tp1: modeData.tp1 ?? branch.tp1 ?? null,
     tp2: modeData.tp2 ?? branch.tp2 ?? null,
-    reason: modeData.reason || branch.reason || ""
+    reason: modeData.reason || branch.reason || "Key Structure SR"
   };
 }
 
-/* =========================================================
-   RENDER SCALPING & INTRADAY CARDS
-   ========================================================= */
 function renderSetup(type, modeData){
   const prefix = type==="scalping" ? "scalping" : "intraday";
   const setup = extractSetup(modeData);
@@ -2683,7 +2734,7 @@ function renderSetup(type, modeData){
     reasonEl.textContent = type==="scalping"
       ? "Waiting for a valid H1 → M15 → M5 → M1 scalping setup."
       : "Waiting for a valid H4 → H1 → M15 → M5 → M1 intraday setup.";
-    confirmEl.textContent="M5 confirmation pending";
+    confirmEl.textContent="M5 trigger pending";
     return;
   }
 
@@ -2691,12 +2742,12 @@ function renderSetup(type, modeData){
   const status = setup.signalStatus;
   const isBuy = direction === "BUY";
   const isSell = direction === "SELL";
-  const isReady = status === "READY" || status === "SIGNAL";
-  const isChecking = status === "M1_CHECKING" || status === "M1_CONFIRMATION";
+  const isReady = status === "READY" || status === "SIGNAL" || status === "BUY READY" || status === "SELL READY";
+  const isChecking = status === "M1_CHECKING" || status === "M1_CONFIRMATION" || status === "M1 CHECKING";
 
   card.className = "setup-card " + (isBuy ? "buy" : isSell ? "sell" : "wait");
   statusEl.className = "setup-status " + (isReady ? "ready" : isChecking ? "checking" : "wait");
-  statusEl.textContent = status;
+  statusEl.textContent = isReady ? (isBuy ? "BUY READY" : "SELL READY") : (isChecking ? "M1 CHECKING" : "WAIT");
 
   if(isBuy){
     directionEl.className = "setup-direction buy";
@@ -2715,206 +2766,247 @@ function renderSetup(type, modeData){
   scoreEl.textContent = "SCORE " + setup.score;
 
   entryEl.textContent = formatZoneDisplay(setup.zone, setup.entry);
-  slEl.textContent = formatSetupPrice(setup.sl);
-  tp1El.textContent = formatSetupPrice(setup.tp1);
-  tp2El.textContent = formatSetupPrice(setup.tp2);
+  slEl.textContent = isReady ? formatSetupPrice(setup.sl) : "Waiting";
+  tp1El.textContent = isReady ? formatSetupPrice(setup.tp1) : "Waiting";
+  tp2El.textContent = isReady ? formatSetupPrice(setup.tp2) : "Waiting";
 
   reasonEl.textContent = setup.reason || "Structure mapped based on higher TF alignment.";
   confirmEl.textContent = setup.confirmation ? `Gate: ${setup.confirmation}` : (isReady ? "✓ Confirmed" : `⏳ Status: ${status}`);
 }
 
 /* =========================================================
-   RENDER DASHBOARD (ZONE VS SIGNAL & BREADCRUMBS)
+   RENDER DASHBOARD (STRICT LOGIC EXECUTION)
    ========================================================= */
 function renderCompleteDashboard(data){
   if(!data) return;
 
+  const cmp = Number(data.market?.price || data.cmp || currentLivePrice || 0);
+  if(cmp > 0){
+    currentLivePrice = cmp;
+    priceEl.textContent = cmp.toFixed(2);
+    document.getElementById("zoneCmpValue").textContent = cmp.toFixed(2);
+  }
+
   const scalpSetup = extractSetup(data.scalping);
   const intraSetup = extractSetup(data.intraday);
 
-  // Pilih setup mengikut Timeframe Mode semasa
+  // Setup utama mengikut timeframe terpilih
   let currentSetup = activeTFMode === "scalp" ? scalpSetup : intraSetup;
   if (!currentSetup) {
     currentSetup = scalpSetup || intraSetup;
   }
 
-  // Fallback sekiranya API struktur rata
+  // Fallback sekiranya struktur rata (flat structure)
   if(!currentSetup && data.signal){
     currentSetup = {
       direction: data.signal?.direction || data.signal,
       signalStatus: data.signal?.status || data.status || "WAIT",
       zoneStatus: data.zone?.status || "WATCH",
-      confirmation: data.signal?.confirmation || data.waitReason || "Awaiting M5 trigger",
+      confirmation: data.signal?.confirmation || data.waitReason || "Waiting for M5 break",
       zone: data.zone || null,
       score: data.score || 85,
       entry: data.entry || null,
       sl: data.sl || null,
       tp1: data.tp1 || null,
       tp2: data.tp2 || null,
-      reason: data.reason || ""
+      reason: data.reason || "Key Structure SR"
     };
   }
 
-  // 1. UPDATE ZONE SETUP PANEL
-  const zoneObj = currentSetup?.zone || data.zone;
-  const zoneStatusText = document.getElementById("zoneStatus");
+  // =======================================================
+  // 1. ZONE SETUP DISPLAY (STRICTLY LOCKED)
+  // =======================================================
+  const zoneObj = data.zone || currentSetup?.zone;
+  const zoneTypeTitle = document.getElementById("zoneTypeTitle");
   const zoneRangeText = document.getElementById("zoneRange");
-  const zoneSpanText = document.getElementById("zoneSpanPoints");
-  const zoneTitle = document.getElementById("zoneSetupTitle");
+  const zoneStatusText = document.getElementById("zoneStatusText");
+  const zoneScoreText = document.getElementById("zoneScoreText");
+  const zoneReasonText = document.getElementById("zoneReasonText");
   const zoneLockBadge = document.getElementById("zoneLockBadge");
 
-  if(zoneObj && Number.isFinite(Number(zoneObj.low)) && Number.isFinite(Number(zoneObj.high))){
-    const low = Number(zoneObj.low).toFixed(1);
-    const high = Number(zoneObj.high).toFixed(1);
-    const pts = zoneObj.points || Math.round((zoneObj.high - zoneObj.low) * 100);
-    const pips = zoneObj.pips || (pts / 10).toFixed(1);
+  const setupDirection = currentSetup?.direction || (zoneObj?.type ? zoneObj.type : "BUY");
+  zoneTypeTitle.textContent = `${setupDirection} ZONE`;
 
+  if(zoneObj && Number.isFinite(Number(zoneObj.low)) && Number.isFinite(Number(zoneObj.high))){
+    const low = Number(zoneObj.low).toFixed(2);
+    const high = Number(zoneObj.high).toFixed(2);
     zoneRangeText.textContent = `${low} – ${high}`;
-    zoneSpanText.textContent = `${pts} pts (${pips} pips)`;
     zoneStatusText.textContent = zoneObj.status || currentSetup?.zoneStatus || "WATCH";
-    zoneTitle.textContent = `${currentSetup?.direction || "MARKET"} KEY STRUCTURE ZONE`;
-    zoneLockBadge.textContent = zoneObj.locked ? "🔒 ZONE LOCKED" : "ZONE ACTIVE";
+    zoneLockBadge.textContent = "LOCKED 🔒";
   } else {
     zoneRangeText.textContent = "----.– – ----.–";
-    zoneSpanText.textContent = "-- pts (-- pips)";
     zoneStatusText.textContent = "WATCH";
   }
 
-  // 2. UPDATE ENTRY SIGNAL PANEL & BREADCRUMBS
-  const signalStatus = String(currentSetup?.signalStatus || data.signal?.status || data.status || "WAIT").toUpperCase();
-  const signalDirection = String(currentSetup?.direction || data.signal?.direction || "NONE").toUpperCase();
-  const confirmationMsg = currentSetup?.confirmation || data.signal?.confirmation || data.waitReason || "Awaiting confirmation";
+  const finalScore = Number(currentSetup?.score || data.score || 85);
+  zoneScoreText.textContent = finalScore;
+  zoneReasonText.textContent = currentSetup?.reason || data.punca?.source || "SUPPORT / PULLBACK";
 
+  // =======================================================
+  // 2. M5 & M1 STATUS RESOLUTION
+  // =======================================================
+  // M5: WAIT atau CMP BREAK CONFIRMED
+  let m5Status = "WAIT";
+  const rawM5Audit = String(data.audit?.m5BreakDetails || data.audit?.m5Status || data.audit?.m5Break || "").toUpperCase();
+  const rawM5Dir = String(data.direction?.M5 || "").toUpperCase();
+  if(data.audit?.m5Break === true || rawM5Audit.includes("BREAK") || rawM5Dir.includes("BREAK")){
+    m5Status = "CMP BREAK CONFIRMED";
+  }
+
+  // M1: WAIT, CHECKING, BULLISH CONFIRMED, BEARISH CONFIRMED, NO CONFIRMATION
+  let m1Status = "WAIT";
+  const rawM1Status = String(data.m1?.status || data.audit?.m1Status || data.audit?.m1Details || "").toUpperCase();
+  const m1Confirmed = data.audit?.m1Confirmed === true || rawM1Status.includes("CONFIRMED") || rawM1Status.includes("RECLAIM");
+  
+  if (m1Confirmed) {
+    m1Status = setupDirection === "BUY" ? "BULLISH CONFIRMED" : "BEARISH CONFIRMED";
+  } else if (rawM1Status.includes("NO CONFIRMATION") || rawM1Status.includes("FAILED")) {
+    m1Status = "NO CONFIRMATION";
+  } else if (m5Status === "CMP BREAK CONFIRMED" || rawM1Status.includes("CHECKING") || rawM1Status.includes("VALIDATING")) {
+    m1Status = "CHECKING";
+  } else {
+    m1Status = "WAIT";
+  }
+
+  setDirection("m5", m5Status);
+  setDirection("m1", m1Status);
+
+  // =======================================================
+  // 3. ENTRY SIGNAL DISPLAY (GATED)
+  // "WAIT", "M1 CHECKING", "BUY READY", "SELL READY", "NO CONFIRMATION"
+  // =======================================================
+  let displaySignal = "WAIT";
+  const rawSignal = String(data.signal?.status || currentSetup?.signalStatus || data.status || "WAIT").toUpperCase();
+
+  if (m1Status.includes("CONFIRMED") && (rawSignal === "READY" || rawSignal === "SIGNAL")) {
+    displaySignal = setupDirection === "BUY" ? "BUY READY" : "SELL READY";
+  } else if (m1Status === "NO CONFIRMATION") {
+    displaySignal = "NO CONFIRMATION";
+  } else if (m5Status === "CMP BREAK CONFIRMED" || m1Status === "CHECKING" || rawSignal.includes("CHECKING")) {
+    displaySignal = "M1 CHECKING";
+  } else {
+    displaySignal = "WAIT";
+  }
+
+  // UI Flow Breadcrumb
   const stepZone = document.getElementById("stepZone");
   const stepM5 = document.getElementById("stepM5");
   const stepM1 = document.getElementById("stepM1");
   const stepSignal = document.getElementById("stepSignal");
 
-  // Reset steps
   stepZone.className = "step-node done";
   stepM5.className = "step-node";
   stepM1.className = "step-node";
   stepSignal.className = "step-node";
 
   signalCard.className = "card signal-card";
+  const confirmationMsg = data.signal?.confirmation || currentSetup?.confirmation || "Waiting for M5 break";
   signalConfirmationText.textContent = confirmationMsg;
 
-  if (signalStatus === "READY" || signalStatus === "SIGNAL") {
-    const isBuy = signalDirection === "BUY";
+  if (displaySignal === "BUY READY" || displaySignal === "SELL READY") {
     signalCard.classList.add("ready");
-    signalIcon.textContent = isBuy ? "↑" : "↓";
-    signalName.textContent = `🔥 ${signalDirection} READY`;
-    signalSub.textContent = "M5 Break + M1 Confirmation Verified";
+    signalIcon.textContent = displaySignal === "BUY READY" ? "↑" : "↓";
+    signalName.textContent = displaySignal;
+    signalSub.textContent = "M5 CMP Break + M1 Confirmation Verified";
 
     stepM5.className = "step-node done";
     stepM1.className = "step-node done";
     stepSignal.className = "step-node done";
 
-    aiStatus.textContent = signalDirection;
-    aiStatus.style.color = isBuy ? "var(--green)" : "var(--red)";
-    aiDescription.textContent = `${signalDirection} confirmation complete. Trade plan activated.`;
+    aiStatus.textContent = setupDirection;
+    aiStatus.style.color = setupDirection === "BUY" ? "var(--green)" : "var(--red)";
+    aiDescription.textContent = `${displaySignal} confirmed. Trade plan parameters active.`;
 
     // UNLOCK TRADE PLAN
     document.getElementById("tradePlanGrid").style.display = "grid";
     document.getElementById("tradePlanGate").style.display = "none";
 
-    setText("entry", formatZoneDisplay(currentSetup.zone, currentSetup.entry));
-    setText("sl", formatSetupPrice(currentSetup.sl));
-    setText("tp1", formatSetupPrice(currentSetup.tp1));
-    setText("tp2", formatSetupPrice(currentSetup.tp2));
+    const entryVal = currentSetup?.entry || data.entry || cmp;
+    const slVal = currentSetup?.sl || data.sl || (setupDirection === "BUY" ? cmp - 3.0 : cmp + 3.0);
+    const tp1Val = currentSetup?.tp1 || data.tp1 || (setupDirection === "BUY" ? cmp + 6.0 : cmp - 6.0);
+    const tp2Val = currentSetup?.tp2 || data.tp2 || (setupDirection === "BUY" ? cmp + 12.0 : cmp - 12.0);
 
-  } else if (signalStatus === "M1_CHECKING" || signalStatus === "M1_CONFIRMATION") {
+    setText("planEntry", formatSetupPrice(entryVal));
+    setText("planSL", formatSetupPrice(slVal));
+    setText("planTP1", formatSetupPrice(tp1Val));
+    setText("planTP2", formatSetupPrice(tp2Val));
+    setText("planPunca", data.punca?.price ? `${Number(data.punca.price).toFixed(2)} (${data.punca.source || "S/R"})` : (zoneObj ? `${zoneObj.low}–${zoneObj.high}` : "Structure S/R"));
+
+  } else if (displaySignal === "M1 CHECKING") {
     signalCard.classList.add("checking");
     signalIcon.textContent = "⚡";
     signalName.textContent = "M1 CHECKING";
-    signalSub.textContent = "M5 broke structure → Validating M1 momentum...";
+    signalSub.textContent = "M5 CMP break triggered → M1 confirmation in progress...";
 
     stepM5.className = "step-node done";
     stepM1.className = "step-node active";
 
     aiStatus.textContent = "CHECKING";
     aiStatus.style.color = "var(--blue)";
-    aiDescription.textContent = "M5 triggered break. AI verifying M1 micro-structure follow-through.";
+    aiDescription.textContent = "M5 CMP break detected. Engine is validating M1 momentum.";
 
     // LOCK TRADE PLAN
     document.getElementById("tradePlanGrid").style.display = "none";
     document.getElementById("tradePlanGate").style.display = "block";
-    document.getElementById("tradePlanGate").innerHTML = `⏳ <strong>M1 CONFIRMATION IN PROGRESS</strong> — M5 Break detected. Waiting for M1 confirmation.`;
 
-  } else if (signalStatus === "M5_BREAK") {
-    signalCard.classList.add("checking");
-    signalIcon.textContent = "⚡";
-    signalName.textContent = "M5 BREAK";
-    signalSub.textContent = "M5 CMP Break detected. Engaging M1 check...";
+  } else if (displaySignal === "NO CONFIRMATION") {
+    signalCard.classList.add("noconfirm");
+    signalIcon.textContent = "✕";
+    signalName.textContent = "NO CONFIRMATION";
+    signalSub.textContent = "M1 rejected continuation or momentum not aligned.";
 
-    stepM5.className = "step-node active";
+    stepM5.className = "step-node done";
+    stepM1.className = "step-node";
 
-    aiStatus.textContent = "TRIGGERED";
-    aiStatus.style.color = "var(--gold)";
-    aiDescription.textContent = "M5 CMP break triggered. Moving to M1 validation.";
+    aiStatus.textContent = "REJECTED";
+    aiStatus.style.color = "var(--red)";
+    aiDescription.textContent = "M1 failed to confirm structure. Awaiting fresh structure.";
 
+    // LOCK TRADE PLAN
     document.getElementById("tradePlanGrid").style.display = "none";
     document.getElementById("tradePlanGate").style.display = "block";
 
   } else {
-    // WAIT / WATCH / APPROACHING / INVALID
-    signalCard.classList.add(signalStatus === "INVALID" ? "invalid" : "wait");
-    signalIcon.textContent = signalStatus === "INVALID" ? "✕" : "⏳";
-    signalName.textContent = signalStatus === "INVALID" ? "INVALID" : "WAIT";
+    // WAIT
+    signalCard.classList.add("wait");
+    signalIcon.textContent = "⏳";
+    signalName.textContent = "WAIT";
     signalSub.textContent = confirmationMsg;
 
     aiStatus.textContent = "WAIT";
     aiStatus.style.color = "var(--yellow)";
-    aiDescription.textContent = "Waiting for key structure approach & M5 break.";
+    aiDescription.textContent = "Zone locked. Waiting for M5 CMP/Structure break trigger.";
 
+    // LOCK TRADE PLAN
     document.getElementById("tradePlanGrid").style.display = "none";
     document.getElementById("tradePlanGate").style.display = "block";
-    document.getElementById("tradePlanGate").innerHTML = `🔒 <strong>TRADE PLAN LOCKED</strong> — Waiting for M5 Break &amp; M1 Confirmation before displaying entry execution parameters.`;
   }
 
-  // 3. RADAR DIRECTION & M1 ENGINE RESOLUTION
+  // =======================================================
+  // 4. MULTI-TIMEFRAME RADAR (H4, H1, M15)
+  // =======================================================
   setDirection("h4", data.direction?.H4);
   setDirection("h1", data.direction?.H1 || data.bias);
   setDirection("m15", data.structure?.M15 || data.direction?.M15);
 
-  // M5 Radar
-  const m5Broken = data.audit?.m5Break === true || String(data.audit?.m5Status).includes("break") || signalStatus === "M1_CHECKING" || signalStatus === "READY";
-  setDirection("m5", m5Broken ? "BREAK ✓" : "WAIT");
-
-  // M1 Radar
-  const m1Confirmed = data.audit?.m1Confirmed === true || String(data.audit?.m1Status).includes("confirmed") || signalStatus === "READY";
-  if (m1Confirmed) {
-    setDirection("m1", `${currentSetup?.direction || "BUY"} ✓`);
-  } else if (signalStatus === "M1_CHECKING") {
-    setDirection("m1", "CHECKING");
-  } else {
-    setDirection("m1", "WAIT");
-  }
-
-  // 4. MARKET INTELLIGENCE METADATA
+  // =======================================================
+  // 5. MARKET INTELLIGENCE & SCORE
+  // =======================================================
   if(data.punca){
     const puncaPrice = data.punca.price !== undefined ? Number(data.punca.price).toFixed(2) : "---";
-    setText("punca", puncaPrice + " • " + (data.punca.source || "---"));
     setText("puncaSource", data.punca.source || "---");
-  } else {
-    setText("punca","---");
-    setText("puncaSource","---");
   }
-
-  if(data.risk !== null && data.risk !== undefined){
-    setText("risk", Number(data.risk).toFixed(2));
-  }
+  setText("risk", "3.00");
   setText("maxRisk", "3.00 (30 pips)");
-  setText("reason", currentSetup?.reason || data.reason || "Market structure monitored.");
+  setText("reason", currentSetup?.reason || data.reason || "Key structure monitored.");
 
-  // Scores
   const scalpBuyScore = Number(data.scalping?.buy?.score || 0);
   const scalpSellScore = Number(data.scalping?.sell?.score || 0);
   const intraBuyScore = Number(data.intraday?.buy?.score || 0);
   const intraSellScore = Number(data.intraday?.sell?.score || 0);
 
-  const finalBuyScore = Math.max(scalpBuyScore, intraBuyScore, Number(data.scores?.buy || 0));
-  const finalSellScore = Math.max(scalpSellScore, intraSellScore, Number(data.scores?.sell || 0));
+  const finalBuyScore = Math.max(scalpBuyScore, intraBuyScore, Number(data.scores?.buy || (setupDirection === "BUY" ? finalScore : 0)));
+  const finalSellScore = Math.max(scalpSellScore, intraSellScore, Number(data.scores?.sell || (setupDirection === "SELL" ? finalScore : 0)));
   setText("score", `BUY ${finalBuyScore} • SELL ${finalSellScore}`);
 
   // Render individual sub-cards
@@ -2923,7 +3015,7 @@ function renderCompleteDashboard(data){
 }
 
 /* =========================================================
-   ANALYZE MARKET (ENGINE DISPATCHER)
+   ANALYZE MARKET (TRIGGERED ON BUTTON CLICK ONLY)
    ========================================================= */
 async function analyze(){
   analyzeBtn.disabled=true;
@@ -2931,12 +3023,12 @@ async function analyze(){
 
   aiStatus.textContent="SCANNING";
   aiStatus.style.color="var(--gold)";
-  aiDescription.textContent="Scanning H4 → H1 → M15 → M5 → M1 structure...";
+  aiDescription.textContent="Running full multi-timeframe analysis (H4/H1/M15/M5/M1)...";
 
   signalCard.className="card signal-card wait";
   signalIcon.textContent="◌";
   signalName.textContent="ANALYZING";
-  signalSub.textContent="Searching structure zones & M5/M1 flow...";
+  signalSub.textContent="Identifying locked structural zones...";
 
   try{
     await getLivePrice();
@@ -2945,7 +3037,7 @@ async function analyze(){
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mode: activeTFMode === "scalp" ? "scalping" : "intraday" })
-    }).catch(() => fetch("/api/analyze", { cache: "no-store" })); // Fallback GET support
+    }).catch(() => fetch("/api/analyze", { cache: "no-store" }));
 
     const data = await response.json();
 
@@ -2957,7 +3049,7 @@ async function analyze(){
     renderCompleteDashboard(data);
 
     updateSessionDisplay();
-    startCooldown();
+    startCooldown(30);
   }catch(error){
     console.error("SINNCI ANALYZE ERROR:", error);
     signalCard.className="card signal-card wait";
@@ -2977,11 +3069,11 @@ async function analyze(){
    ========================================================= */
 let cooldownTimer=null;
 
-function startCooldown(seconds=60){
+function startCooldown(seconds=30){
   clearInterval(cooldownTimer);
   let remaining=seconds;
   analyzeBtn.disabled=true;
-  analyzeBtn.textContent=`NEXT ANALYSIS: ${remaining}s`;
+  analyzeBtn.textContent=`ANALYZED • COOLDOWN (${remaining}s)`;
 
   cooldownTimer=setInterval(()=>{
     remaining--;
@@ -2991,7 +3083,7 @@ function startCooldown(seconds=60){
       analyzeBtn.textContent="✦ ANALYZE MARKET";
       return;
     }
-    analyzeBtn.textContent=`NEXT ANALYSIS: ${remaining}s`;
+    analyzeBtn.textContent=`ANALYZED • COOLDOWN (${remaining}s)`;
   },1000);
 }
 
@@ -2999,7 +3091,6 @@ function startCooldown(seconds=60){
    INIT
    ========================================================= */
 analyzeBtn.addEventListener("click", analyze);
-setInterval(getLivePrice, 60000);
 </script>
 
 </body>

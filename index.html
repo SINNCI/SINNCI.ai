@@ -1674,7 +1674,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   <div class="signal-grid">
     <div class="metric">
-      <div class="metric-label">ENTRY</div>
+      <div class="metric-label">ENTRY / ZONE</div>
       <div id="entry" class="metric-value">---</div>
     </div>
     <div class="metric">
@@ -1720,7 +1720,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   <div class="setup-metrics">
     <div class="setup-metric">
-      <div class="setup-metric-label">ENTRY</div>
+      <div class="setup-metric-label">ENTRY / ZONE</div>
       <div id="scalpingEntry" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
@@ -1728,11 +1728,11 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <div id="scalpingSL" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP1 • 60</div>
+      <div class="setup-metric-label">TP1 • 600 PTS</div>
       <div id="scalpingTP1" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP2 • 120</div>
+      <div class="setup-metric-label">TP2 • 1200 PTS</div>
       <div id="scalpingTP2" class="setup-metric-value">---</div>
     </div>
   </div>
@@ -1759,7 +1759,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   <div class="setup-metrics">
     <div class="setup-metric">
-      <div class="setup-metric-label">ENTRY</div>
+      <div class="setup-metric-label">ENTRY / ZONE</div>
       <div id="intradayEntry" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
@@ -1767,11 +1767,11 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <div id="intradaySL" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP1 • 150</div>
+      <div class="setup-metric-label">TP1 • 1500 PTS</div>
       <div id="intradayTP1" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP2 • 230</div>
+      <div class="setup-metric-label">TP2 • 2300 PTS</div>
       <div id="intradayTP2" class="setup-metric-value">---</div>
     </div>
   </div>
@@ -2243,7 +2243,6 @@ function isUSGoldNews(event){
   return explicitUS || usSpecific;
 }
 
-// Resolver fleksibel untuk baca sebarang format kunci daripada pelbagai API
 function resolveNewsValue(event, keys) {
   if (!event) return "—";
   for (const k of keys) {
@@ -2339,7 +2338,6 @@ function renderEconomicNews(){
     const countdown=newsCountdown(time);
     const name=event.name || event.title || "US Economic News";
 
-    // Pengecaman nilai Forecast, Previous, dan Actual secara serentak
     const forecastVal = resolveNewsValue(event, [
       'forecast', 'consensus', 'estimate', 'projected', 'expectation', 'forecastValue', 'expected'
     ]);
@@ -2428,129 +2426,66 @@ function formatSetupPrice(value){
   return Number(value).toFixed(2);
 }
 
-function resolvePrice(obj, keys, fallback = null) {
-  if (!obj) return fallback;
-  for (const k of keys) {
-    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== "" && Number.isFinite(Number(obj[k]))) {
-      return Number(obj[k]);
-    }
+function formatZoneDisplay(zone, fallbackEntry){
+  if (zone && Number.isFinite(Number(zone.low)) && Number.isFinite(Number(zone.high))) {
+    return `${Number(zone.low).toFixed(1)}–${Number(zone.high).toFixed(1)}`;
   }
-  if (obj.plan) {
-    for (const k of keys) {
-      if (obj.plan[k] !== undefined && obj.plan[k] !== null && obj.plan[k] !== "" && Number.isFinite(Number(obj.plan[k]))) {
-        return Number(obj.plan[k]);
-      }
-    }
-  }
-  if (obj.zone) {
-    for (const k of keys) {
-      if (obj.zone[k] !== undefined && obj.zone[k] !== null && obj.zone[k] !== "" && Number.isFinite(Number(obj.zone[k]))) {
-        return Number(obj.zone[k]);
-      }
-    }
-  }
-  return fallback;
+  return formatSetupPrice(fallbackEntry);
 }
 
 /* =========================================================
-   GET BEST SIDE FROM MODE
+   EXTRACT EXACT BACKEND SETUP (NO FALLBACK TAMPERING)
    ========================================================= */
-function getBestModeSide(modeData, modeType, rootData = {}){
+function extractSetup(modeData){
   if(!modeData) return null;
 
-  const rawList = [];
-
-  if(modeData.buy){
-    rawList.push({
-      ...modeData.buy,
-      _sideType: "BUY"
-    });
+  // 1. Direct standard structure from SINNCI Engine
+  if (modeData.signal && (modeData.signal === "BUY" || modeData.signal === "SELL")) {
+    const side = modeData.signal;
+    const branch = modeData[side.toLowerCase()] || {};
+    return {
+      direction: side,
+      status: modeData.status || branch.status || "WAIT",
+      score: Number(modeData.score ?? branch.score ?? 0),
+      zone: modeData.zone || branch.zone || null,
+      entry: modeData.entry ?? branch.entry ?? null,
+      sl: modeData.sl ?? branch.sl ?? null,
+      tp1: modeData.tp1 ?? branch.tp1 ?? null,
+      tp2: modeData.tp2 ?? branch.tp2 ?? null,
+      reason: modeData.reason || branch.reason || ""
+    };
   }
 
-  if(modeData.sell){
-    rawList.push({
-      ...modeData.sell,
-      _sideType: "SELL"
-    });
+  // 2. Dual branch compatibility (buy / sell)
+  const buyScore = Number(modeData.buy?.score || 0);
+  const sellScore = Number(modeData.sell?.score || 0);
+
+  if (buyScore > 0 || sellScore > 0) {
+    const isBuy = buyScore >= sellScore;
+    const branch = isBuy ? modeData.buy : modeData.sell;
+    const side = isBuy ? "BUY" : "SELL";
+    return {
+      direction: side,
+      status: branch.status || "WAIT",
+      score: isBuy ? buyScore : sellScore,
+      zone: branch.zone || null,
+      entry: branch.entry ?? null,
+      sl: branch.sl ?? null,
+      tp1: branch.tp1 ?? null,
+      tp2: branch.tp2 ?? null,
+      reason: branch.reason || ""
+    };
   }
 
-  if(!rawList.length) return null;
-
-  const threshold = (modeType === "scalping") ? 65 : 90;
-
-  const candidates = rawList.map(item => {
-    const c = { ...item };
-
-    const scoreVal = Number(
-      c.score ??
-      c.buyScore ??
-      c.sellScore ??
-      0
-    );
-
-    c._scoreVal = Number.isFinite(scoreVal) ? scoreVal : 0;
-    c.direction = c._sideType;
-
-    if (c._scoreVal >= threshold) {
-      c.status = "SIGNAL";
-    }
-
-    const screenPrice = parseFloat(document.getElementById("price")?.textContent);
-    const liveRef = Number(
-      (Number.isFinite(screenPrice) && screenPrice > 0 ? screenPrice : currentLivePrice) ||
-      rootData.entry ||
-      rootData.punca?.price ||
-      0
-    );
-
-    let entry = resolvePrice(c, ['entry', 'entryPrice', 'openPrice', 'price'], null);
-    let sl = resolvePrice(c, ['sl', 'slPrice', 'stopLoss', 'structureSL'], null);
-    let tp1 = resolvePrice(c, ['tp1', 'tp1Price', 'takeProfit1'], null);
-    let tp2 = resolvePrice(c, ['tp2', 'tp2Price', 'takeProfit2'], null);
-
-    if (c.status === "SIGNAL") {
-      const isScalp = (modeType === "scalping");
-      const pullOffset = isScalp ? 0.8 : 2.5; 
-      const tightSL = isScalp ? 2.0 : 4.0; 
-      const p1 = isScalp ? 6.0 : 15.0;  
-      const p2 = isScalp ? 12.0 : 23.0; 
-
-      if (!entry && liveRef > 0) {
-        entry = c.direction === "SELL" ? (liveRef + pullOffset) : (liveRef - pullOffset);
-      }
-
-      if (entry) {
-        if (!sl) {
-          sl = c.direction === "BUY" ? (entry - tightSL) : (entry + tightSL);
-        }
-        if (!tp1) {
-          tp1 = c.direction === "BUY" ? (entry + p1) : (entry - p1);
-        }
-        if (!tp2) {
-          tp2 = c.direction === "BUY" ? (entry + p2) : (entry - p2);
-        }
-      }
-    }
-
-    c.entry = entry;
-    c.sl = sl;
-    c.tp1 = tp1;
-    c.tp2 = tp2;
-
-    return c;
-  });
-
-  candidates.sort((a,b) => (b._scoreVal || 0) - (a._scoreVal || 0));
-
-  return candidates[0];
+  return null;
 }
 
 /* =========================================================
-   RENDER SETUP
+   RENDER SETUP (SCALPING & INTRADAY CARDS)
    ========================================================= */
-function renderSetup(type, modeData, rootData = {}){
+function renderSetup(type, modeData){
   const prefix = type==="scalping" ? "scalping" : "intraday";
-  const setup = getBestModeSide(modeData, type, rootData);
+  const setup = extractSetup(modeData);
 
   const card = document.getElementById(prefix+"Card");
   const statusEl = document.getElementById(prefix+"Status");
@@ -2586,22 +2521,20 @@ function renderSetup(type, modeData, rootData = {}){
     return;
   }
 
-  const score = Number(setup._scoreVal ?? setup.score ?? 0);
-  const threshold = (type === "scalping") ? 65 : 90;
-  const isSignal = score >= threshold;
+  const direction = setup.direction;
+  const status = setup.status || "WAIT";
+  const isBuy = direction === "BUY";
+  const isSell = direction === "SELL";
 
-  let direction = setup._sideType || setup.direction || "WAIT";
-  let status = isSignal ? "SIGNAL" : (setup.status || "WAIT");
-
-  card.className = "setup-card " + (direction === "BUY" ? "buy" : direction === "SELL" ? "sell" : "wait");
-  statusEl.className = "setup-status " + (status === "SIGNAL" ? "signal" : "wait") + " " + (direction === "BUY" ? "buy" : "sell");
+  card.className = "setup-card " + (isBuy ? "buy" : isSell ? "sell" : "wait");
+  statusEl.className = "setup-status " + (status === "SIGNAL" || status === "READY" ? "signal" : "wait") + " " + (isBuy ? "buy" : "sell");
   statusEl.textContent = status;
 
-  if(direction === "BUY"){
+  if(isBuy){
     directionEl.className = "setup-direction buy";
     arrowEl.textContent = "↑";
     directionTextEl.textContent = "BUY";
-  } else if(direction === "SELL"){
+  } else if(isSell){
     directionEl.className = "setup-direction sell";
     arrowEl.textContent = "↓";
     directionTextEl.textContent = "SELL";
@@ -2611,20 +2544,17 @@ function renderSetup(type, modeData, rootData = {}){
     directionTextEl.textContent = "WAIT";
   }
 
-  scoreEl.textContent = "SCORE " + score;
+  scoreEl.textContent = "SCORE " + setup.score;
 
-  entryEl.textContent = formatSetupPrice(setup.entry);
+  entryEl.textContent = formatZoneDisplay(setup.zone, setup.entry);
   slEl.textContent = formatSetupPrice(setup.sl);
   tp1El.textContent = formatSetupPrice(setup.tp1);
   tp2El.textContent = formatSetupPrice(setup.tp2);
 
-  reasonEl.textContent = setup.reason || setup.waitReason || setup.description || (
-    status === "SIGNAL"
-      ? "M5 confirmation aligned with the setup."
-      : "Setup detected. Waiting for M5 confirmation."
-  );
-
-  confirmEl.textContent = status === "SIGNAL" ? "✓ M5 confirmation CONFIRMED" : "⏳ M5 confirmation pending";
+  reasonEl.textContent = setup.reason || "Structure mapped based on higher TF alignment.";
+  confirmEl.textContent = (status === "SIGNAL" || status === "READY")
+    ? "✓ Zone Locked & Mapped"
+    : `⏳ Status: ${status}`;
 }
 
 /* =========================================================
@@ -2637,8 +2567,8 @@ function resetSignal(){
   setText("tp2","---");
   setText("punca","---");
 
-  renderSetup("scalping",null);
-  renderSetup("intraday",null);
+  renderSetup("scalping", null);
+  renderSetup("intraday", null);
 }
 
 /* =========================================================
@@ -2647,66 +2577,44 @@ function resetSignal(){
 function applyPrimarySetup(setup){
   if(!setup) return;
 
-  const direction = setup._sideType || setup.direction || "WAIT";
+  const direction = setup.direction || "WAIT";
   const status = setup.status || "WAIT";
+  const isBuy = direction === "BUY";
+  const isSell = direction === "SELL";
 
-  if(direction === "BUY"){
+  if(isBuy){
     signalCard.className = "card signal-card buy";
     signalIcon.textContent = "↑";
-    signalName.textContent = status === "SIGNAL" ? "BUY SIGNAL" : "BUY SETUP";
-    signalSub.textContent = status === "SIGNAL" ? "M5 confirmed bullish setup" : "Bullish setup detected";
+    signalName.textContent = status === "SIGNAL" ? "BUY SIGNAL" : `BUY (${status})`;
+    signalSub.textContent = setup.reason || "Bullish structure aligned";
 
-    aiStatus.textContent = status === "SIGNAL" ? "BUY" : "BUY SETUP";
+    aiStatus.textContent = "BUY";
     aiStatus.style.color = "var(--green)";
-    aiDescription.textContent = setup.reason || "M5 confirmation aligns with the setup.";
-  } else if(direction === "SELL"){
+    aiDescription.textContent = setup.reason || "Bullish market structure identified.";
+  } else if(isSell){
     signalCard.className = "card signal-card sell";
     signalIcon.textContent = "↓";
-    signalName.textContent = status === "SIGNAL" ? "SELL SIGNAL" : "SELL SETUP";
-    signalSub.textContent = status === "SIGNAL" ? "M5 confirmed bearish setup" : "Bearish setup detected";
+    signalName.textContent = status === "SIGNAL" ? "SELL SIGNAL" : `SELL (${status})`;
+    signalSub.textContent = setup.reason || "Bearish structure aligned";
 
-    aiStatus.textContent = status === "SIGNAL" ? "SELL" : "SELL SETUP";
+    aiStatus.textContent = "SELL";
     aiStatus.style.color = "var(--red)";
-    aiDescription.textContent = setup.reason || "M5 confirmation aligns with the setup.";
+    aiDescription.textContent = setup.reason || "Bearish market structure identified.";
   } else {
     signalCard.className = "card signal-card wait";
     signalIcon.textContent = "⏳";
     signalName.textContent = "WAIT";
-    signalSub.textContent = setup.reason || "No high-quality setup";
+    signalSub.textContent = setup.reason || "Scanning for valid market structure";
 
     aiStatus.textContent = "WAIT";
     aiStatus.style.color = "var(--yellow)";
-    aiDescription.textContent = "Waiting for market pullback confirmation.";
+    aiDescription.textContent = "Waiting for pullback / approach to key zones.";
   }
 
-  setText("entry", formatSetupPrice(setup.entry));
+  setText("entry", formatZoneDisplay(setup.zone, setup.entry));
   setText("sl", formatSetupPrice(setup.sl));
   setText("tp1", formatSetupPrice(setup.tp1));
   setText("tp2", formatSetupPrice(setup.tp2));
-}
-
-/* =========================================================
-   CHOOSE PRIMARY SETUP
-   ========================================================= */
-function chooseBestSetup(data){
-  const bestScalp = getBestModeSide(data.scalping, "scalping", data);
-  const bestIntra = getBestModeSide(data.intraday, "intraday", data);
-
-  const candidates = [];
-  if(bestScalp) candidates.push(bestScalp);
-  if(bestIntra) candidates.push(bestIntra);
-
-  if(!candidates.length) return null;
-
-  candidates.sort((a,b) => {
-    const isSignalA = (a.status === "SIGNAL") ? 1 : 0;
-    const isSignalB = (b.status === "SIGNAL") ? 1 : 0;
-    if(isSignalA !== isSignalB) return isSignalB - isSignalA;
-
-    return (b._scoreVal || 0) - (a._scoreVal || 0);
-  });
-
-  return candidates[0] || null;
 }
 
 /* =========================================================
@@ -2735,6 +2643,7 @@ async function analyze(){
       throw new Error(data.error || "Analysis failed");
     }
 
+    // Set multi-timeframe directions
     setDirection("h4", data.direction?.H4);
     setDirection("h1", data.direction?.H1);
     setDirection("m15", data.direction?.M15);
@@ -2742,13 +2651,23 @@ async function analyze(){
 
     resetSignal();
 
-    renderSetup("scalping", data.scalping, data);
-    renderSetup("intraday", data.intraday, data);
+    // Render Scalping and Intraday Cards
+    renderSetup("scalping", data.scalping);
+    renderSetup("intraday", data.intraday);
 
-    const selectedSetup = chooseBestSetup(data);
+    // Identify Primary Setup
+    const scalpSetup = extractSetup(data.scalping);
+    const intraSetup = extractSetup(data.intraday);
 
-    if(selectedSetup && (selectedSetup.status === "SIGNAL" || selectedSetup.status === "READY" || selectedSetup.status === "SETUP")){
-      applyPrimarySetup(selectedSetup);
+    let primary = null;
+    if (scalpSetup && intraSetup) {
+      primary = scalpSetup.score >= intraSetup.score ? scalpSetup : intraSetup;
+    } else {
+      primary = scalpSetup || intraSetup;
+    }
+
+    if (primary) {
+      applyPrimarySetup(primary);
     } else {
       const topSignal = String(data.signal || "WAIT").toUpperCase();
       if(topSignal === "BUY"){
@@ -2776,15 +2695,14 @@ async function analyze(){
         aiStatus.style.color="var(--yellow)";
         aiDescription.textContent="Waiting for market pullback confirmation.";
       }
+
+      setText("entry", formatZoneDisplay(data.zone, data.entry));
+      setText("sl", formatSetupPrice(data.sl));
+      setText("tp1", formatSetupPrice(data.tp1));
+      setText("tp2", formatSetupPrice(data.tp2));
     }
 
-    if(selectedSetup){
-      if(!selectedSetup.entry && data.entry) setText("entry", formatSetupPrice(data.entry));
-      if(!selectedSetup.sl && data.sl) setText("sl", formatSetupPrice(data.sl));
-      if(!selectedSetup.tp1 && data.tp1) setText("tp1", formatSetupPrice(data.tp1));
-      if(!selectedSetup.tp2 && data.tp2) setText("tp2", formatSetupPrice(data.tp2));
-    }
-
+    // Market Intelligence Metadata
     if(data.punca){
       const puncaPrice = data.punca.price !== undefined ? Number(data.punca.price).toFixed(2) : "---";
       setText("punca", puncaPrice + " • " + (data.punca.source || "---"));
@@ -2800,12 +2718,11 @@ async function analyze(){
     if(data.maxAllowedRisk !== null && data.maxAllowedRisk !== undefined){
       setText("maxRisk", Number(data.maxAllowedRisk).toFixed(2));
     }
-    if(selectedSetup){
-      setText("reason", selectedSetup.reason || (selectedSetup.status === "SIGNAL" ? "CONFIRMED SETUP" : "SETUP DETECTED"));
-    } else {
-      setText("reason", data.waitReason || "WAIT");
-    }
 
+    const currentReason = primary?.reason || data.reason || data.waitReason || "Market structure monitored.";
+    setText("reason", currentReason);
+
+    // Scores Display
     const scalpBuyScore = Number(data.scalping?.buy?.score || 0);
     const scalpSellScore = Number(data.scalping?.sell?.score || 0);
     const intraBuyScore = Number(data.intraday?.buy?.score || 0);

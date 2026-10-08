@@ -12,27 +12,35 @@ import crypto from "crypto";
 const SYMBOL = "XAU/USD";
 const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com/time_series";
 
-// Scalping Risk / Reward Constants (Gold Points: 100 points = $1.00)
-const SCALP_SL_POINTS = 500;   // 50 pips / $5.00
+// =========================================================
+// 1. UNIT & ZONE RULES (RULE TERKINI SAHAJA)
+// 10 POINTS = 1 PIP ($0.01 = 1 point, $0.10 = 1 pip, $1.00 = 100 points)
+// =========================================================
+const POINTS_PER_PIP = 10;
+const POINT_VALUE = 0.01;
+
+// UNIFIED ZONE RANGE: 200 - 350 points = 20 - 35 pips ($2.00 - $3.50)
+const UNIFIED_ZONE_MIN_POINTS = 200;
+const UNIFIED_ZONE_MAX_POINTS = 350;
+
+// UNIFIED STOP LOSS: 300 points = 30 pips ($3.00)
+const UNIFIED_SL_POINTS = 300;
+
+// Scalping TP Targets
 const SCALP_TP1_POINTS = 600;  // 60 pips / $6.00
 const SCALP_TP2_POINTS = 1200; // 120 pips / $12.00
 
-// Intraday Targets
-const INTRA_SL_POINTS = 600;
-const INTRA_TP1_POINTS = 1500;
-const INTRA_TP2_POINTS = 2300;
-
-// Zone sizing boundaries (points)
-const ZONE_WIDTH_MIN = 20.0;
-const ZONE_WIDTH_MAX = 35.0;
+// Intraday TP Targets
+const INTRA_TP1_POINTS = 1500; // 150 pips / $15.00
+const INTRA_TP2_POINTS = 2300; // 230 pips / $23.00
 
 // Thresholds
 const SCALP_SIGNAL_SCORE = 65;
 const INTRA_SIGNAL_SCORE = 90;
 
-// ==========================================
-// 1. HELPERS & MATH
-// ==========================================
+// =========================================================
+// 2. HELPERS & MATH
+// =========================================================
 function safeNum(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -48,7 +56,7 @@ function clamp(v, min, max) {
 }
 
 function calculateATR(candles, period = 14) {
-  if (!candles || candles.length < period + 1) return 25.0;
+  if (!candles || candles.length < period + 1) return 3.0; // Fallback price ATR
   let trSum = 0;
   for (let i = candles.length - period; i < candles.length; i++) {
     const c = candles[i];
@@ -64,16 +72,16 @@ function calculateATR(candles, period = 14) {
   return trSum / period;
 }
 
-// Deterministic Zone Lock Hash
+// Deterministic Zone Lock Hash (Mengunci zon selagi aras struktur tidak terbatal)
 function generateSetupId(tf, direction, setupType, anchorPrice) {
   const roundedAnchor = Math.round(anchorPrice * 2) / 2;
   const rawKey = `${tf}_${direction}_${setupType}_${roundedAnchor}`;
   return crypto.createHash("md5").update(rawKey).digest("hex").slice(0, 10);
 }
 
-// ==========================================
-// 2. MARKET DATA FETCHER (Twelve Data)
-// ==========================================
+// =========================================================
+// 3. MARKET DATA FETCHER (Twelve Data)
+// =========================================================
 async function fetchCandles(interval, outputsize, apiKey) {
   const url = `${TWELVE_DATA_BASE_URL}?symbol=${encodeURIComponent(
     SYMBOL
@@ -100,9 +108,9 @@ async function fetchCandles(interval, outputsize, apiKey) {
     .reverse();
 }
 
-// ==========================================
-// 3. MARKET STRUCTURE ENGINE (HH / HL / LH / LL)
-// ==========================================
+// =========================================================
+// 4. MARKET STRUCTURE ENGINE (HH / HL / LH / LL)
+// =========================================================
 function getSwings(candles, left = 2, right = 2) {
   const highs = [];
   const lows = [];
@@ -138,11 +146,11 @@ function analyzeStructure(candles) {
       structure: "RANGE",
       highs,
       lows,
-      keySupport: lastClose - 20,
-      keyResistance: lastClose + 20,
+      keySupport: lastClose - 2.5,
+      keyResistance: lastClose + 2.5,
       isSideway: true,
-      lastHigh: highs.length ? highs[highs.length - 1].price : lastClose + 20,
-      lastLow: lows.length ? lows[lows.length - 1].price : lastClose - 20,
+      lastHigh: highs.length ? highs[highs.length - 1].price : lastClose + 2.5,
+      lastLow: lows.length ? lows[lows.length - 1].price : lastClose - 2.5,
     };
   }
 
@@ -169,7 +177,7 @@ function analyzeStructure(candles) {
   const recentLows = lows.slice(-3).map((s) => s.price);
   const keyResistance = Math.max(...recentHighs);
   const keySupport = Math.min(...recentLows);
-  const isSideway = structPattern === "RANGE" || (keyResistance - keySupport) <= 85.0;
+  const isSideway = structPattern === "RANGE" || (keyResistance - keySupport) <= 8.0;
 
   return {
     direction: direction === "RANGING" ? "NEUTRAL" : direction,
@@ -188,20 +196,25 @@ function analyzeStructure(candles) {
   };
 }
 
-// ==========================================
-// 4. ZONE ENGINE & M5 REFINEMENT
-// ==========================================
-function constructZone(anchor, type, atrVal = 25.0) {
-  const width = clamp(atrVal * 0.45, ZONE_WIDTH_MIN, ZONE_WIDTH_MAX);
-  let low, high;
+// =========================================================
+// 5. ZONE BUILDER ENGINE (200 - 350 POINTS / 20 - 35 PIPS)
+// =========================================================
+function buildStandardZone(anchor, type, atrPrice = 3.0) {
+  // Tetapan ketat: 200 - 350 points ($2.00 - $3.50) berasaskan turun naik pasaran sebenar
+  const minWidth = UNIFIED_ZONE_MIN_POINTS * POINT_VALUE; // $2.00
+  const maxWidth = UNIFIED_ZONE_MAX_POINTS * POINT_VALUE; // $3.50
+  const adaptiveWidth = clamp(atrPrice * 0.85, minWidth, maxWidth);
 
+  let low, high;
   if (type === "BUY") {
     high = anchor;
-    low = anchor - width;
+    low = anchor - adaptiveWidth;
   } else {
     low = anchor;
-    high = anchor + width;
+    high = anchor + adaptiveWidth;
   }
+
+  const pointsWidth = round((high - low) / POINT_VALUE, 0);
 
   return {
     type,
@@ -209,45 +222,61 @@ function constructZone(anchor, type, atrVal = 25.0) {
     high: round(high, 2),
     anchor: round(anchor, 2),
     width: round(high - low, 2),
+    points: pointsWidth,
+    pips: round(pointsWidth / POINTS_PER_PIP, 1),
   };
 }
 
+// Refine M15 zone dengan structure M5 tanpa melanggar had 200–350 points
 function refineZoneWithM5(zone, m5Swings) {
   if (!zone) return null;
 
+  const minAllowed = UNIFIED_ZONE_MIN_POINTS * POINT_VALUE; // $2.00
+  const maxAllowed = UNIFIED_ZONE_MAX_POINTS * POINT_VALUE; // $3.50
+
   if (zone.type === "BUY") {
     const validLows = m5Swings.lows.filter(
-      (s) => s.price >= zone.low - 5 && s.price <= zone.high + 5
+      (s) => s.price >= zone.low - 0.5 && s.price <= zone.high + 0.5
     );
     if (validLows.length > 0) {
       const best = validLows[validLows.length - 1].price;
-      const refLow = Math.max(zone.low, best - 12);
-      const refHigh = Math.min(zone.high, best + 12);
-      if (refHigh - refLow >= 18) {
+      const refLow = Math.max(zone.low, best - 1.2);
+      const refHigh = Math.min(zone.high, best + 1.3);
+      const span = refHigh - refLow;
+
+      if (span >= minAllowed && span <= maxAllowed) {
+        const points = round(span / POINT_VALUE, 0);
         return {
           type: "BUY",
           low: round(refLow, 2),
           high: round(refHigh, 2),
           anchor: round(best, 2),
-          width: round(refHigh - refLow, 2),
+          width: round(span, 2),
+          points,
+          pips: round(points / POINTS_PER_PIP, 1),
         };
       }
     }
   } else if (zone.type === "SELL") {
     const validHighs = m5Swings.highs.filter(
-      (s) => s.price >= zone.low - 5 && s.price <= zone.high + 5
+      (s) => s.price >= zone.low - 0.5 && s.price <= zone.high + 0.5
     );
     if (validHighs.length > 0) {
       const best = validHighs[validHighs.length - 1].price;
-      const refLow = Math.max(zone.low, best - 12);
-      const refHigh = Math.min(zone.high, best + 12);
-      if (refHigh - refLow >= 18) {
+      const refLow = Math.max(zone.low, best - 1.3);
+      const refHigh = Math.min(zone.high, best + 1.2);
+      const span = refHigh - refLow;
+
+      if (span >= minAllowed && span <= maxAllowed) {
+        const points = round(span / POINT_VALUE, 0);
         return {
           type: "SELL",
           low: round(refLow, 2),
           high: round(refHigh, 2),
           anchor: round(best, 2),
-          width: round(refHigh - refLow, 2),
+          width: round(span, 2),
+          points,
+          pips: round(points / POINTS_PER_PIP, 1),
         };
       }
     }
@@ -262,28 +291,28 @@ function evaluateStatus(cmp, zone, invalidationLevel) {
   if (zone.type === "BUY") {
     if (cmp < invalidationLevel) return "INVALID";
     if (cmp >= zone.low && cmp <= zone.high) return "READY";
-    if (cmp > zone.high && cmp <= zone.high + 15) return "APPROACHING";
-    if (cmp > zone.high + 15 && cmp <= zone.high + 60) return "WAIT_RETEST";
+    if (cmp > zone.high && cmp <= zone.high + 1.5) return "APPROACHING";
+    if (cmp > zone.high + 1.5 && cmp <= zone.high + 5.0) return "WAIT_RETEST";
     return "WATCH";
   } else {
     if (cmp > invalidationLevel) return "INVALID";
     if (cmp >= zone.low && cmp <= zone.high) return "READY";
-    if (cmp < zone.low && cmp >= zone.low - 15) return "APPROACHING";
-    if (cmp < zone.low - 15 && cmp >= zone.low - 60) return "WAIT_RETEST";
+    if (cmp < zone.low && cmp >= zone.low - 1.5) return "APPROACHING";
+    if (cmp < zone.low - 1.5 && cmp >= zone.low - 5.0) return "WAIT_RETEST";
     return "WATCH";
   }
 }
 
-// ==========================================
-// 5. SCALPING ENGINE (H1 -> M15 -> M5)
-// ==========================================
+// =========================================================
+// 6. SCALPING ENGINE (H1 -> M15 -> M5)
+// =========================================================
 function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
   const isBuy = side === "BUY";
   let anchor = 0;
   let setupType = "SR_LEVEL";
   let reason = "";
 
-  // 1. Sideway Market Logic (Range Support / Resistance)
+  // 1. Sideway Market Logic (Range Support / Resistance - JANGAN TUNGGU BREAKOUT)
   if (m15Struct.isSideway) {
     if (isBuy) {
       anchor = m15Struct.keySupport;
@@ -318,28 +347,26 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
     }
   }
 
-  // Construct zone and refine with M5
-  const baseZone = constructZone(anchor, side, m15ATR);
+  // 200 - 350 points zone
+  const baseZone = buildStandardZone(anchor, side, m15ATR);
   const refinedZone = refineZoneWithM5(baseZone, m5Swings);
 
-  const invalidationLevel = isBuy ? refinedZone.low - 35 : refinedZone.high + 35;
+  // Invalidation & SL: 300 points ($3.00) dari sempadan zon
+  const slOffset = UNIFIED_SL_POINTS * POINT_VALUE; // $3.00
+  const invalidationLevel = isBuy ? refinedZone.low - slOffset : refinedZone.high + slOffset;
   const status = evaluateStatus(cmp, refinedZone, invalidationLevel);
 
-  // Targets (TP1: 600 pts / $6.00, TP2: 1200 pts / $12.00)
   const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
-  const sl = isBuy
-    ? round(refinedZone.low - (SCALP_SL_POINTS / 100), 2)
-    : round(refinedZone.high + (SCALP_SL_POINTS / 100), 2);
+  const sl = isBuy ? round(refinedZone.low - slOffset, 2) : round(refinedZone.high + slOffset, 2);
 
   const tp1 = isBuy
-    ? round(refinedZone.high + (SCALP_TP1_POINTS / 100), 2)
-    : round(refinedZone.low - (SCALP_TP1_POINTS / 100), 2);
+    ? round(refinedZone.high + (SCALP_TP1_POINTS * POINT_VALUE), 2)
+    : round(refinedZone.low - (SCALP_TP1_POINTS * POINT_VALUE), 2);
 
   const tp2 = isBuy
-    ? round(refinedZone.high + (SCALP_TP2_POINTS / 100), 2)
-    : round(refinedZone.low - (SCALP_TP2_POINTS / 100), 2);
+    ? round(refinedZone.high + (SCALP_TP2_POINTS * POINT_VALUE), 2)
+    : round(refinedZone.low - (SCALP_TP2_POINTS * POINT_VALUE), 2);
 
-  // Scoring
   let score = 65;
   const targetDir = isBuy ? "BULLISH" : "BEARISH";
   if (h1Struct.direction === targetDir) score += 15;
@@ -359,11 +386,15 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
     sl,
     tp1,
     tp2,
+    slPoints: UNIFIED_SL_POINTS,
+    slPips: UNIFIED_SL_POINTS / POINTS_PER_PIP,
     zone: {
       type: side,
       low: refinedZone.low,
       high: refinedZone.high,
       anchor: refinedZone.anchor,
+      points: refinedZone.points,
+      pips: refinedZone.pips,
     },
     setup: setupType,
     reason,
@@ -371,16 +402,16 @@ function buildScalpSide(side, cmp, h1Struct, m15Struct, m5Swings, m15ATR) {
   };
 }
 
-// ==========================================
-// 6. INTRADAY ENGINE (H4 -> H1 -> M15 -> M5)
-// ==========================================
-function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings) {
+// =========================================================
+// 7. INTRADAY ENGINE (H4 -> H1 -> M15 -> M5)
+// =========================================================
+function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR) {
   const isBuy = side === "BUY";
   let anchor = 0;
   let setupType = "SR_LEVEL";
   let reason = "";
 
-  // Fibonacci Retracement (0.382 / 0.500 ONLY)
+  // Hierarchy: Fibonacci Pullback (0.382 / 0.500 ONLY) pada H1 Swing
   if (h1Struct.h1 && h1Struct.l1 && h1Struct.h1.price > h1Struct.l1.price) {
     const range = h1Struct.h1.price - h1Struct.l1.price;
     if (isBuy) {
@@ -398,24 +429,25 @@ function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings) {
     reason = isBuy ? "H4/H1 structural support demand." : "H4/H1 major resistance rejection.";
   }
 
-  const baseZone = constructZone(anchor, side, 30.0);
+  // Unified Zone Range: 200 - 350 points
+  const baseZone = buildStandardZone(anchor, side, h1ATR);
   const refinedZone = refineZoneWithM5(baseZone, m5Swings);
 
-  const invalidationLevel = isBuy ? refinedZone.low - 45 : refinedZone.high + 45;
+  // Invalidation & SL: 300 points ($3.00)
+  const slOffset = UNIFIED_SL_POINTS * POINT_VALUE; // $3.00
+  const invalidationLevel = isBuy ? refinedZone.low - slOffset : refinedZone.high + slOffset;
   const status = evaluateStatus(cmp, refinedZone, invalidationLevel);
 
   const entry = round((refinedZone.low + refinedZone.high) / 2, 2);
-  const sl = isBuy
-    ? round(refinedZone.low - (INTRA_SL_POINTS / 100), 2)
-    : round(refinedZone.high + (INTRA_SL_POINTS / 100), 2);
+  const sl = isBuy ? round(refinedZone.low - slOffset, 2) : round(refinedZone.high + slOffset, 2);
 
   const tp1 = isBuy
-    ? round(refinedZone.high + (INTRA_TP1_POINTS / 100), 2)
-    : round(refinedZone.low - (INTRA_TP1_POINTS / 100), 2);
+    ? round(refinedZone.high + (INTRA_TP1_POINTS * POINT_VALUE), 2)
+    : round(refinedZone.low - (INTRA_TP1_POINTS * POINT_VALUE), 2);
 
   const tp2 = isBuy
-    ? round(refinedZone.high + (INTRA_TP2_POINTS / 100), 2)
-    : round(refinedZone.low - (INTRA_TP2_POINTS / 100), 2);
+    ? round(refinedZone.high + (INTRA_TP2_POINTS * POINT_VALUE), 2)
+    : round(refinedZone.low - (INTRA_TP2_POINTS * POINT_VALUE), 2);
 
   let score = 70;
   const targetDir = isBuy ? "BULLISH" : "BEARISH";
@@ -435,11 +467,15 @@ function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings) {
     sl,
     tp1,
     tp2,
+    slPoints: UNIFIED_SL_POINTS,
+    slPips: UNIFIED_SL_POINTS / POINTS_PER_PIP,
     zone: {
       type: side,
       low: refinedZone.low,
       high: refinedZone.high,
       anchor: refinedZone.anchor,
+      points: refinedZone.points,
+      pips: refinedZone.pips,
     },
     setup: setupType,
     reason,
@@ -447,9 +483,9 @@ function buildIntradaySide(side, cmp, h4Struct, h1Struct, m15Struct, m5Swings) {
   };
 }
 
-// ==========================================
-// 7. MAIN HANDLER (Vercel Serverless Function)
-// ==========================================
+// =========================================================
+// 8. MAIN HANDLER (Vercel Serverless Function)
+// =========================================================
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -469,7 +505,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Parallel fetch for H4, H1, M15, M5
+    // Parallel fetch H4, H1, M15, M5
     const [h4Candles, h1Candles, m15Candles, m5Candles] = await Promise.all([
       fetchCandles("4h", 40, apiKey),
       fetchCandles("1h", 45, apiKey),
@@ -486,39 +522,43 @@ export default async function handler(req, res) {
 
     const currentPrice = round(m5Candles[m5Candles.length - 1].close, 2);
 
-    // Analyze Structures
+    // Multi-timeframe structures
     const h4Struct = analyzeStructure(h4Candles);
     const h1Struct = analyzeStructure(h1Candles);
     const m15Struct = analyzeStructure(m15Candles);
     const m5Swings = getSwings(m5Candles, 2, 2);
     const m15ATR = calculateATR(m15Candles, 14);
+    const h1ATR = calculateATR(h1Candles, 14);
 
     // Build Scalping & Intraday Sides
     const scalpBuy = buildScalpSide("BUY", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR);
     const scalpSell = buildScalpSide("SELL", currentPrice, h1Struct, m15Struct, m5Swings, m15ATR);
-    const intraBuy = buildIntradaySide("BUY", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings);
-    const intraSell = buildIntradaySide("SELL", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings);
+    const intraBuy = buildIntradaySide("BUY", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR);
+    const intraSell = buildIntradaySide("SELL", currentPrice, h4Struct, h1Struct, m15Struct, m5Swings, h1ATR);
 
-    // Determine Dominant Side
+    // Dominant Setups
     const primaryScalp = scalpBuy.score >= scalpSell.score ? scalpBuy : scalpSell;
     const primaryIntra = intraBuy.score >= intraSell.score ? intraBuy : intraSell;
     const bestSetup = primaryScalp.score >= primaryIntra.score ? primaryScalp : primaryIntra;
 
-    // Punca S/R Level identification for UI
     const puncaPrice = bestSetup.zone.anchor;
     const puncaSource = `${m15Struct.isSideway ? "M15 Range" : "M15 S/R"} (${bestSetup.setup})`;
 
-    // Risk calculation
     const calculatedRisk = round(Math.abs(bestSetup.entry - bestSetup.sl), 2);
-    const maxAllowedRisk = round(m15ATR * 1.5, 2);
+    const maxAllowedRisk = round(UNIFIED_SL_POINTS * POINT_VALUE, 2); // $3.00
 
-    // Structured JSON (Supports new engine format & existing HTML properties)
+    // Output JSON Payload (Kekal 100% serasi dengan HTML sedia ada)
     const responsePayload = {
       status: "success",
       engine: {
         name: "SINNCI MARKET ENGINE PRO",
         version: "PRO-3.0",
         mode: "ACTIVE SCALPING / SELECTIVE INTRADAY",
+        standards: {
+          unit: "10 points = 1 pip",
+          zoneRange: "200 - 350 points (20 - 35 pips)",
+          stopLoss: "300 points (30 pips)",
+        },
       },
       market: {
         symbol: "XAUUSD",
@@ -536,7 +576,6 @@ export default async function handler(req, res) {
         H1: h1Struct.structure,
         M15: m15Struct.structure,
       },
-      // Full Scalping Object with buy/sell branches for HTML compatibility
       scalping: {
         signal: primaryScalp.side,
         direction: h1Struct.direction,
@@ -553,7 +592,6 @@ export default async function handler(req, res) {
         buy: scalpBuy,
         sell: scalpSell,
       },
-      // Full Intraday Object with buy/sell branches for HTML compatibility
       intraday: {
         signal: primaryIntra.side,
         direction: h4Struct.direction,
@@ -569,7 +607,6 @@ export default async function handler(req, res) {
         buy: intraBuy,
         sell: intraSell,
       },
-      // Legacy UI direct bindings
       signal: bestSetup.status === "SIGNAL" ? bestSetup.side : "WAIT",
       status: bestSetup.status,
       score: bestSetup.score,

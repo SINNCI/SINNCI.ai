@@ -3,56 +3,62 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SINNCI AI</title>
+<title>SINNCI AI — Institutional Intelligence</title>
 
-<!-- =========================================================
-     OPEN GRAPH & SOCIAL MEDIA PREVIEW (SINNCI AI)
-     ========================================================= -->
 <meta name="title" content="SINNCI AI — XAUUSD Market Intelligence">
-<meta name="description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
+<meta name="description" content="AI XAUUSD Market Analysis & Signal. Real-time active scalping & precision intraday execution.">
 
-<!-- Open Graph / WhatsApp / Telegram / Facebook / Discord -->
+<!-- Open Graph Preview -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sinnci-ai.vercel.app/">
 <meta property="og:title" content="SINNCI AI — XAUUSD Market Intelligence">
-<meta property="og:description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
+<meta property="og:description" content="AI XAUUSD Market Analysis & Signal. Real-time active scalping & precision intraday execution.">
 <meta property="og:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 <meta property="og:image:secure_url" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 <meta property="og:image:type" content="image/jpeg">
 
-<!-- Twitter / X Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:url" content="https://sinnci-ai.vercel.app/">
 <meta name="twitter:title" content="SINNCI AI — XAUUSD Market Intelligence">
-<meta name="twitter:description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
+<meta name="twitter:description" content="AI XAUUSD Market Analysis & Signal. Real-time active scalping & precision intraday execution.">
 <meta name="twitter:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 
 :root{
-  --bg:#050607;
-  --panel:rgba(13,15,18,.88);
+  --bg:#030407;
+  --panel:rgba(10, 13, 20, 0.75);
+  --panel-card:rgba(14, 18, 28, 0.85);
   --gold:#d8b45a;
-  --gold2:#f3d37a;
-  --white:#f4f4f4;
-  --muted:#858991;
-  --green:#20d98b;
-  --red:#ff5268;
-  --yellow:#f2c94c;
+  --gold2:#fce196;
+  --gold-glow:rgba(216, 180, 90, 0.25);
+  --white:#f8fafc;
+  --muted:#6e7687;
+  --green:#10b981;
+  --green-glow:rgba(16, 185, 129, 0.25);
+  --red:#f43f5e;
+  --red-glow:rgba(244, 63, 94, 0.25);
+  --yellow:#fbbf24;
   --blue:#38bdf8;
-  --line:rgba(255,255,255,.07);
+  --border:rgba(255, 255, 255, 0.08);
+  --border-gold:rgba(216, 180, 90, 0.25);
 }
 
 body{
   min-height:100vh;
-  background:
-    radial-gradient(circle at 10% 10%,rgba(216,180,90,.09),transparent 28%),
-    radial-gradient(circle at 90% 30%,rgba(30,215,139,.055),transparent 25%),
-    radial-gradient(circle at 50% 100%,rgba(255,70,90,.045),transparent 30%),
-    #050607;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(216, 180, 90, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 60%);
   color:var(--white);
-  font-family:Inter,Arial,sans-serif;
+  font-family:'Plus Jakarta Sans',sans-serif;
   overflow-x:hidden;
 }
 
@@ -61,45 +67,17 @@ body::before{
   position:fixed;
   inset:0;
   pointer-events:none;
-  opacity:.18;
+  opacity:.12;
   background-image:
-    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
-  background-size:42px 42px;
-  mask-image:linear-gradient(to bottom,black,transparent 90%);
-}
-
-body::after{
-  content:"";
-  position:fixed;
-  left:-5%;
-  right:-5%;
-  bottom:5%;
-  height:300px;
-  pointer-events:none;
-  opacity:.08;
-  background:
-    linear-gradient(135deg,
-      transparent 0 8%,
-      var(--gold) 8.2% 8.5%,
-      transparent 8.7% 18%,
-      var(--green) 18.2% 18.5%,
-      transparent 8.7% 32%,
-      var(--gold) 32.2% 32.5%,
-      transparent 32.7% 47%,
-      var(--red) 47.2% 47.5%,
-      transparent 47.7% 61%,
-      var(--green) 61.2% 61.5%,
-      transparent 61.7% 76%,
-      var(--gold) 76.2% 76.5%,
-      transparent 76.7% 100%);
-  transform:skewY(-7deg);
+    linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:36px 36px;
+  mask-image:radial-gradient(ellipse at center, black 40%, transparent 85%);
 }
 
 /* =========================================================
-   SINNCI AI — INTRO
+   INTRO ANIMATION
    ========================================================= */
-
 #sinnciIntro{
   position:fixed;
   inset:0;
@@ -108,50 +86,15 @@ body::after{
   align-items:center;
   justify-content:center;
   overflow:hidden;
-  background:
-    radial-gradient(circle at 50% 50%,rgba(216,180,90,.12),transparent 28%),
-    radial-gradient(circle at 10% 50%,rgba(255,82,104,.09),transparent 30%),
-    radial-gradient(circle at 90% 50%,rgba(32,217,139,.07),transparent 30%),
-    #030405;
-  animation:sinnciIntroExit .7s ease 6.3s forwards;
-}
-
-#sinnciIntro::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255,255,255,.035) 45%,
-      rgba(216,180,90,.08) 50%,
-      rgba(255,255,255,.035) 55%,
-      transparent 100%
-    );
-  background-size:220% 100%;
-  animation:introLight 3.5s linear infinite;
-}
-
-#sinnciIntro::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  opacity:.13;
-  background-image:
-    linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
-  background-size:45px 45px;
-  mask-image:radial-gradient(circle,black,transparent 75%);
+  background:#030405;
+  animation:sinnciIntroExit .7s cubic-bezier(.16,1,.3,1) 6.3s forwards;
 }
 
 .intro-particles{
   position:absolute;
   inset:0;
   pointer-events:none;
-  overflow:hidden;
 }
-
 .intro-particles span{
   position:absolute;
   width:2px;
@@ -161,15 +104,12 @@ body::after{
   opacity:0;
   animation:introParticle 4s linear infinite;
 }
-
-.intro-particles span:nth-child(1){left:12%;top:30%;animation-delay:.2s}
-.intro-particles span:nth-child(2){left:21%;top:70%;animation-delay:1s}
-.intro-particles span:nth-child(3){left:34%;top:22%;animation-delay:1.5s}
-.intro-particles span:nth-child(4){left:48%;top:78%;animation-delay:.7s}
-.intro-particles span:nth-child(5){left:61%;top:24%;animation-delay:1.8s}
-.intro-particles span:nth-child(6){left:73%;top:68%;animation-delay:.4s}
-.intro-particles span:nth-child(7){left:84%;top:34%;animation-delay:1.2s}
-.intro-particles span:nth-child(8){left:91%;top:76%;animation-delay:2s}
+.intro-particles span:nth-child(1){left:15%;top:25%;animation-delay:.2s}
+.intro-particles span:nth-child(2){left:25%;top:75%;animation-delay:1s}
+.intro-particles span:nth-child(3){left:40%;top:30%;animation-delay:1.5s}
+.intro-particles span:nth-child(4){left:60%;top:80%;animation-delay:.7s}
+.intro-particles span:nth-child(5){left:75%;top:20%;animation-delay:1.8s}
+.intro-particles span:nth-child(6){left:85%;top:70%;animation-delay:.4s}
 
 .intro-center{
   position:relative;
@@ -180,38 +120,18 @@ body::after{
   align-items:center;
   justify-content:center;
 }
-
 .intro-beasts{
   position:absolute;
   left:50%;
   top:50%;
   width:min(1100px,110vw);
-  max-width:none;
   transform:translate(-50%,-50%) scale(.72);
   opacity:0;
-  filter:
-    contrast(1.18)
-    saturate(.72)
-    brightness(.72)
-    drop-shadow(0 0 45px rgba(216,180,90,.12));
+  filter:contrast(1.2) saturate(.75) brightness(.72);
   user-select:none;
   pointer-events:none;
   animation:introBeasts 1.4s cubic-bezier(.16,.8,.25,1) .9s forwards;
 }
-
-.intro-beast-overlay{
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(
-      ellipse at center,
-      transparent 20%,
-      rgba(0,0,0,.18) 55%,
-      rgba(0,0,0,.72) 100%
-    );
-  pointer-events:none;
-}
-
 .intro-vs{
   position:absolute;
   top:50%;
@@ -220,12 +140,10 @@ body::after{
   font-size:13px;
   font-weight:900;
   letter-spacing:5px;
-  color:rgba(255,255,255,.42);
+  color:rgba(255,255,255,.45);
   opacity:0;
-  text-shadow:0 0 15px rgba(255,255,255,.15);
   animation:introVS .8s ease 1.55s forwards;
 }
-
 .intro-welcome{
   position:absolute;
   top:41%;
@@ -233,200 +151,79 @@ body::after{
   transform:translate(-50%,-50%);
   width:100%;
   text-align:center;
-  color:#d1d4d9;
-  font-size:clamp(12px,2vw,17px);
+  color:#cbd5e1;
+  font-size:clamp(12px,2vw,16px);
   font-weight:800;
   letter-spacing:4px;
   white-space:nowrap;
   opacity:0;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:0;
-  text-shadow:0 0 20px rgba(255,255,255,.12);
   animation:introWelcome .4s ease 2.5s forwards;
 }
-
 .intro-welcome span{
   display:inline-block;
   opacity:0;
   transform:translateX(-25px) translateY(-8px);
   animation:introWelcomeLetter .42s cubic-bezier(.16,.8,.25,1) forwards;
 }
-
-.intro-welcome span:nth-child(1){animation-delay:2.55s}
-.intro-welcome span:nth-child(2){animation-delay:2.61s}
-.intro-welcome span:nth-child(3){animation-delay:2.67s}
-.intro-welcome span:nth-child(4){animation-delay:2.73s}
-.intro-welcome span:nth-child(5){animation-delay:2.79s}
-.intro-welcome span:nth-child(6){animation-delay:2.85s}
-.intro-welcome span:nth-child(7){animation-delay:2.91s}
-.intro-welcome span:nth-child(8){animation-delay:2.97s}
-.intro-welcome span:nth-child(9){animation-delay:3.03s}
-.intro-welcome span:nth-child(10){animation-delay:3.09s}
-.intro-welcome span:nth-child(11){animation-delay:3.15s}
-.intro-welcome span:nth-child(12){animation-delay:3.21s}
-.intro-welcome span:nth-child(13){animation-delay:3.27s}
-.intro-welcome span:nth-child(14){animation-delay:3.33s}
-.intro-welcome span:nth-child(15){animation-delay:3.39s}
-.intro-welcome span:nth-child(16){animation-delay:3.45s}
-.intro-welcome span:nth-child(17){animation-delay:3.51s}
-.intro-welcome span:nth-child(18){animation-delay:3.57s}
+.intro-welcome span:nth-child(1){animation-delay:2.55s}.intro-welcome span:nth-child(2){animation-delay:2.61s}
+.intro-welcome span:nth-child(3){animation-delay:2.67s}.intro-welcome span:nth-child(4){animation-delay:2.73s}
+.intro-welcome span:nth-child(5){animation-delay:2.79s}.intro-welcome span:nth-child(6){animation-delay:2.85s}
+.intro-welcome span:nth-child(7){animation-delay:2.91s}.intro-welcome span:nth-child(8){animation-delay:2.97s}
+.intro-welcome span:nth-child(9){animation-delay:3.03s}.intro-welcome span:nth-child(10){animation-delay:3.09s}
+.intro-welcome span:nth-child(11){animation-delay:3.15s}.intro-welcome span:nth-child(12){animation-delay:3.21s}
+.intro-welcome span:nth-child(13){animation-delay:3.27s}.intro-welcome span:nth-child(14){animation-delay:3.33s}
+.intro-welcome span:nth-child(15){animation-delay:3.39s}.intro-welcome span:nth-child(16){animation-delay:3.45s}
+.intro-welcome span:nth-child(17){animation-delay:3.51s}.intro-welcome span:nth-child(18){animation-delay:3.57s}
 
 .intro-title{
   position:absolute;
   top:51%;
   left:50%;
   transform:translate(-50%,-50%) scale(.55);
-  width:100%;
-  text-align:center;
-  font-size:clamp(46px,11vw,105px);
-  font-weight:1000;
-  letter-spacing:clamp(5px,2vw,15px);
-  color:#f3d37a;
-  text-shadow:
-    0 0 15px rgba(216,180,90,.35),
-    0 0 45px rgba(216,180,90,.22),
-    0 0 90px rgba(216,180,90,.10);
+  font-family:'Space Grotesk',sans-serif;
+  font-size:clamp(46px,10vw,95px);
+  font-weight:900;
+  letter-spacing:clamp(4px,2vw,12px);
+  color:#fce196;
+  text-shadow:0 0 35px rgba(216,180,90,.3);
   opacity:0;
   animation:introTitle 1.15s cubic-bezier(.16,.8,.25,1) 3.65s forwards;
 }
-
-.intro-flash{
-  position:absolute;
-  left:50%;
-  top:51%;
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:#fff4cf;
-  transform:translate(-50%,-50%) scale(0);
-  opacity:0;
-  box-shadow:
-    0 0 20px rgba(255,255,255,.9),
-    0 0 70px rgba(216,180,90,.8),
-    0 0 140px rgba(216,180,90,.5);
-  animation:introFlash .7s ease 3.65s forwards;
-}
-
 .intro-line{
   position:absolute;
   left:50%;
-  bottom:20%;
+  bottom:22%;
   width:0;
   height:1px;
   transform:translateX(-50%);
   background:linear-gradient(90deg,transparent,var(--gold),transparent);
-  box-shadow:0 0 15px rgba(216,180,90,.5);
   animation:introLine 1.2s ease 4s forwards;
 }
-
 .intro-loading{
   position:absolute;
-  bottom:13%;
+  bottom:15%;
   left:50%;
   transform:translateX(-50%);
-  color:#656a72;
+  color:#64748b;
   font-size:8px;
   letter-spacing:4px;
   opacity:0;
-  animation:introLoading 1s ease 4.35s forwards;
+  animation:introWelcome 1s ease 4.35s forwards;
 }
 
-@keyframes introBeasts{
-  0%{
-    opacity:0;
-    transform:translate(-50%,-50%) scale(.72) translateY(18px);
-    filter:contrast(1.1) saturate(.5) brightness(.38) blur(2px)
-      drop-shadow(0 0 20px rgba(216,180,90,.05));
-  }
-  22%{opacity:1}
-  65%{
-    transform:translate(-50%,-50%) scale(.91) translateY(0);
-    filter:contrast(1.2) saturate(.75) brightness(.76) blur(0)
-      drop-shadow(0 0 50px rgba(216,180,90,.14));
-  }
-  100%{
-    opacity:.78;
-    transform:translate(-50%,-50%) scale(.98) translateY(-3px);
-    filter:contrast(1.2) saturate(.8) brightness(.72) blur(0)
-      drop-shadow(0 0 55px rgba(216,180,90,.12));
-  }
-}
+@keyframes introBeasts{0%{opacity:0;transform:translate(-50%,-50%) scale(.72) translateY(18px);}100%{opacity:.8;transform:translate(-50%,-50%) scale(.98) translateY(-3px);}}
+@keyframes introVS{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes introWelcome{from{opacity:0}to{opacity:1}}
+@keyframes introWelcomeLetter{0%{opacity:0;transform:translateX(-25px) translateY(-8px);}100%{opacity:1;transform:translateX(0) translateY(0);}}
+@keyframes introTitle{0%{opacity:0;transform:translate(-50%,-50%) scale(.55);filter:blur(14px);}100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0);}}
+@keyframes introLine{0%{width:0}100%{width:min(400px,70%)}}
+@keyframes introParticle{0%{opacity:0;transform:translateY(25px) scale(.5);}100%{opacity:0;transform:translateY(-70px) scale(1.3);}}
+@keyframes sinnciIntroExit{0%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden;pointer-events:none;}}
 
-@keyframes introVS{
-  0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
-  50%{opacity:1}
-  100%{opacity:1;transform:translate(-50%,-50%) scale(1)}
-}
-
-@keyframes introWelcome{
-  from{opacity:0}
-  to{opacity:1}
-}
-
-@keyframes introWelcomeLetter{
-  0%{opacity:0;transform:translateX(-25px) translateY(-8px);}
-  65%{opacity:1}
-  100%{opacity:1;transform:translateX(0) translateY(0);}
-}
-
-@keyframes introTitle{
-  0%{opacity:0;transform:translate(-50%,-50%) scale(.55);filter:blur(14px);}
-  45%{opacity:1;transform:translate(-50%,-50%) scale(1.12);filter:blur(0);}
-  65%{transform:translate(-50%,-50%) scale(.96)}
-  100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0);}
-}
-
-@keyframes introFlash{
-  0%{opacity:0;transform:translate(-50%,-50%) scale(0);}
-  25%{opacity:.9;transform:translate(-50%,-50%) scale(1);}
-  55%{opacity:.12;transform:translate(-50%,-50%) scale(22);}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(35);}
-}
-
-@keyframes introLine{
-  0%{width:0}
-  100%{width:min(430px,70%)}
-}
-
-@keyframes introLoading{
-  from{opacity:0}
-  to{opacity:1}
-}
-
-@keyframes introLight{
-  0%{background-position:-100% 0}
-  100%{background-position:200% 0}
-}
-
-@keyframes introParticle{
-  0%{opacity:0;transform:translateY(25px) scale(.5);}
-  20%{opacity:.8}
-  80%{opacity:.35}
-  100%{opacity:0;transform:translateY(-70px) scale(1.3);}
-}
-
-@keyframes sinnciIntroExit{
-  0%{opacity:1;visibility:visible}
-  70%{opacity:1;visibility:visible}
-  100%{opacity:0;visibility:hidden;pointer-events:none;}
-}
-
-@media(max-width:600px){
-  .intro-beasts{width:145vw;max-width:none;}
-  .intro-vs{top:50%;font-size:9px;letter-spacing:4px;}
-  .intro-welcome{top:40%;font-size:8px;letter-spacing:2.5px;}
-  .intro-title{top:50%;font-size:43px;letter-spacing:5px;}
-  .intro-line{bottom:20%}
-  .intro-loading{bottom:13%;font-size:7px;letter-spacing:3px;}
-}
-
-/* ==============================
-   AUTH
-   ============================== */
-
-#authScreen{
+/* =========================================================
+   AUTH MODALS
+   ========================================================= */
+#authScreen,#pendingScreen{
   position:fixed;
   inset:0;
   z-index:9999;
@@ -434,1055 +231,486 @@ body::after{
   align-items:center;
   justify-content:center;
   padding:20px;
-  background:
-    radial-gradient(circle at 50% 20%,rgba(216,180,90,.10),transparent 35%),
-    rgba(5,6,7,.97);
+  background:rgba(3,4,7,.95);
+  backdrop-filter:blur(24px);
 }
-
-.auth-box{
+.auth-box,.pending-box{
   width:100%;
   max-width:420px;
-  padding:30px;
-  border:1px solid rgba(216,180,90,.18);
-  border-radius:24px;
-  background:linear-gradient(145deg,rgba(22,24,29,.97),rgba(9,11,14,.96));
-  box-shadow:0 25px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.025);
+  padding:36px;
+  border:1px solid var(--border-gold);
+  border-radius:28px;
+  background:linear-gradient(160deg,rgba(20,24,36,.9),rgba(9,11,18,.95));
+  box-shadow:0 30px 90px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.05);
 }
-
 .auth-logo{
-  width:58px;
-  height:58px;
+  width:54px;
+  height:54px;
   margin:0 auto 16px;
-  border:1px solid rgba(216,180,90,.5);
-  border-radius:17px;
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(216,180,90,.2),rgba(216,180,90,.05));
+  border:1px solid var(--border-gold);
   display:grid;
   place-items:center;
   color:var(--gold2);
-  font-size:27px;
+  font-family:'Space Grotesk',sans-serif;
+  font-size:24px;
   font-weight:900;
-  background:rgba(216,180,90,.06);
+  box-shadow:0 10px 25px var(--gold-glow);
 }
-
-.auth-title{
-  text-align:center;
-  font-size:25px;
-  font-weight:900;
-  letter-spacing:1px;
-}
-
-.auth-subtitle{
-  text-align:center;
-  color:var(--muted);
-  font-size:11px;
-  margin-top:7px;
-  line-height:1.5;
-}
-
-.auth-tabs{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:7px;
-  margin-top:24px;
-}
-
-.auth-tab{
-  padding:11px;
-  border:1px solid var(--line);
-  border-radius:10px;
-  background:rgba(255,255,255,.025);
-  color:var(--muted);
-  cursor:pointer;
-  font-weight:800;
-}
-
-.auth-tab.active{
-  color:#111;
-  background:var(--gold);
-  border-color:var(--gold);
-}
-
-.auth-form{margin-top:18px}
-
-.auth-input{
-  width:100%;
-  padding:14px;
-  margin-bottom:10px;
-  border-radius:11px;
-  border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.035);
-  color:var(--white);
-  outline:none;
-  font-size:13px;
-}
-
-.auth-input:focus{
-  border-color:rgba(216,180,90,.5);
-}
-
-.auth-btn{
-  width:100%;
-  padding:14px;
-  border:0;
-  border-radius:11px;
-  background:linear-gradient(135deg,var(--gold2),var(--gold));
-  color:#111;
-  font-weight:900;
-  cursor:pointer;
-  margin-top:4px;
-}
-
-.auth-message{
-  margin-top:13px;
-  text-align:center;
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.5;
-}
-
+.auth-title{text-align:center;font-size:24px;font-weight:900;letter-spacing:1px;font-family:'Space Grotesk',sans-serif;}
+.auth-subtitle{text-align:center;color:var(--muted);font-size:11px;margin-top:6px;letter-spacing:1px;}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px;}
+.auth-tab{padding:12px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.02);color:var(--muted);cursor:pointer;font-weight:800;font-size:11px;transition:.2s;}
+.auth-tab.active{color:#000;background:linear-gradient(135deg,var(--gold2),var(--gold));border-color:transparent;box-shadow:0 4px 15px var(--gold-glow);}
+.auth-form{margin-top:20px;}
+.auth-input{width:100%;padding:14px 16px;margin-bottom:12px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:#fff;outline:none;font-size:13px;transition:.2s;}
+.auth-input:focus{border-color:var(--gold);background:rgba(255,255,255,.05);}
+.auth-btn{width:100%;padding:15px;border:0;border-radius:14px;background:linear-gradient(135deg,var(--gold2),var(--gold));color:#000;font-weight:900;font-size:12px;cursor:pointer;letter-spacing:.8px;margin-top:6px;box-shadow:0 8px 25px var(--gold-glow);transition:.2s;}
+.auth-btn:hover{transform:translateY(-1px);}
+.auth-message{margin-top:14px;text-align:center;font-size:11px;}
 .auth-error{color:var(--red)}
 .auth-success{color:var(--green)}
+.pending-icon{font-size:46px;margin-bottom:16px;}
+.logout-btn{margin-top:24px;padding:12px 28px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.04);color:#fff;cursor:pointer;font-weight:700;font-size:12px;}
 
-#pendingScreen{
-  display:none;
-  position:fixed;
-  inset:0;
-  z-index:9998;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:rgba(5,6,7,.97);
-}
-
-.pending-box{
-  width:100%;
-  max-width:420px;
-  padding:30px;
-  text-align:center;
-  border:1px solid rgba(216,180,90,.18);
-  border-radius:24px;
-  background:linear-gradient(145deg,rgba(22,24,29,.97),rgba(9,11,14,.96));
-}
-
-.pending-icon{
-  font-size:42px;
-  margin-bottom:15px;
-}
-
-.pending-title{
-  font-size:23px;
-  font-weight:900;
-}
-
-.pending-text{
-  margin-top:10px;
-  color:var(--muted);
-  font-size:12px;
-  line-height:1.6;
-}
-
-.logout-btn{
-  margin-top:20px;
-  padding:11px 22px;
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:10px;
-  background:rgba(255,255,255,.04);
-  color:var(--white);
-  cursor:pointer;
-}
-
-/* ==============================
-   MAIN
-   ============================== */
-
-#app{display:none}
-
+/* =========================================================
+   DASHBOARD HUD
+   ========================================================= */
+#app{display:none;}
 .topbar{
-  position:relative;
-  z-index:2;
-  max-width:1250px;
+  max-width:1320px;
   margin:auto;
-  padding:24px 20px 12px;
+  padding:28px 24px 16px;
   display:flex;
   align-items:center;
   justify-content:space-between;
 }
-
-.brand{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
+.brand{display:flex;align-items:center;gap:14px;}
 .logo{
-  width:42px;
-  height:42px;
-  border:1px solid rgba(216,180,90,.5);
-  border-radius:12px;
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  background:linear-gradient(135deg,rgba(216,180,90,.2),rgba(216,180,90,.03));
+  border:1px solid var(--border-gold);
   display:grid;
   place-items:center;
   color:var(--gold2);
+  font-family:'Space Grotesk',sans-serif;
   font-size:20px;
   font-weight:900;
-  background:rgba(216,180,90,.06);
-  box-shadow:0 0 25px rgba(216,180,90,.08);
+  box-shadow:0 0 25px rgba(216,180,90,.15);
 }
-
-.brand-title{
-  font-size:21px;
-  font-weight:900;
-  letter-spacing:1.5px;
-}
-
-.brand-sub{
-  font-size:9px;
-  color:var(--gold);
-  letter-spacing:2px;
-  margin-top:3px;
-}
-
-.live{
+.brand-title{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:900;letter-spacing:1px;}
+.brand-sub{font-size:9px;color:var(--gold);letter-spacing:2px;font-weight:700;margin-top:2px;}
+.live-pill{
   display:flex;
   align-items:center;
-  gap:7px;
-  padding:8px 14px;
-  border:1px solid rgba(32,217,139,.2);
+  gap:8px;
+  padding:8px 16px;
   border-radius:30px;
-  background:rgba(32,217,139,.05);
-  font-size:11px;
-  color:#9ff5ce;
-  font-weight:700;
+  background:rgba(16,185,129,.08);
+  border:1px solid rgba(16,185,129,.25);
+  font-size:10px;
+  font-weight:800;
+  color:#6ee7b7;
+  letter-spacing:.5px;
 }
+.live-pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:livePulse 2s infinite;}
+@keyframes livePulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.8);}}
 
-.live-dot{
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 12px var(--green);
-}
+.container{max-width:1320px;margin:auto;padding:10px 24px 60px;}
 
-.container{
+/* HUD Card Base */
+.hud-card{
+  border:1px solid var(--border);
+  background:var(--panel-card);
+  border-radius:24px;
+  backdrop-filter:blur(24px);
   position:relative;
-  z-index:1;
-  max-width:1250px;
-  margin:auto;
-  padding:12px 20px 50px;
+  box-shadow:0 20px 50px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.04);
 }
 
+/* HERO SECTION */
 .hero{
   display:grid;
-  grid-template-columns:1.35fr .65fr;
-  gap:16px;
-  margin-bottom:16px;
+  grid-template-columns:1.45fr .8fr;
+  gap:18px;
+  margin-bottom:18px;
 }
-
-.card{
-  border:1px solid var(--line);
-  background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));
-  border-radius:22px;
-  box-shadow:0 18px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.025);
-  backdrop-filter:blur(14px);
-}
-
 .price-card{
-  padding:24px;
-  position:relative;
+  padding:28px;
   overflow:hidden;
 }
-
-.market-label{
-  color:var(--gold);
-  font-size:11px;
-  letter-spacing:2px;
-  font-weight:700;
-}
-
-.symbol{
-  margin-top:9px;
-  font-size:28px;
-  font-weight:900;
-}
-
-.symbol span{
-  color:var(--muted);
-  font-size:12px;
-  font-weight:500;
-  margin-left:8px;
-}
-
-.price{
-  margin-top:18px;
-  font-size:42px;
-  font-weight:900;
-}
-
-.price-change{
-  margin-top:6px;
-  color:var(--green);
-  font-size:13px;
-}
-
-.market-status{
+.price-card::after{
+  content:"";
   position:absolute;
-  right:22px;
-  top:22px;
-  color:var(--muted);
-  font-size:11px;
+  width:220px;
+  height:220px;
+  right:-80px;
+  top:-80px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(216,180,90,.07),transparent 70%);
+  pointer-events:none;
 }
-
-.timeframe{
-  margin-top:22px;
+.tag-asset{color:var(--gold);font-size:10px;letter-spacing:2px;font-weight:800;}
+.symbol-row{
   display:flex;
-  gap:7px;
+  align-items:baseline;
+  gap:10px;
+  margin-top:6px;
 }
+.symbol-name{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:900;letter-spacing:.5px;}
+.symbol-desc{color:var(--muted);font-size:11px;font-weight:600;}
+.price-value{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:52px;
+  font-weight:900;
+  letter-spacing:-1px;
+  margin-top:14px;
+}
+.price-meta{display:flex;align-items:center;gap:12px;margin-top:6px;}
+.price-status{font-size:12px;font-weight:700;color:var(--green);}
 
-.tf{
-  padding:8px 14px;
-  border-radius:10px;
-  border:1px solid var(--line);
+.tf-switcher{display:flex;gap:8px;margin-top:26px;}
+.tf-btn{
+  padding:10px 18px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.02);
   color:var(--muted);
   font-size:10px;
+  font-weight:800;
   cursor:pointer;
-  transition:all .2s;
-  user-select:none;
+  letter-spacing:.5px;
+  transition:.25s;
+}
+.tf-btn.active{
+  color:#000;
+  background:linear-gradient(135deg,var(--gold2),var(--gold));
+  border-color:transparent;
+  box-shadow:0 6px 20px var(--gold-glow);
 }
 
-.tf.active{
-  color:#111;
-  background:var(--gold);
-  border-color:var(--gold);
-  font-weight:900;
-}
-
-.ai-card{
-  padding:24px;
+.ai-engine-card{
+  padding:28px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
 }
-
-.ai-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.ai-title{
-  font-weight:800;
-  font-size:14px;
-}
-
 .ai-badge{
   font-size:9px;
-  padding:6px 9px;
-  border-radius:20px;
+  padding:5px 12px;
+  border-radius:30px;
   background:rgba(216,180,90,.08);
-  color:var(--gold);
-  border:1px solid rgba(216,180,90,.18);
+  border:1px solid var(--border-gold);
+  color:var(--gold2);
+  font-weight:800;
+  letter-spacing:.5px;
 }
-
-.ai-icon{
-  width:62px;
-  height:62px;
-  border-radius:18px;
-  margin-top:20px;
-  display:grid;
-  place-items:center;
-  font-size:28px;
-  background:rgba(216,180,90,.07);
-  border:1px solid rgba(216,180,90,.16);
-}
-
-.ai-status{
-  margin-top:16px;
-  font-size:26px;
+.ai-status-display{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:32px;
   font-weight:900;
   color:var(--yellow);
+  margin-top:14px;
 }
+.ai-description{color:var(--muted);font-size:11px;line-height:1.6;margin-top:6px;}
 
-.ai-desc{
-  margin-top:6px;
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.5;
-}
-
-/* =========================================================
-   2 BAHAGIAN UTAMA: ZONE SETUP vs ENTRY SIGNAL
-   ========================================================= */
-
+/* DUO ENGINE (ZONE vs SIGNAL) */
 .engine-duo{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:16px;
-  margin-bottom:16px;
+  gap:18px;
+  margin-bottom:18px;
 }
-
 .zone-panel{
-  padding:24px;
-  border-radius:22px;
-  background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));
-  border:1px solid rgba(216,180,90,.3);
-  position:relative;
-  overflow:hidden;
+  padding:26px;
+  border:1px solid var(--border-gold);
 }
-
-.zone-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-
+.zone-header{display:flex;justify-content:space-between;align-items:center;}
+.zone-label-sub{font-size:11px;font-weight:900;letter-spacing:1px;color:var(--gold);}
 .badge-locked{
-  padding:5px 10px;
+  padding:5px 12px;
   border-radius:8px;
   font-size:9px;
-  font-weight:900;
-  letter-spacing:.6px;
-  background:rgba(216,180,90,.12);
+  font-weight:800;
+  background:rgba(216,180,90,.1);
+  border:1px solid var(--border-gold);
   color:var(--gold2);
-  border:1px solid rgba(216,180,90,.3);
 }
 
-.zone-box{
-  margin:16px 0 14px;
-  padding:16px;
-  border-radius:16px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.05);
+.zone-display-box{
+  margin:18px 0 14px;
+  padding:20px;
+  border-radius:18px;
+  background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.005));
+  border:1px solid var(--border);
   text-align:center;
 }
+.zone-title{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:1px;}
+.zone-range-text{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:900;letter-spacing:.5px;margin-top:6px;}
+.zone-cmp-row{margin-top:8px;font-size:11px;color:var(--muted);display:flex;justify-content:center;gap:6px;}
+.zone-cmp-val{font-weight:800;color:#fff;}
 
-.zone-title{
-  font-size:11px;
-  color:var(--gold);
-  letter-spacing:1px;
-  font-weight:900;
-}
-
-.zone-range-text{
-  font-size:28px;
-  font-weight:900;
-  margin-top:6px;
-  letter-spacing:.5px;
-}
-
-.zone-cmp-row{
-  margin-top:8px;
-  font-size:12px;
-  color:var(--muted);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:8px;
-}
-
-.zone-cmp-val{
-  font-weight:900;
-  color:var(--white);
-}
-
-.zone-meta-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  margin-top:10px;
-}
-
+.zone-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .zone-meta-box{
-  padding:10px;
-  border-radius:10px;
-  background:rgba(255,255,255,.02);
-  border:1px solid rgba(255,255,255,.04);
+  padding:12px;
+  border-radius:14px;
+  background:rgba(255,255,255,.015);
+  border:1px solid var(--border);
   text-align:center;
 }
+.zone-meta-lbl{font-size:8px;color:var(--muted);font-weight:700;letter-spacing:.5px;}
+.zone-meta-val{font-size:12px;font-weight:900;margin-top:4px;color:var(--gold2);}
 
-.zone-meta-label{
-  font-size:8px;
-  color:var(--muted);
-  letter-spacing:.5px;
-}
-
-.zone-meta-val{
-  font-size:11px;
-  font-weight:900;
-  margin-top:4px;
-  color:var(--gold2);
-}
-
-.signal-card{
-  padding:24px;
-  position:relative;
-  overflow:hidden;
-}
-
-.signal-card.ready{border-color:rgba(32,217,139,.35);box-shadow:0 0 35px rgba(32,217,139,.1);}
-.signal-card.wait{border-color:rgba(242,201,76,.2);}
-
-.signal-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.signal-main{
-  display:flex;
-  align-items:center;
-  gap:13px;
-}
-
-.signal-icon{
-  width:48px;
-  height:48px;
-  border-radius:15px;
+.signal-card{padding:26px;}
+.signal-card.ready{border-color:rgba(16,185,129,.4);box-shadow:0 0 40px var(--green-glow);}
+.signal-card.wait{border-color:rgba(251,191,36,.25);}
+.signal-top{display:flex;justify-content:space-between;align-items:center;}
+.signal-identity{display:flex;align-items:center;gap:14px;}
+.signal-icon-box{
+  width:52px;
+  height:52px;
+  border-radius:16px;
   display:grid;
   place-items:center;
-  font-size:23px;
+  font-size:24px;
   font-weight:900;
 }
-
-.ready .signal-icon{color:var(--green);background:rgba(32,217,139,.12);}
-.wait .signal-icon{color:var(--yellow);background:rgba(242,201,76,.08);}
-
-.signal-name{
-  font-size:22px;
-  font-weight:900;
-}
-
-.signal-sub{
-  color:var(--muted);
-  font-size:10px;
-  margin-top:3px;
-}
+.ready .signal-icon-box{color:var(--green);background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);}
+.wait .signal-icon-box{color:var(--yellow);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);}
+.signal-name{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:900;}
+.signal-sub{color:var(--muted);font-size:11px;margin-top:3px;}
 
 .flow-tracker{
-  margin-top:16px;
-  padding:11px 14px;
-  border-radius:12px;
-  background:rgba(0,0,0,.45);
-  border:1px solid rgba(255,255,255,.05);
+  margin-top:20px;
+  padding:14px 18px;
+  border-radius:14px;
+  background:rgba(0,0,0,.35);
+  border:1px solid var(--border);
   display:flex;
   justify-content:space-between;
   align-items:center;
-  font-size:9px;
+  font-size:10px;
   font-weight:800;
-  letter-spacing:.5px;
 }
+.step-node{color:var(--muted);}
+.step-node.done{color:var(--green);text-shadow:0 0 10px var(--green-glow);}
 
-.step-node{color:var(--muted)}
-.step-node.done{color:var(--green)}
-
-/* =========================================================
-   TRADE PLAN
-   ========================================================= */
-
-.plan-section{
-  margin-bottom:16px;
+/* TRADE PLAN */
+.section-heading{
+  margin:28px 0 12px;
+  color:var(--gold);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:2px;
 }
-
-.signal-grid{
+.plan-grid{
   display:grid;
   grid-template-columns:repeat(5,1fr);
-  gap:9px;
+  gap:10px;
 }
-
-.metric{
-  padding:14px;
-  border-radius:13px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.045);
+.metric-box{
+  padding:16px;
+  border-radius:16px;
+  background:var(--panel-card);
+  border:1px solid var(--border);
 }
-
-.metric-label{
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:1px;
-}
-
-.metric-value{
-  margin-top:7px;
-  font-size:15px;
-  font-weight:800;
-}
-
-.plan-gate-overlay{
-  padding:18px;
+.metric-lbl{font-size:8px;font-weight:800;letter-spacing:1px;color:var(--muted);}
+.metric-val{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:900;margin-top:6px;}
+.plan-gate-locked{
+  padding:22px;
   text-align:center;
-  background:rgba(255,255,255,.02);
-  border-radius:14px;
-  border:1px dashed rgba(255,255,255,.1);
+  border-radius:16px;
+  background:rgba(255,255,255,.015);
+  border:1px dashed var(--border);
   color:var(--muted);
   font-size:11px;
   line-height:1.6;
 }
 
-/* =========================================================
-   MULTI-TIMEFRAME RADAR (KEKAL 4 TF AKTIF: H1, M15, M5, M1)
-   ========================================================= */
-
-.direction-grid{
+/* MULTI-TIMEFRAME RADAR */
+.radar-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:10px;
 }
-
-.direction{
-  padding:14px 8px;
+.radar-cell{
+  padding:16px 10px;
   text-align:center;
-  border-radius:14px;
-  background:var(--panel);
-  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--panel-card);
+  border:1px solid var(--border);
 }
+.radar-tf{font-size:9px;font-weight:800;letter-spacing:1px;color:var(--muted);}
+.radar-val{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:900;margin-top:8px;}
+.bullish{color:var(--green);text-shadow:0 0 12px var(--green-glow);}
+.bearish{color:var(--red);text-shadow:0 0 12px var(--red-glow);}
+.neutral{color:var(--yellow);}
 
-.tf-name{
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:1px;
-  font-weight:700;
-}
-
-.dir{
-  margin-top:8px;
-  font-size:11px;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.bullish{color:var(--green)}
-.bearish{color:var(--red)}
-.neutral{color:var(--yellow)}
-
-/* =========================================================
-   TRADING SETUPS
-   ========================================================= */
-
-.setup-section{
-  margin-top:4px;
-  margin-bottom:20px;
-}
-
-.setup-grid{
+/* SETUP CARDS */
+.setups-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:12px;
+  gap:14px;
 }
-
 .setup-card{
-  position:relative;
-  overflow:hidden;
-  padding:20px;
-  border-radius:19px;
-  background:linear-gradient(145deg,rgba(22,24,29,.96),rgba(9,11,14,.92));
-  border:1px solid var(--line);
+  padding:24px;
+  border-radius:22px;
+  background:var(--panel-card);
+  border:1px solid var(--border);
 }
+.setup-card.buy{border-color:rgba(16,185,129,.25);}
+.setup-card.sell{border-color:rgba(244,63,94,.25);}
+.setup-card.wait{border-color:rgba(251,191,36,.15);}
+.setup-header{display:flex;justify-content:space-between;align-items:flex-start;}
+.setup-title{font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:900;}
+.setup-path{color:var(--muted);font-size:9px;font-weight:700;margin-top:4px;}
+.setup-badge{padding:6px 10px;border-radius:8px;font-size:8px;font-weight:900;letter-spacing:.5px;}
+.setup-badge.ready{color:#6ee7b7;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);}
+.setup-badge.wait{color:var(--yellow);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.18);}
 
-.setup-card.buy{border-color:rgba(32,217,139,.22);}
-.setup-card.sell{border-color:rgba(255,82,104,.22);}
-.setup-card.wait{border-color:rgba(242,201,76,.14);}
-
-.setup-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.setup-title{
-  font-size:15px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
-
-.setup-path{
-  margin-top:5px;
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:.7px;
-}
-
-.setup-status{
-  flex-shrink:0;
-  padding:6px 9px;
-  border-radius:8px;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:.7px;
-}
-
-.setup-status.ready{
-  color:#9ff5ce;
-  background:rgba(32,217,139,.08);
-  border:1px solid rgba(32,217,139,.16);
-}
-
-.setup-status.wait{
-  color:var(--yellow);
-  background:rgba(242,201,76,.06);
-  border:1px solid rgba(242,201,76,.11);
-}
-
-.setup-direction{
-  margin-top:17px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.setup-arrow{
-  width:38px;
-  height:38px;
+.setup-dir-row{display:flex;align-items:center;gap:12px;margin-top:18px;}
+.setup-arrow-box{
+  width:42px;
+  height:42px;
+  border-radius:14px;
   display:grid;
   place-items:center;
-  border-radius:12px;
-  background:rgba(255,255,255,.035);
-  font-size:19px;
+  font-size:20px;
   font-weight:900;
+  background:rgba(255,255,255,.03);
 }
+.setup-dir-row.buy .setup-arrow-box{color:var(--green);background:rgba(16,185,129,.1);}
+.setup-dir-row.sell .setup-arrow-box{color:var(--red);background:rgba(244,63,94,.1);}
+.setup-dir-row.wait .setup-arrow-box{color:var(--yellow);background:rgba(251,191,36,.08);}
+.setup-dir-title{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:900;}
+.setup-dir-row.buy .setup-dir-title{color:var(--green);}
+.setup-dir-row.sell .setup-dir-title{color:var(--red);}
+.setup-dir-row.wait .setup-dir-title{color:var(--yellow);}
+.setup-score-lbl{margin-left:auto;color:var(--gold);font-size:10px;font-weight:800;}
 
-.setup-direction.buy .setup-arrow{color:var(--green);background:rgba(32,217,139,.08);}
-.setup-direction.sell .setup-arrow{color:var(--red);background:rgba(255,82,104,.08);}
-.setup-direction.wait .setup-arrow{color:var(--yellow);background:rgba(242,201,76,.07);}
-
-.setup-direction-text{
-  font-size:18px;
-  font-weight:900;
-}
-
-.setup-direction.buy .setup-direction-text{color:var(--green);}
-.setup-direction.sell .setup-direction-text{color:var(--red);}
-.setup-direction.wait .setup-direction-text{color:var(--yellow);}
-
-.setup-score{
-  margin-left:auto;
-  color:var(--gold);
-  font-size:9px;
-  font-weight:800;
-}
-
-.setup-metrics{
+.setup-metrics-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:7px;
-  margin-top:17px;
+  gap:8px;
+  margin-top:18px;
 }
-
-.setup-metric{
-  padding:10px;
-  border-radius:11px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.045);
-  min-width:0;
-}
-
-.setup-metric-label{
-  color:var(--muted);
-  font-size:7px;
-  letter-spacing:.7px;
-}
-
-.setup-metric-value{
-  margin-top:6px;
-  font-size:11px;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.setup-reason{
-  margin-top:13px;
-  padding:11px;
-  border-radius:11px;
+.setup-metric-tile{
+  padding:12px;
+  border-radius:12px;
   background:rgba(255,255,255,.02);
-  border:1px solid rgba(255,255,255,.04);
+  border:1px solid var(--border);
+}
+.setup-metric-tile-lbl{font-size:7px;font-weight:700;color:var(--muted);}
+.setup-metric-tile-val{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.setup-reason-box{
+  margin-top:14px;
+  padding:12px;
+  border-radius:12px;
+  background:rgba(255,255,255,.015);
   color:var(--muted);
-  font-size:9px;
+  font-size:9.5px;
   line-height:1.5;
 }
 
-.analyze-wrap{
-  display:flex;
-  justify-content:center;
-  margin:20px 0;
-}
-
-.analyze-btn{
+/* ACTION BUTTON */
+.action-container{display:flex;justify-content:center;margin:28px 0;}
+.analyze-action-btn{
   border:0;
   cursor:pointer;
-  padding:15px 38px;
-  border-radius:14px;
-  color:#111;
+  padding:16px 44px;
+  border-radius:16px;
+  color:#000;
   background:linear-gradient(135deg,var(--gold2),var(--gold));
   font-weight:900;
-  letter-spacing:.5px;
-  box-shadow:0 10px 35px rgba(216,180,90,.18);
-  transition:.2s;
-}
-
-.analyze-btn:disabled{
-  opacity:.55;
-  cursor:not-allowed;
-}
-
-.section-title{
-  margin:25px 0 11px;
-  color:var(--gold);
-  font-size:10px;
-  letter-spacing:2px;
-  font-weight:800;
-}
-
-/* =========================================================
-   FOREX SESSIONS
-   ========================================================= */
-
-.session-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
-
-.session-card{
-  position:relative;
-  padding:17px;
-  border-radius:16px;
-  background:var(--panel);
-  border:1px solid var(--line);
-  overflow:hidden;
-}
-
-.session-card.open{
-  border-color:rgba(32,217,139,.28);
-}
-
-.session-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-
-.session-name{
   font-size:12px;
-  font-weight:900;
-}
-
-.session-status{
-  padding:5px 7px;
-  border-radius:20px;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
-
-.session-status.open{
-  color:#9ff5ce;
-  background:rgba(32,217,139,.08);
-}
-
-.session-status.closed{
-  color:#777c84;
-  background:rgba(255,255,255,.035);
-}
-
-.session-time{
-  margin-top:13px;
-  color:var(--white);
-  font-size:13px;
-  font-weight:800;
-}
-
-.session-activity{
-  margin-top:13px;
-  font-size:9px;
   letter-spacing:1px;
-  font-weight:900;
-  color:var(--gold);
+  box-shadow:0 12px 35px var(--gold-glow);
+  transition:.25s cubic-bezier(.16,1,.3,1);
 }
+.analyze-action-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 16px 45px rgba(216,180,90,.35);}
+.analyze-action-btn:disabled{opacity:.5;cursor:not-allowed;}
 
-/* =========================================================
-   NEWS
-   ========================================================= */
-
-.news-card{
+/* SESSIONS & NEWS */
+.session-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.session-tile{
   padding:18px;
   border-radius:18px;
-  background:var(--panel);
-  border:1px solid var(--line);
+  background:var(--panel-card);
+  border:1px solid var(--border);
 }
+.session-tile.open{border-color:rgba(16,185,129,.3);background:linear-gradient(145deg,rgba(16,185,129,.05),transparent);}
+.session-tile.overlap{border-color:rgba(216,180,90,.35);background:linear-gradient(145deg,rgba(216,180,90,.05),transparent);}
+.session-top{display:flex;justify-content:space-between;align-items:center;}
+.session-name{font-size:11px;font-weight:900;}
+.session-tag{padding:4px 8px;border-radius:20px;font-size:8px;font-weight:800;}
+.session-tag.open{color:#6ee7b7;background:rgba(16,185,129,.12);}
+.session-tag.closed{color:var(--muted);background:rgba(255,255,255,.03);}
+.session-time-text{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:800;margin-top:14px;}
+.session-activity-text{font-size:9px;font-weight:800;color:var(--gold);margin-top:6px;letter-spacing:1px;}
 
-.news-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:14px;
-}
-
-.news-heading{
-  font-size:14px;
-  font-weight:900;
-}
-
-.news-subheading{
-  margin-top:4px;
+.news-hud{padding:22px;}
+.news-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.news-title{font-size:13px;font-weight:900;}
+.news-filter-group{display:flex;gap:6px;}
+.news-pill-btn{
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.02);
   color:var(--muted);
-  font-size:9px;
-}
-
-.news-filters{
-  display:flex;
-  gap:5px;
-}
-
-.news-filter{
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.035);
-  color:var(--muted);
-  padding:6px 8px;
+  padding:6px 10px;
   border-radius:8px;
   font-size:8px;
-  font-weight:900;
+  font-weight:800;
   cursor:pointer;
 }
-
-.news-filter.active{
-  color:#111;
-  background:var(--gold);
-  border-color:var(--gold);
-}
-
-.news-list{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.news-item{
+.news-pill-btn.active{color:#000;background:var(--gold);border-color:var(--gold);}
+.news-stack{display:flex;flex-direction:column;gap:8px;}
+.news-row{
   padding:14px;
   border-radius:14px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.055);
+  background:rgba(255,255,255,.02);
+  border:1px solid var(--border);
 }
+.news-row.high{border-color:rgba(244,63,94,.25);}
+.news-row.medium{border-color:rgba(251,191,36,.2);}
+.news-row-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.news-event-title{font-size:12px;font-weight:800;line-height:1.4;}
+.news-time-sub{color:var(--muted);font-size:9px;margin-top:4px;}
+.news-tag{padding:4px 8px;border-radius:6px;font-size:8px;font-weight:900;}
+.news-tag.high{color:#fda4af;background:rgba(244,63,94,.12);}
+.news-tag.medium{color:var(--gold2);background:rgba(251,191,36,.1);}
+.news-empty{padding:24px;text-align:center;color:var(--muted);font-size:11px;}
 
-.news-item.high{border-color:rgba(255,82,104,.16);}
-.news-item.medium{border-color:rgba(242,201,76,.13);}
+.intel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.intel-card{padding:18px;border-radius:18px;background:var(--panel-card);border:1px solid var(--border);}
+.intel-lbl{font-size:8px;font-weight:800;color:var(--muted);letter-spacing:1px;}
+.intel-val{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:900;margin-top:6px;}
 
-.news-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
+.app-footer{text-align:center;margin-top:48px;color:#475569;font-size:9px;letter-spacing:2px;font-weight:700;}
+.app-footer strong{color:var(--gold);}
+
+@media(max-width:850px){
+  .hero,.engine-duo,.setups-grid{grid-template-columns:1fr;}
+  .price-value{font-size:42px;}
+  .plan-grid,.session-grid,.intel-grid{grid-template-columns:repeat(2,1fr);}
+  .radar-grid{gap:6px;}
 }
-
-.news-name{
-  font-size:12px;
-  font-weight:900;
-}
-
-.news-time{
-  margin-top:5px;
-  color:var(--muted);
-  font-size:9px;
-}
-
-.news-impact{
-  padding:5px 8px;
-  border-radius:7px;
-  font-size:8px;
-  font-weight:900;
-}
-
-.news-impact.high{color:#ff7182;background:rgba(255,82,104,.09);}
-.news-impact.medium{color:#f3d37a;background:rgba(242,201,76,.08);}
-
-.news-countdown{margin-top:12px;font-size:11px;font-weight:900;}
-.news-live{color:var(--red)}
-
-.news-data{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:6px;
-  margin-top:11px;
-}
-
-.news-box{
-  padding:8px;
-  border-radius:9px;
-  background:rgba(255,255,255,.025);
-}
-
-.news-label{color:var(--muted);font-size:7px;}
-.news-value{margin-top:4px;font-size:10px;font-weight:900;}
-
-.news-source{margin-top:12px;text-align:center;color:#5f646c;font-size:8px;}
-.news-source a{color:var(--gold);text-decoration:none;}
-.news-empty{padding:22px;text-align:center;color:var(--muted);font-size:10px;}
-
-/* =========================================================
-   MARKET DATA
-   ========================================================= */
-
-.data-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
-
-.data-card{
-  padding:18px;
-  border-radius:16px;
-  background:var(--panel);
-  border:1px solid var(--line);
-}
-
-.data-label{
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:1px;
-}
-
-.data-value{
-  margin-top:8px;
-  font-size:17px;
-  font-weight:900;
-}
-
-.data-small{
-  margin-top:4px;
-  color:var(--muted);
-  font-size:9px;
-}
-
-.footer{
-  text-align:center;
-  margin-top:40px;
-  color:#555a62;
-  font-size:9px;
-  letter-spacing:2px;
-}
-
-.footer strong{color:var(--gold)}
-
-@media(max-width:800px){
-  .hero,.engine-duo,.setup-grid{grid-template-columns:1fr;}
-  .price{font-size:35px;}
-  .signal-grid,.session-grid,.data-grid{grid-template-columns:repeat(2,1fr);}
-  .direction-grid{gap:6px;}
-}
-
 @media(max-width:480px){
-  .signal-card,.price-card,.zone-panel,.ai-card{padding:18px;border-radius:18px;}
-  .signal-name{font-size:19px;}
-  .zone-range-text{font-size:22px;}
-  .setup-metrics{grid-template-columns:repeat(2,1fr);}
-  .direction-grid{gap:4px;}
-  .direction{padding:8px 2px;}
-  .tf-name{font-size:7px;}
-  .dir{font-size:8.5px;}
+  .topbar{padding:20px 16px 10px;}
+  .container{padding:6px 14px 45px;}
+  .price-card,.ai-engine-card,.zone-panel,.signal-card,.setup-card{padding:20px;border-radius:20px;}
+  .symbol-name{font-size:26px;}
+  .price-value{font-size:36px;}
+  .setup-metrics-grid{grid-template-columns:repeat(2,1fr);}
+  .radar-cell{padding:12px 4px;}
+  .radar-tf{font-size:8px;}
+  .radar-val{font-size:10px;}
 }
 </style>
 
+<!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = "https://bmxkpkizuyqkxvpasmnb.supabase.co";
@@ -1494,17 +722,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 <body>
 
 <!-- =====================================================
-     SINNCI INTRO DENGAN SEMUA ELEMEN & AUDIO
+     SINNCI AUDIO-VISUAL INTRO
      ===================================================== -->
 <div id="sinnciIntro">
   <div class="intro-particles">
     <span></span><span></span><span></span><span></span>
     <span></span><span></span><span></span><span></span>
   </div>
-
   <div class="intro-center">
     <img class="intro-beasts" src="1791359272050.jpg" alt="3D Bull and Bear">
-    <div class="intro-beast-overlay"></div>
     <div class="intro-vs">BUY × SELL</div>
     <div class="intro-welcome">
       <span>S</span><span>E</span><span>L</span><span>A</span><span>M</span><span>A</span><span>T</span>
@@ -1513,19 +739,18 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <span>&nbsp;</span>
       <span>K</span><span>E</span><span>!</span>
     </div>
-    <div class="intro-flash"></div>
     <div class="intro-title">SINNCI AI</div>
     <div class="intro-line"></div>
-    <div class="intro-loading">MARKET INTELLIGENCE</div>
+    <div class="intro-loading">INSTITUTIONAL INTELLIGENCE</div>
   </div>
 </div>
 
-<!-- AUTH -->
+<!-- AUTHENTICATION DIALOG -->
 <div id="authScreen">
   <div class="auth-box">
     <div class="auth-logo">S</div>
     <div class="auth-title">SINNCI AI</div>
-    <div class="auth-subtitle">XAUUSD MARKET INTELLIGENCE</div>
+    <div class="auth-subtitle">XAUUSD INTELLIGENCE GATEWAY</div>
 
     <div class="auth-tabs">
       <button id="loginTab" class="auth-tab active" onclick="showAuthMode('login')">LOGIN</button>
@@ -1533,392 +758,362 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     </div>
 
     <form id="authForm" class="auth-form" onsubmit="handleAuth(event)">
-      <input id="authEmail" class="auth-input" type="email" placeholder="Email" required>
-      <input id="authPassword" class="auth-input" type="password" placeholder="Password" minlength="6" required>
+      <input id="authEmail" class="auth-input" type="email" placeholder="Institutional Email" required>
+      <input id="authPassword" class="auth-input" type="password" placeholder="Terminal Password" minlength="6" required>
       <button id="authBtn" class="auth-btn" type="submit">LOGIN</button>
     </form>
-
     <div id="authMessage" class="auth-message"></div>
   </div>
 </div>
 
-<!-- PENDING -->
+<!-- PENDING SCREEN -->
 <div id="pendingScreen">
   <div class="pending-box">
     <div class="pending-icon">⏳</div>
-    <div class="pending-title">PENDING APPROVAL</div>
-    <div class="pending-text">
-      Akaun anda telah berjaya dicipta.<br><br>
-      Sila tunggu kelulusan admin SINNCI sebelum mengakses papan pemuka.
+    <div class="auth-title">PENDING ACCESS</div>
+    <div style="margin-top:12px;color:var(--muted);font-size:12px;line-height:1.7;">
+      Akaun anda berjaya dicipta.<br>
+      Sila hubungi pentadbir SINNCI AI untuk kelulusan akses terminal pasaran.
     </div>
-    <button class="logout-btn" onclick="logout()">LOGOUT</button>
+    <button class="logout-btn" onclick="logout()">LOGOUT TERMINAL</button>
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- DASHBOARD APPLICATION -->
 <div id="app">
-
-<header class="topbar">
-  <div class="brand">
-    <div class="logo">S</div>
-    <div>
-      <div class="brand-title">SINNCI AI</div>
-      <div class="brand-sub">PRECISION TRADING ENGINE</div>
-    </div>
-  </div>
-  <div class="live">
-    <span class="live-dot"></span>
-    LIVE MARKET
-  </div>
-</header>
-
-<main class="container">
-
-<section class="hero">
-  <div class="card price-card">
-    <div class="market-label">PRECIOUS METAL</div>
-    <div class="symbol">
-      XAUUSD
-      <span>GOLD / U.S. DOLLAR</span>
-    </div>
-    <div id="price" class="price">---</div>
-    <div id="priceStatus" class="price-change">Connecting to market...</div>
-    <div class="market-status">● REAL DATA</div>
-    <div class="timeframe">
-      <div id="tfModeScalp" class="tf active" onclick="selectTimeframeMode('scalp')">SCALPING (H1→M5→M1)</div>
-      <div id="tfModeIntra" class="tf" onclick="selectTimeframeMode('intra')">INTRADAY (H1→M15→M5)</div>
-    </div>
-  </div>
-
-  <div class="card ai-card">
-    <div class="ai-head">
-      <div class="ai-title">SINNCI MARKET ENGINE</div>
-      <div class="ai-badge">AI ACTIVE</div>
-    </div>
-    <div class="ai-icon">✦</div>
-    <div>
-      <div id="aiStatus" class="ai-status">WAIT</div>
-      <div id="aiDescription" class="ai-desc">Waiting for zone touch execution.</div>
-    </div>
-  </div>
-</section>
-
-<!-- 2 BAHAGIAN UTAMA: ZONE SETUP vs ENTRY SIGNAL -->
-<div class="engine-duo">
-  <section id="zonePanel" class="zone-panel">
-    <div class="zone-header">
-      <div style="font-size:12px;font-weight:900;letter-spacing:1px;color:var(--gold);">ZONE SETUP</div>
-      <div id="zoneLockBadge" class="badge-locked">LOCKED 🔒</div>
-    </div>
-
-    <div class="zone-box">
-      <div id="zoneTypeTitle" class="zone-title">BUY ZONE</div>
-      <div id="zoneRange" class="zone-range-text">----.– – ----.–</div>
-      <div class="zone-cmp-row">
-        <span>Current Price:</span>
-        <span id="zoneCmpValue" class="zone-cmp-val">----.--</span>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">S</div>
+      <div>
+        <div class="brand-title">SINNCI AI</div>
+        <div class="brand-sub">PRECISION TRADING TERMINAL</div>
       </div>
     </div>
-
-    <div class="zone-meta-grid">
-      <div class="zone-meta-box">
-        <div class="zone-meta-label">STATUS</div>
-        <div id="zoneStatusText" class="zone-meta-val">WATCH</div>
-      </div>
-      <div class="zone-meta-box">
-        <div class="zone-meta-label">SCORE</div>
-        <div id="zoneScoreText" class="zone-meta-val">--</div>
-      </div>
-      <div class="zone-meta-box">
-        <div class="zone-meta-label">PUNCA ARAS</div>
-        <div id="zoneReasonText" class="zone-meta-val">SNR BUCU</div>
-      </div>
+    <div class="live-pill">
+      <span class="live-pulse"></span>
+      REALTIME FEED
     </div>
+  </header>
 
-    <div style="margin-top:12px;font-size:9.5px;color:var(--muted);line-height:1.5;">
-      • Fixed structural boundaries: <strong>20 pips ($2.00)</strong>.<br>
-      • <span style="color:var(--gold);">Zon bucu SNR dipetakan awal</span> dan tidak mengejar harga semasa.
-    </div>
-  </section>
-
-  <section id="signalCard" class="card signal-card wait">
-    <div class="signal-top">
-      <div class="signal-main">
-        <div id="signalIcon" class="signal-icon">⏳</div>
-        <div>
-          <div id="signalName" class="signal-name">WAIT</div>
-          <div id="signalSub" class="signal-sub">Monitoring zone touch...</div>
+  <main class="container">
+    <!-- HERO STATS -->
+    <section class="hero">
+      <div class="hud-card price-card">
+        <div class="tag-asset">PRECIOUS METALS DIVISION</div>
+        <div class="symbol-row">
+          <div class="symbol-name">XAUUSD</div>
+          <div class="symbol-desc">SPOT GOLD / US DOLLAR</div>
+        </div>
+        <div id="price" class="price-value">---</div>
+        <div class="price-meta">
+          <span id="priceStatus" class="price-status">● Connecting to institutional feed...</span>
+        </div>
+        <div class="tf-switcher">
+          <button id="tfModeScalp" class="tf-btn active" onclick="selectTimeframeMode('scalp')">SCALPING (H1→M5→M1)</button>
+          <button id="tfModeIntra" class="tf-btn" onclick="selectTimeframeMode('intra')">INTRADAY (H1→M15→M5)</button>
         </div>
       </div>
-      <div id="score" class="score">SCORE 0</div>
+
+      <div class="hud-card ai-engine-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:800;font-size:13px;letter-spacing:.5px;">AI ENGINE STATUS</div>
+          <div class="ai-badge">ACTIVE</div>
+        </div>
+        <div>
+          <div id="aiStatus" class="ai-status-display">WAIT</div>
+          <div id="aiDescription" class="ai-description">Menunggu harga menyentuh kawasan zon bucu untuk pelaksanaan.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DUO ENGINE PANELS -->
+    <section class="engine-duo">
+      <!-- 1. ZONE SETUP -->
+      <div id="zonePanel" class="hud-card zone-panel">
+        <div class="zone-header">
+          <div class="zone-label-sub">ZONE SETUP</div>
+          <div id="zoneLockBadge" class="badge-locked">LOCKED 🔒</div>
+        </div>
+        <div class="zone-display-box">
+          <div id="zoneTypeTitle" class="zone-title">BUY ZONE (20 PIPS)</div>
+          <div id="zoneRange" class="zone-range-text">----.– – ----.–</div>
+          <div class="zone-cmp-row">
+            <span>Market Price:</span>
+            <span id="zoneCmpValue" class="zone-cmp-val">----.--</span>
+          </div>
+        </div>
+        <div class="zone-meta-grid">
+          <div class="zone-meta-box">
+            <div class="zone-meta-lbl">STATUS</div>
+            <div id="zoneStatusText" class="zone-meta-val">WATCH</div>
+          </div>
+          <div class="zone-meta-box">
+            <div class="zone-meta-lbl">SCORE</div>
+            <div id="zoneScoreText" class="zone-meta-val">--</div>
+          </div>
+          <div class="zone-meta-box">
+            <div class="zone-meta-lbl">PUNCA ARAS</div>
+            <div id="zoneReasonText" class="zone-meta-val">SNR BUCU</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;font-size:10px;color:var(--muted);line-height:1.6;">
+          • Sempadan struktur tetap: <strong>20 pips ($2.00)</strong>.<br>
+          • <span style="color:var(--gold);">Zon bucu SNR dipetakan awal</span> dan tidak mengejar harga semasa.
+        </div>
+      </div>
+
+      <!-- 2. SIGNAL CARD -->
+      <div id="signalCard" class="hud-card signal-card wait">
+        <div class="signal-top">
+          <div class="signal-identity">
+            <div id="signalIcon" class="signal-icon-box">⏳</div>
+            <div>
+              <div id="signalName" class="signal-name">WAIT</div>
+              <div id="signalSub" class="signal-sub">Memantau harga menghampiri zon bucu...</div>
+            </div>
+          </div>
+          <div id="score" style="font-size:11px;font-weight:900;color:var(--gold);">SCORE 0</div>
+        </div>
+
+        <div class="flow-tracker">
+          <span id="stepZone" class="step-node done">1. ZONE MAPPED</span>
+          <span>→</span>
+          <span id="stepCMP" class="step-node">2. CMP IN ZONE</span>
+          <span>→</span>
+          <span id="stepSignal" class="step-node">3. SIGNAL READY</span>
+        </div>
+
+        <div style="margin-top:16px;font-size:10px;color:var(--muted);">
+          Trigger Gate: <strong id="signalConfirmationText" style="color:var(--gold);">Awaiting zone touch</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRADE PLAN SECTION -->
+    <div class="section-heading">RIGID EXECUTION PLAN • 35 PIPS SL MODEL</div>
+    <section>
+      <div id="tradePlanGrid" class="plan-grid" style="display:none;">
+        <div class="metric-box">
+          <div class="metric-lbl">ENTRY</div>
+          <div id="planEntry" class="metric-val">---</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-lbl">SL (35 PIPS)</div>
+          <div id="planSL" class="metric-val" style="color:var(--red);">---</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-lbl">TP1</div>
+          <div id="planTP1" class="metric-val" style="color:var(--green);">---</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-lbl">TP2</div>
+          <div id="planTP2" class="metric-val" style="color:var(--green);">---</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-lbl">PUNCA ARAS</div>
+          <div id="planPunca" class="metric-val">---</div>
+        </div>
+      </div>
+
+      <div id="tradePlanGate" class="plan-gate-locked">
+        🔒 <strong>TRADE PLAN READY & LOCKED</strong><br>
+        Entry: <span id="gateEntry">Waiting</span> &bull; 
+        SL: <span id="gateSL">Waiting</span> &bull; 
+        TP1: <span id="gateTP1">Waiting</span> &bull; 
+        TP2: <span id="gateTP2">Waiting</span><br>
+        <span style="font-size:9.5px;color:var(--muted);">Pelan aktif automatik sebaik sahaja harga menyentuh zon bucu.</span>
+      </div>
+    </section>
+
+    <!-- MULTI-TIMEFRAME RADAR (KEKAL: 4 TF AKTIF) -->
+    <div class="section-heading">MULTI-TIMEFRAME RADAR • ALIGNMENT ENGINE</div>
+    <section id="directionRadarGrid" class="radar-grid">
+      <div class="radar-cell">
+        <div class="radar-tf">H1 BIAS</div>
+        <div id="h1" class="radar-val neutral">---</div>
+      </div>
+      <div class="radar-cell">
+        <div class="radar-tf">M15 ZONE</div>
+        <div id="m15" class="radar-val neutral">---</div>
+      </div>
+      <div class="radar-cell">
+        <div class="radar-tf">M5 ZONE</div>
+        <div id="m5" class="radar-val neutral">---</div>
+      </div>
+      <div class="radar-cell">
+        <div class="radar-tf">M1 CMP</div>
+        <div id="m1" class="radar-val neutral">---</div>
+      </div>
+    </section>
+
+    <!-- TRADING SETUPS -->
+    <div class="section-heading">INSTITUTIONAL STRATEGIES</div>
+    <section class="setups-grid">
+      <!-- Scalping -->
+      <div id="scalpingCard" class="hud-card setup-card wait">
+        <div class="setup-header">
+          <div>
+            <div class="setup-title">⚡ SCALPING</div>
+            <div class="setup-path">H1 → M5 → M1</div>
+          </div>
+          <div id="scalpingStatus" class="setup-badge wait">WAIT</div>
+        </div>
+        <div id="scalpingDirection" class="setup-dir-row wait">
+          <div id="scalpingArrow" class="setup-arrow-box">⏳</div>
+          <div id="scalpingDirectionText" class="setup-dir-title">WAIT</div>
+          <div id="scalpingScore" class="setup-score-lbl">SCORE 0</div>
+        </div>
+        <div class="setup-metrics-grid">
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">LOCKED ZONE</div>
+            <div id="scalpingEntry" class="setup-metric-tile-val">---</div>
+          </div>
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">SL (35 PIPS)</div>
+            <div id="scalpingSL" class="setup-metric-tile-val">---</div>
+          </div>
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">TP1 • 60 PIPS</div>
+            <div id="scalpingTP1" class="setup-metric-tile-val">---</div>
+          </div>
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">TP2 • 120 PIPS</div>
+            <div id="scalpingTP2" class="setup-metric-tile-val">---</div>
+          </div>
+        </div>
+        <div id="scalpingReason" class="setup-reason-box">Menunggu harga menyentuh zon bucu M5.</div>
+      </div>
+
+      <!-- Intraday -->
+      <div id="intradayCard" class="hud-card setup-card wait">
+        <div class="setup-header">
+          <div>
+            <div class="setup-title">📈 INTRADAY</div>
+            <div class="setup-path">H1 → M15 → M5</div>
+          </div>
+          <div id="intradayStatus" class="setup-badge wait">WAIT</div>
+        </div>
+        <div id="intradayDirection" class="setup-dir-row wait">
+          <div id="intradayArrow" class="setup-arrow-box">⏳</div>
+          <div id="intradayDirectionText" class="setup-dir-title">WAIT</div>
+          <div id="intradayScore" class="setup-score-lbl">SCORE 0</div>
+        </div>
+        <div class="setup-metrics-grid">
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">LOCKED ZONE</div>
+            <div id="intradayEntry" class="setup-metric-tile-val">---</div>
+          </div>
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">SL (35 PIPS)</div>
+            <div id="intradaySL" class="setup-metric-tile-val">---</div>
+          </div>
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">TP1 • 130 PIPS</div>
+            <div id="intradayTP1" class="setup-metric-tile-val">---</div>
+          </div>
+          <div class="setup-metric-tile">
+            <div class="setup-metric-tile-lbl">TP2 • 220 PIPS</div>
+            <div id="intradayTP2" class="setup-metric-tile-val">---</div>
+          </div>
+        </div>
+        <div id="intradayReason" class="setup-reason-box">Menunggu harga menyentuh zon bucu M15.</div>
+      </div>
+    </section>
+
+    <!-- ACTION TRIGGER -->
+    <div class="action-container">
+      <button id="analyzeBtn" class="analyze-action-btn">✦ RUN MARKET ANALYSIS</button>
     </div>
 
-    <!-- Flow Breadcrumb Tracker -->
-    <div class="flow-tracker">
-      <span id="stepZone" class="step-node done">ZONE MAPPED</span>
-      <span>→</span>
-      <span id="stepCMP" class="step-node">CMP IN ZONE</span>
-      <span>→</span>
-      <span id="stepSignal" class="step-node">SIGNAL READY</span>
-    </div>
+    <!-- SESSIONS -->
+    <div class="section-heading">FOREX SESSIONS • MALAYSIA TIME</div>
+    <section class="session-grid">
+      <div id="asiaSession" class="session-tile">
+        <div class="session-top">
+          <span class="session-name">🇯🇵 TOKYO</span>
+          <span id="asiaStatus" class="session-tag closed">CLOSED</span>
+        </div>
+        <div id="asiaTime" class="session-time-text">08:00 — 17:00 MYT</div>
+        <div id="asiaActivity" class="session-activity-text">MODERATE</div>
+      </div>
+      <div id="londonSession" class="session-tile">
+        <div class="session-top">
+          <span class="session-name">🇬🇧 LONDON</span>
+          <span id="londonStatus" class="session-tag closed">CLOSED</span>
+        </div>
+        <div id="londonTime" class="session-time-text">AUTO</div>
+        <div id="londonActivity" class="session-activity-text">HIGH</div>
+      </div>
+      <div id="newYorkSession" class="session-tile">
+        <div class="session-top">
+          <span class="session-name">🇺🇸 NEW YORK</span>
+          <span id="newyorkStatus" class="session-tag closed">CLOSED</span>
+        </div>
+        <div id="newyorkTime" class="session-time-text">AUTO</div>
+        <div id="newyorkActivity" class="session-activity-text">HIGH</div>
+      </div>
+      <div id="overlapSession" class="session-tile overlap">
+        <div class="session-top">
+          <span class="session-name">🔥 LONDON × NY</span>
+          <span id="overlapStatus" class="session-tag closed">INACTIVE</span>
+        </div>
+        <div id="overlapTime" class="session-time-text">AUTO</div>
+        <div id="overlapActivity" class="session-activity-text">VERY HIGH</div>
+      </div>
+    </section>
 
-    <div style="margin-top:12px;font-size:9.5px;color:var(--muted);">
-      Execution Gate: <strong id="signalConfirmationText" style="color:var(--gold);">Awaiting zone touch</strong>
-    </div>
-  </section>
+    <!-- NEWS -->
+    <div class="section-heading">HIGH IMPACT CALENDAR • US DOLLAR</div>
+    <section class="hud-card news-hud">
+      <div class="news-header-row">
+        <div>
+          <div class="news-title">ECONOMIC RELEASES</div>
+          <div style="color:var(--muted);font-size:9px;margin-top:2px;">US • HIGH & MEDIUM VOLATILITY</div>
+        </div>
+        <div class="news-filter-group">
+          <button id="newsAllBtn" class="news-pill-btn active" onclick="filterNews('all')">ALL</button>
+          <button id="newsHighBtn" class="news-pill-btn" onclick="filterNews('high')">HIGH</button>
+          <button id="newsMediumBtn" class="news-pill-btn" onclick="filterNews('medium')">MEDIUM</button>
+        </div>
+      </div>
+      <div id="newsList" class="news-stack">
+        <div class="news-empty">Scanning US economic calendar...</div>
+      </div>
+    </section>
+
+    <!-- MARKET INTELLIGENCE METRICS -->
+    <div class="section-heading">SYSTEM METRICS</div>
+    <section class="intel-grid">
+      <div class="intel-card">
+        <div class="intel-lbl">PUNCA SOURCE</div>
+        <div id="puncaSource" class="intel-val">---</div>
+      </div>
+      <div class="intel-card">
+        <div class="intel-lbl">SYSTEM RISK</div>
+        <div id="risk" class="intel-val">3.50</div>
+      </div>
+      <div class="intel-card">
+        <div class="intel-lbl">MAX RISK</div>
+        <div id="maxRisk" class="intel-val">35 PIPS</div>
+      </div>
+      <div class="intel-card">
+        <div class="intel-lbl">DECISION FILTER</div>
+        <div id="reason" class="intel-val" style="font-size:12px;font-family:'Plus Jakarta Sans';">Direct Touch</div>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <strong>SINNCI AI</strong> &bull; INSTITUTIONAL XAUUSD MARKET INTELLIGENCE
+    </footer>
+  </main>
 </div>
-
-<!-- TRADE PLAN (SL 35 PIPS MODEL) -->
-<div class="section-title">RIGID EXECUTION PLAN • 35 PIPS SL MODEL</div>
-<section class="plan-section">
-  <div id="tradePlanGrid" class="signal-grid" style="display:none;">
-    <div class="metric">
-      <div class="metric-label">ENTRY</div>
-      <div id="planEntry" class="metric-value">---</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">SL (35 PIPS)</div>
-      <div id="planSL" class="metric-value" style="color:var(--red);">---</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">TP1</div>
-      <div id="planTP1" class="metric-value" style="color:var(--green);">---</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">TP2</div>
-      <div id="planTP2" class="metric-value" style="color:var(--green);">---</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">PUNCA ARAS</div>
-      <div id="planPunca" class="metric-value">---</div>
-    </div>
-  </div>
-
-  <div id="tradePlanGate" class="plan-gate-overlay">
-    🔒 <strong>TRADE PLAN READY & LOCKED</strong><br>
-    Entry: <span id="gateEntry">Waiting</span> &bull; 
-    SL: <span id="gateSL">Waiting</span> &bull; 
-    TP1: <span id="gateTP1">Waiting</span> &bull; 
-    TP2: <span id="gateTP2">Waiting</span><br>
-    <span style="font-size:9.5px;color:var(--muted);">Trade plan aktif automatik sebaik sahaja harga menyentuh zon bucu.</span>
-  </div>
-</section>
 
 <!-- =========================================================
-     MULTI-TIMEFRAME RADAR (KEKAL: 4 TF AKTIF)
+     JAVASCRIPT LOGIC ENGINE
      ========================================================= -->
-<div class="section-title">MULTI-TIMEFRAME RADAR • ALIGNMENT ENGINE</div>
-<section id="directionRadarGrid" class="direction-grid">
-  <div class="direction">
-    <div class="tf-name">H1 BIAS</div>
-    <div id="h1" class="dir neutral">---</div>
-  </div>
-  <div class="direction">
-    <div class="tf-name">M15 ZONE</div>
-    <div id="m15" class="dir neutral">---</div>
-  </div>
-  <div class="direction">
-    <div class="tf-name">M5 ZONE</div>
-    <div id="m5" class="dir neutral">---</div>
-  </div>
-  <div class="direction">
-    <div class="tf-name">M1 CMP</div>
-    <div id="m1" class="dir neutral">---</div>
-  </div>
-</section>
-
-<!-- TRADING SETUPS -->
-<div class="section-title">SINNCI TRADING SETUPS</div>
-<section class="setup-section">
-<div class="setup-grid">
-
-<!-- SCALPING -->
-<div id="scalpingCard" class="setup-card wait">
-  <div class="setup-head">
-    <div>
-      <div class="setup-title">⚡ SCALPING</div>
-      <div class="setup-path">H1 → M5 → M1</div>
-    </div>
-    <div id="scalpingStatus" class="setup-status wait">WAIT</div>
-  </div>
-
-  <div id="scalpingDirection" class="setup-direction wait">
-    <div id="scalpingArrow" class="setup-arrow">⏳</div>
-    <div id="scalpingDirectionText" class="setup-direction-text">WAIT</div>
-    <div id="scalpingScore" class="setup-score">SCORE 0</div>
-  </div>
-
-  <div class="setup-metrics">
-    <div class="setup-metric">
-      <div class="setup-metric-label">LOCKED ZONE</div>
-      <div id="scalpingEntry" class="setup-metric-value">---</div>
-    </div>
-    <div class="setup-metric">
-      <div class="setup-metric-label">SL (35 PIPS)</div>
-      <div id="scalpingSL" class="setup-metric-value">---</div>
-    </div>
-    <div class="setup-metric">
-      <div class="setup-metric-label">TP1 • 60 PIPS</div>
-      <div id="scalpingTP1" class="setup-metric-value">---</div>
-    </div>
-    <div class="setup-metric">
-      <div class="setup-metric-label">TP2 • 120 PIPS</div>
-      <div id="scalpingTP2" class="setup-metric-value">---</div>
-    </div>
-  </div>
-
-  <div id="scalpingReason" class="setup-reason">Menunggu harga menyentuh zon bucu M5.</div>
-</div>
-
-<!-- INTRADAY -->
-<div id="intradayCard" class="setup-card wait">
-  <div class="setup-head">
-    <div>
-      <div class="setup-title">📈 INTRADAY</div>
-      <div class="setup-path">H1 → M15 → M5</div>
-    </div>
-    <div id="intradayStatus" class="setup-status wait">WAIT</div>
-  </div>
-
-  <div id="intradayDirection" class="setup-direction wait">
-    <div id="intradayArrow" class="setup-arrow">⏳</div>
-    <div id="intradayDirectionText" class="setup-direction-text">WAIT</div>
-    <div id="intradayScore" class="setup-score">SCORE 0</div>
-  </div>
-
-  <div class="setup-metrics">
-    <div class="setup-metric">
-      <div class="setup-metric-label">LOCKED ZONE</div>
-      <div id="intradayEntry" class="setup-metric-value">---</div>
-    </div>
-    <div class="setup-metric">
-      <div class="setup-metric-label">SL (35 PIPS)</div>
-      <div id="intradaySL" class="setup-metric-value">---</div>
-    </div>
-    <div class="setup-metric">
-      <div class="setup-metric-label">TP1 • 130 PIPS</div>
-      <div id="intradayTP1" class="setup-metric-value">---</div>
-    </div>
-    <div class="setup-metric">
-      <div class="setup-metric-label">TP2 • 220 PIPS</div>
-      <div id="intradayTP2" class="setup-metric-value">---</div>
-    </div>
-  </div>
-
-  <div id="intradayReason" class="setup-reason">Menunggu harga menyentuh zon bucu M15.</div>
-</div>
-
-</div>
-</section>
-
-<div class="analyze-wrap">
-  <button id="analyzeBtn" class="analyze-btn">✦ ANALYZE MARKET</button>
-</div>
-
-<!-- FOREX SESSIONS -->
-<div class="section-title">FOREX SESSIONS • MALAYSIA TIME</div>
-<section class="session-grid">
-  <div id="asiaSession" class="session-card">
-    <div class="session-head">
-      <div class="session-name">🇯🇵 ASIA / TOKYO</div>
-      <div id="asiaStatus" class="session-status closed">CLOSED</div>
-    </div>
-    <div id="asiaTime" class="session-time">08:00 — 17:00 MYT</div>
-    <div class="session-zone">TOKYO TIME • AUTO</div>
-    <div id="asiaActivity" class="session-activity">MODERATE</div>
-  </div>
-
-  <div id="londonSession" class="session-card">
-    <div class="session-head">
-      <div class="session-name">🇬🇧 LONDON</div>
-      <div id="londonStatus" class="session-status closed">CLOSED</div>
-    </div>
-    <div id="londonTime" class="session-time">AUTO</div>
-    <div class="session-zone">LONDON TIME • AUTO DST</div>
-    <div id="londonActivity" class="session-activity">HIGH</div>
-  </div>
-
-  <div id="newYorkSession" class="session-card">
-    <div class="session-head">
-      <div class="session-name">🇺🇸 NEW YORK</div>
-      <div id="newyorkStatus" class="session-status closed">CLOSED</div>
-    </div>
-    <div id="newyorkTime" class="session-time">AUTO</div>
-    <div class="session-zone">NEW YORK TIME • AUTO DST</div>
-    <div id="newyorkActivity" class="session-activity">HIGH</div>
-  </div>
-
-  <div id="overlapSession" class="session-card overlap">
-    <div class="session-head">
-      <div class="session-name">🔥 LONDON × NEW YORK</div>
-      <div id="overlapStatus" class="session-status closed">INACTIVE</div>
-    </div>
-    <div id="overlapTime" class="session-time">AUTO</div>
-    <div class="session-zone">OVERLAP • MALAYSIA TIME</div>
-    <div id="overlapActivity" class="session-activity">VERY HIGH</div>
-  </div>
-</section>
-
-<!-- NEWS -->
-<div class="section-title">ECONOMIC NEWS • XAUUSD</div>
-<section class="news-card">
-  <div class="news-header">
-    <div>
-      <div class="news-heading">MARKET-MOVING EVENTS</div>
-      <div class="news-subheading">US • HIGH & MEDIUM IMPACT • MALAYSIA TIME</div>
-    </div>
-    <div class="news-filters">
-      <button id="newsAllBtn" class="news-filter active" onclick="filterNews('all')">ALL</button>
-      <button id="newsHighBtn" class="news-filter" onclick="filterNews('high')">HIGH</button>
-      <button id="newsMediumBtn" class="news-filter" onclick="filterNews('medium')">MEDIUM</button>
-    </div>
-  </div>
-
-  <div id="newsList" class="news-list">
-    <div class="news-empty">Scanning US economic calendar...</div>
-  </div>
-
-  <div class="news-source">
-    Economic data by
-    <a href="https://www.financecalendar.com/" target="_blank" rel="noopener noreferrer">FinanceCalendar.com</a>
-  </div>
-</section>
-
-<!-- INTELLIGENCE -->
-<div class="section-title">MARKET INTELLIGENCE</div>
-<section class="data-grid">
-  <div class="data-card">
-    <div class="data-label">PUNCA SOURCE</div>
-    <div id="puncaSource" class="data-value">---</div>
-    <div class="data-small">Historical structure</div>
-  </div>
-  <div class="data-card">
-    <div class="data-label">RISK</div>
-    <div id="risk" class="data-value">---</div>
-    <div class="data-small">Structure-based</div>
-  </div>
-  <div class="data-card">
-    <div class="data-label">MAX RISK</div>
-    <div id="maxRisk" class="data-value">---</div>
-    <div class="data-small">Fixed 35 pips ($3.50)</div>
-  </div>
-  <div class="data-card">
-    <div class="data-label">REASON</div>
-    <div id="reason" class="data-value">---</div>
-    <div class="data-small">AI decision filter</div>
-  </div>
-</section>
-
-<footer class="footer">
-  <strong>SINNCI AI</strong> • XAUUSD MARKET INTELLIGENCE
-</footer>
-
-</main>
-</div>
-
 <script>
 /* =========================================================
-   INTRO SOUND (AUDIO ENGINE KEKAL PENUH)
+   INTRO AUDIO ENGINE
    ========================================================= */
 let sinnciIntroAudioStarted = false;
 const bullSound = new Audio("bull.mp3");
@@ -1951,7 +1146,7 @@ window.addEventListener("load", () => { startSINNCIIntroSound(); });
 document.addEventListener("pointerdown", () => { startSINNCIIntroSound(); }, { once: true });
 
 /* =========================================================
-   AUTH
+   AUTH ENGINE (SUPABASE)
    ========================================================= */
 let authMode = "login";
 
@@ -1961,9 +1156,7 @@ function showAuthMode(mode) {
   const registerTab = document.getElementById("registerTab");
   const authBtn = document.getElementById("authBtn");
   const message = document.getElementById("authMessage");
-
   message.textContent = "";
-  message.className = "auth-message";
 
   if (mode === "login") {
     loginTab.classList.add("active");
@@ -1989,7 +1182,7 @@ async function handleAuth(event) {
   const button = document.getElementById("authBtn");
 
   button.disabled = true;
-  button.textContent = authMode === "login" ? "LOGGING IN..." : "CREATING ACCOUNT...";
+  button.textContent = authMode === "login" ? "VERIFYING..." : "CREATING...";
   showAuthMessage("");
 
   try {
@@ -2070,12 +1263,6 @@ async function logout() {
   showAuthScreen();
 }
 
-supabaseClient.auth.onAuthStateChange(async (event, session) => {
-  if (event === "SIGNED_OUT") {
-    showAuthScreen();
-  }
-});
-
 (async function () {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -2131,7 +1318,7 @@ async function getLivePrice() {
     currentLivePrice = price;
     priceEl.textContent = price.toFixed(2);
     document.getElementById("zoneCmpValue").textContent = price.toFixed(2);
-    priceStatus.textContent = "● Live XAUUSD market price";
+    priceStatus.textContent = "● Live Institutional Feed Verified";
     priceStatus.style.color = "var(--green)";
     return price;
   } catch (error) {
@@ -2149,7 +1336,7 @@ function setDirection(id, value) {
   if (!el) return;
   const str = String(value || "---").toUpperCase();
   el.textContent = str;
-  el.className = "dir";
+  el.className = "radar-val";
   if (str.includes("BULLISH") || str.includes("BUY") || str.includes("IN_ZONE") || str.includes("READY")) {
     el.classList.add("bullish");
   } else if (str.includes("BEARISH") || str.includes("SELL")) {
@@ -2206,7 +1393,7 @@ function renderCompleteDashboard(data) {
   const stepCMP = document.getElementById("stepCMP");
   const stepSignal = document.getElementById("stepSignal");
 
-  signalCard.className = "card signal-card " + (isReady ? "ready" : "wait");
+  signalCard.className = "hud-card signal-card " + (isReady ? "ready" : "wait");
   signalIcon.textContent = isReady ? (direction === "BUY" ? "↑" : "↓") : "⏳";
   signalName.textContent = isReady ? `${direction} READY` : "WAIT";
   signalSub.textContent = isReady ? "Zon bucu aktif & sedia untuk eksekusi" : "Memantau harga menghampiri zon bucu";
@@ -2254,7 +1441,7 @@ function renderCompleteDashboard(data) {
   // 6. INTELLIGENCE
   setText("puncaSource", data.punca?.source || "ZONE_BUCU_SNR");
   setText("risk", "3.50");
-  setText("maxRisk", "35 pips ($3.50)");
+  setText("maxRisk", "35 PIPS ($3.50)");
   setText("reason", currentSetup?.reasons?.[0] || "Menunggu reaksi zon bucu.");
 }
 
@@ -2265,12 +1452,12 @@ function renderSetupSubCard(type, setupData) {
   const isReady = setupData.status === "READY";
   const isBuy = setupData.direction === "BUY";
 
-  card.className = "setup-card " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
-  document.getElementById(prefix + "Status").className = "setup-status " + (isReady ? "ready" : "wait");
+  card.className = "hud-card setup-card " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
+  document.getElementById(prefix + "Status").className = "setup-badge " + (isReady ? "ready" : "wait");
   document.getElementById(prefix + "Status").textContent = isReady ? (isBuy ? "BUY READY" : "SELL READY") : "WAIT";
 
   const dirEl = document.getElementById(prefix + "Direction");
-  dirEl.className = "setup-direction " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
+  dirEl.className = "setup-dir-row " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
   document.getElementById(prefix + "Arrow").textContent = isReady ? (isBuy ? "↑" : "↓") : "⏳";
   document.getElementById(prefix + "DirectionText").textContent = setupData.direction;
   document.getElementById(prefix + "Score").textContent = "SCORE " + setupData.score;
@@ -2287,10 +1474,10 @@ function renderSetupSubCard(type, setupData) {
    ========================================================= */
 async function analyze() {
   analyzeBtn.disabled = true;
-  analyzeBtn.textContent = "◌ ANALYZING MARKET...";
+  analyzeBtn.textContent = "◌ ANALYZING FEED...";
   aiStatus.textContent = "SCANNING";
   aiStatus.style.color = "var(--gold)";
-  aiDescription.textContent = "Mengimbas data H1, M15, M5 & M1...";
+  aiDescription.textContent = "Mengimbas struktur H1, M15, M5 & M1...";
 
   try {
     await getLivePrice();
@@ -2322,16 +1509,16 @@ async function analyze() {
 function startCooldown(seconds = 60) {
   let remaining = seconds;
   analyzeBtn.disabled = true;
-  analyzeBtn.textContent = `ANALYZED • COOLDOWN (${remaining}s)`;
+  analyzeBtn.textContent = `COOLDOWN (${remaining}s)`;
   const timer = setInterval(() => {
     remaining--;
     if (remaining <= 0) {
       clearInterval(timer);
       analyzeBtn.disabled = false;
-      analyzeBtn.textContent = "✦ ANALYZE MARKET";
+      analyzeBtn.textContent = "✦ RUN MARKET ANALYSIS";
       return;
     }
-    analyzeBtn.textContent = `ANALYZED • COOLDOWN (${remaining}s)`;
+    analyzeBtn.textContent = `COOLDOWN (${remaining}s)`;
   }, 1000);
 }
 
@@ -2358,9 +1545,9 @@ function setSessionCard(cardId, statusId, isOpen, timeStr) {
   const status = document.getElementById(statusId);
   if (!card || !status) return;
   card.classList.toggle("open", isOpen);
-  status.className = "session-status " + (isOpen ? "open" : "closed");
+  status.className = "session-tag " + (isOpen ? "open" : "closed");
   status.textContent = isOpen ? "OPEN" : "CLOSED";
-  const timeEl = card.querySelector(".session-time");
+  const timeEl = card.querySelector(".session-time-text");
   if (timeEl) timeEl.textContent = timeStr;
 }
 
@@ -2378,7 +1565,7 @@ async function loadEconomicNews() {
       renderEconomicNews();
     }
   } catch (e) {
-    newsList.innerHTML = `<div class="news-empty">US economic news temporarily unavailable</div>`;
+    newsList.innerHTML = `<div class="news-empty">US economic releases temporarily offline</div>`;
   }
 }
 
@@ -2386,13 +1573,13 @@ function renderEconomicNews() {
   const newsList = document.getElementById("newsList");
   if (!newsList || !sinnciNews.length) return;
   newsList.innerHTML = sinnciNews.slice(0, 5).map(event => `
-    <div class="news-item medium">
-      <div class="news-top">
+    <div class="news-row medium">
+      <div class="news-row-top">
         <div>
-          <div class="news-name">${event.name || event.title || "US News"}</div>
-          <div class="news-time">${event.time_utc || "Today"}</div>
+          <div class="news-event-title">${event.name || event.title || "US Release"}</div>
+          <div class="news-time-sub">${event.time_utc || "Today"}</div>
         </div>
-        <div class="news-impact medium">${event.impact || "MED"}</div>
+        <div class="news-tag medium">${event.impact || "MED"}</div>
       </div>
     </div>
   `).join("");
@@ -2400,13 +1587,12 @@ function renderEconomicNews() {
 
 function filterNews(type) {
   newsFilter = type;
-  document.querySelectorAll(".news-filter").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".news-pill-btn").forEach(b => b.classList.remove("active"));
   document.getElementById(`news${type.charAt(0).toUpperCase() + type.slice(1)}Btn`)?.classList.add("active");
   renderEconomicNews();
 }
 
 analyzeBtn.addEventListener("click", analyze);
 </script>
-
 </body>
 </html>

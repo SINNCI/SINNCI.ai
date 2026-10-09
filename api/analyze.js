@@ -2,32 +2,32 @@
  * SINNCI AI — XAUUSD MARKET ANALYSIS ENGINE
  * File: api/analyze.js
  *
- * Models:
- * 1. Scalping: MA 20 + SNR + CMP (Fast M1 Trigger)
- * 2. Intraday: SNR + MA 50 + CMP + Mapping (Structure Hold Analysis)
+ * Execution Engine:
+ * - Scalping: H1 -> M5 -> M1 (MA 8 + SNR Bucu + CMP)
+ * - Intraday: H1 -> M15 -> M5 (MA 50 + SNR Bucu + CMP + Mapping Hold)
  * 
  * Rules:
- * - Zone: 35 pips ($3.50) uniform for both modes
- * - SL: 30 pips ($3.00) uniform for both modes
+ * - Zone: 20 pips ($2.00) uniform
+ * - SL: 35 pips ($3.50) uniform
  * - Scalping TP: TP1 60 pips ($6.00), TP2 120 pips ($12.00)
  * - Intraday TP: TP1 130 pips ($13.00), TP2 220 pips ($22.00)
- * - Early Zone Mapping (Zone displayed early before Signal trigger)
+ * - Scoring Range: 65 - 75 (Early Mapping & Direct Touch Execution)
+ * - TF H4: Removed for optimized API speed
  *
  * Data source: Twelve Data time_series
  */
 
 const SYMBOL = "XAU/USD";
-const POINT_VALUE = 0.01;
 
 const SETTINGS = {
-  // 35 pips = 350 points = $3.50 zon ketebalan
-  zoneThickness: 3.50,
-  stopLossDistance: 3.00, // 30 pips = 300 points = $3.00 SL
+  // Zon 20 pips ($2.00) & SL 35 pips ($3.50)
+  zoneThickness: 2.00,
+  stopLossDistance: 3.50,
 
   scalping: {
     tp1Distance: 6.00,    // 60 pips ($6.00)
-    tp2Distance: 12.00,   // 120 pips ($12.00) — Wajib TP
-    minimumScore: 60
+    tp2Distance: 12.00,   // 120 pips ($12.00)
+    minimumScore: 65
   },
 
   intraday: {
@@ -36,12 +36,12 @@ const SETTINGS = {
     minimumScore: 65
   },
 
-  candleCount: 50,
+  candleCount: 40,
   fetchTimeoutMs: 15000
 };
 
+// TF H4 dibuang sepenuhnya untuk menjimatkan masa respons API
 const TIMEFRAMES = {
-  H4: { interval: "4h", ms: 4 * 60 * 60 * 1000 },
   H1: { interval: "1h", ms: 60 * 60 * 1000 },
   M15: { interval: "15min", ms: 15 * 60 * 1000 },
   M5: { interval: "5min", ms: 5 * 60 * 1000 },
@@ -72,12 +72,7 @@ function roundPrice(value) {
     : Number(value.toFixed(2));
 }
 
-function average(values) {
-  if (!values.length) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function calculateEMA(candles, period = 20) {
+function calculateEMA(candles, period) {
   if (!candles || !candles.length) return 0;
   if (candles.length < period) return candles[candles.length - 1].close;
   const k = 2 / (period + 1);
@@ -188,6 +183,9 @@ async function fetchCandles(key, timeframeKey) {
   }
 }
 
+// =========================================================================
+// PENGESAN BUCU SNR (SWING HIGH & LOW)
+// =========================================================================
 function findSwingLows(candles) {
   const result = [];
   for (let i = 2; i < candles.length - 2; i++) {
@@ -220,10 +218,8 @@ function findSwingHighs(candles) {
   return result;
 }
 
-// =========================================================================
-// 1. ZON ENTRY KELUAR AWAL (PRE-MAPPED: 35 PIPS SERAGAM)
-// =========================================================================
-function buildEarlyZone(candles, direction, price, maLevel) {
+// BINA ZON BUCU 20 PIPS ($2.00) — KELUAR AWAL & TERKUNCI
+function buildZoneBucu(candles, direction, price, fallbackPivot) {
   if (!candles || !candles.length || price === null) {
     return { valid: false, low: null, high: null, reason: "Tiada data zon." };
   }
@@ -235,124 +231,62 @@ function buildEarlyZone(candles, direction, price, maLevel) {
     .filter((point) => (direction === "BUY" ? point.price <= price : point.price >= price))
     .sort((a, b) => (direction === "BUY" ? b.price - a.price : a.price - b.price));
 
-  // Ambil swing terdekat, jika tiada ambil MA Level sebagai aras konfluens
-  const pivot = candidates.length > 0 ? candidates[0].price : (maLevel || price);
+  const bucuPivot = candidates.length > 0 ? candidates[0].price : (fallbackPivot || price);
 
-  // Zon 35 pips ($3.50) seragam: separuh lebar = 1.75
-  const halfWidth = SETTINGS.zoneThickness / 2; // 1.75
-  const low = roundPrice(pivot - halfWidth);
-  const high = roundPrice(pivot + halfWidth);
+  // Zon 20 pips ($2.00) seragam: separuh lebar = 1.00 ($1.00 atas dan bawah bucu)
+  const halfWidth = SETTINGS.zoneThickness / 2; // 1.00
+  const low = roundPrice(bucuPivot - halfWidth);
+  const high = roundPrice(bucuPivot + halfWidth);
 
   const inZone = price >= low && price <= high;
+  const dist = direction === "BUY" ? Math.max(0, price - high) : Math.max(0, low - price);
+  const isApproaching = dist <= 1.50; // Menghampiri dalam jarak 15 pips
 
   return {
     valid: true,
     low,
     high,
-    pivot: roundPrice(pivot),
-    widthPips: 35,
-    source: "STRUCTURAL_SNR_CONFLUENCE",
+    pivot: roundPrice(bucuPivot),
+    widthPips: 20,
+    source: "ZONE_BUCU_SNR",
     locked: true,
-    status: inZone ? "IN_ZONE" : price < low ? "BELOW_ZONE" : "APPROACHING",
+    status: inZone ? "IN_ZONE" : isApproaching ? "APPROACHING" : "WATCH",
     reason: inZone 
-      ? "Harga aktif dalam zon persediaan (35 pips)." 
-      : `Zon entry sedia dipantau (${low} – ${high}).`,
-    distanceFromZone: roundPrice(direction === "BUY" ? Math.max(0, price - high) : Math.max(0, low - price))
+      ? "Harga aktif dalam zon bucu (20 pips)." 
+      : isApproaching 
+        ? `Menghampiri zon bucu (${low} – ${high}). Bersedia.` 
+        : `Zon bucu dikenal pasti (${low} – ${high}).`,
+    distanceFromZone: roundPrice(dist)
   };
 }
 
-// =========================================================================
-// 2. MAPPING KHAS INTRADAY (UNTUK TUJUAN HOLD SETUP)
-// =========================================================================
-function buildIntradayMapping(candlesH4, candlesH1, direction, price, ema50H1) {
+// MAPPING INTRADAY (H1) UNTUK HOLD POSITION
+function buildIntradayMapping(candlesH1, direction, price, ema50H1) {
   const h1Recent = candlesH1.slice(-24);
-  const h1Highs = h1Recent.map((c) => c.high);
-  const h1Lows = h1Recent.map((c) => c.low);
+  const highestH1 = Math.max(...h1Recent.map((c) => c.high));
+  const lowestH1 = Math.min(...h1Recent.map((c) => c.low));
 
-  const highestH1 = Math.max(...h1Highs);
-  const lowestH1 = Math.min(...h1Lows);
-
-  // Aras Invalidasi Struktur: Jika pecah, batalkan setup hold serta-merta
   const invalidationLevel = direction === "BUY" 
     ? roundPrice(lowestH1 - 0.50) 
     : roundPrice(highestH1 + 0.50);
 
-  // Halangan Ayunan Seterusnya (Roadmap swing target)
   const nextTarget = direction === "BUY" ? roundPrice(highestH1) : roundPrice(lowestH1);
   const dynamicSR = roundPrice(ema50H1);
 
   return {
-    phase: direction === "BUY" ? "BULLISH_EXPANSION" : "BEARISH_EXPANSION",
+    phase: direction === "BUY" ? "BULLISH_HOLD" : "BEARISH_HOLD",
     dynamicSupportResistance: dynamicSR,
     rangeHigh: roundPrice(highestH1),
     rangeLow: roundPrice(lowestH1),
     nextMajorObstacle: nextTarget,
     structureInvalidation: invalidationLevel,
     holdRule: direction === "BUY"
-      ? `Kekal HOLD selagi lilin bertahan di atas ${dynamicSR} (EMA 50 H1).`
-      : `Kekal HOLD selagi lilin bertahan di bawah ${dynamicSR} (EMA 50 H1).`
+      ? `Kekal HOLD selagi lilin bertahan di atas ${dynamicSR} (MA 50 H1).`
+      : `Kekal HOLD selagi lilin bertahan di bawah ${dynamicSR} (MA 50 H1).`
   };
 }
 
-// =========================================================================
-// 3. TRIGGER MOMENTUM PANTAS M1 (SCALPING — TANPA TUNGGU M5)
-// =========================================================================
-function getM1InstantTrigger(candlesM1, direction, price) {
-  if (!candlesM1 || candlesM1.length < 2) {
-    return { confirmed: false, status: "WAIT", reason: "Lilin M1 tidak mencukupi." };
-  }
-
-  const current = candlesM1[candlesM1.length - 1];
-  const prev = candlesM1[candlesM1.length - 2];
-
-  let confirmed = false;
-  if (direction === "BUY") {
-    confirmed = price >= prev.high || current.close > current.open;
-  } else {
-    confirmed = price <= prev.low || current.close < current.open;
-  }
-
-  return {
-    confirmed,
-    status: confirmed ? "CONFIRMED" : "WAIT",
-    method: "M1_MOMENTUM_PULSE",
-    reason: confirmed ? "Momentum M1 disahkan serta-merta." : "Menunggu lilin M1 bertukar arah."
-  };
-}
-
-// =========================================================================
-// 4. TRIGGER PENGESAHAN M5 (INTRADAY STRUCTURE)
-// =========================================================================
-function getM5StructureTrigger(candlesM5, direction, price) {
-  if (!candlesM5 || candlesM5.length < 5) {
-    return { confirmed: false, status: "WAIT", reason: "Lilin M5 tidak mencukupi." };
-  }
-
-  const last = candlesM5[candlesM5.length - 1];
-  const previous = candlesM5.slice(-5, -1);
-
-  if (direction === "BUY") {
-    const referenceHigh = Math.max(...previous.map((c) => c.high));
-    const confirmed = last.close >= referenceHigh || price >= referenceHigh;
-    return {
-      confirmed,
-      status: confirmed ? "CONFIRMED" : "WAIT",
-      reference: roundPrice(referenceHigh),
-      reason: confirmed ? "M5 menembusi rintangan swing." : "Menunggu pengesahan M5."
-    };
-  }
-
-  const referenceLow = Math.min(...previous.map((c) => c.low));
-  const confirmed = last.close <= referenceLow || price <= referenceLow;
-  return {
-    confirmed,
-    status: confirmed ? "CONFIRMED" : "WAIT",
-    reference: roundPrice(referenceLow),
-    reason: confirmed ? "M5 menembusi sokongan swing." : "Menunggu pengesahan M5."
-  };
-}
-
-// Pelan Dagangan Tetap (SL 30 Pips, TP Mengikut Mod)
+// PELAN DAGANGAN: SL TETAP 35 PIPS ($3.50)
 function buildFixedTradePlan(direction, price, tpSettings) {
   if (price === null || !Number.isFinite(price)) return null;
 
@@ -392,13 +326,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const timeframeKeys = ["H4", "H1", "M15", "M5", "M1"];
+    // 4 Timeframe pantas sahaja
+    const timeframeKeys = ["H1", "M15", "M5", "M1"];
     const fetched = [];
 
     for (const key of timeframeKeys) {
       const result = await fetchCandles(apiKey, key);
       fetched.push([key, result]);
-      await sleep(150); // Mencegah sekatan kadar had API Twelve Data
+      await sleep(150);
     }
 
     const data = Object.fromEntries(fetched);
@@ -408,94 +343,87 @@ export default async function handler(req, res) {
     const price = lastM1.close;
 
     // Moving Averages
-    const ema20_H1 = calculateEMA(candles.H1, 20);
-    const ema50_H4 = calculateEMA(candles.H4, 50);
+    const ema8_H1 = calculateEMA(candles.H1, 8);
     const ema50_H1 = calculateEMA(candles.H1, 50);
-    const ema50_M15 = calculateEMA(candles.M15, 50);
 
-    // 1. PENENTUAN ARAH
-    // Scalping: MA 20 H1 + CMP
-    const scalpDirection = price >= ema20_H1 ? "BUY" : "SELL";
-    // Intraday: EMA 50 H4 & H1 + CMP
-    const intradayDirection = (price >= ema50_H4 && price >= ema50_H1) ? "BUY" : "SELL";
+    // 1. SCALPING (H1 -> M5 -> M1): MA 8 (H1) + SNR BUCU (M5) + CMP (M1)
+    const scalpDirection = price >= ema8_H1 ? "BUY" : "SELL";
+    const scalpZone = buildZoneBucu(candles.M5, scalpDirection, price, ema8_H1);
 
-    // 2. PEMETAAN ZON AWAL (35 PIPS SERAGAM)
-    const scalpZone = buildEarlyZone(candles.M15, scalpDirection, price, ema20_H1);
-    const intraZone = buildEarlyZone(candles.M15, intradayDirection, price, ema50_M15);
+    // 2. INTRADAY (H1 -> M15 -> M5): MA 50 (H1) + SNR BUCU (M15) + CMP (M5) + MAPPING HOLD
+    const intradayDirection = price >= ema50_H1 ? "BUY" : "SELL";
+    const intraZone = buildZoneBucu(candles.M15, intradayDirection, price, ema50_H1);
+    const intradayMapping = buildIntradayMapping(candles.H1, intradayDirection, price, ema50_H1);
 
-    // 3. MAPPING KHAS INTRADAY
-    const intradayMapping = buildIntradayMapping(candles.H4, candles.H1, intradayDirection, price, ema50_H1);
+    // ==========================================
+    // SISTEM SKOR DILONGGARKAN (65 - 75)
+    // ==========================================
+    // Scalp: In zone = 75, Approaching = 65, Luar = 45
+    const scalpInZone = scalpZone.status === "IN_ZONE";
+    const scalpApproaching = scalpZone.status === "APPROACHING";
+    const scalpScore = scalpInZone ? 75 : scalpApproaching ? 65 : 45;
+    const scalpReady = scalpScore >= SETTINGS.scalping.minimumScore;
 
-    // 4. TRIGGER PENGESAHAN
-    // Scalping: M1 Instant Trigger
-    const m1ScalpTrigger = getM1InstantTrigger(candles.M1, scalpDirection, price);
-    // Intraday: M5 Structure Confirmation
-    const m5IntraTrigger = getM5StructureTrigger(candles.M5, intradayDirection, price);
+    // Intraday: In zone = 75, Approaching = 65, Luar = 45
+    const intraInZone = intraZone.status === "IN_ZONE";
+    const intraApproaching = intraZone.status === "APPROACHING";
+    const intraScore = intraInZone ? 75 : intraApproaching ? 65 : 45;
+    const intraReady = intraScore >= SETTINGS.intraday.minimumScore;
 
-    const scalpReady = m1ScalpTrigger.confirmed && (scalpZone.status === "IN_ZONE" || scalpZone.status === "APPROACHING");
-    const intraReady = m5IntraTrigger.confirmed && (intraZone.status === "IN_ZONE" || intraZone.status === "APPROACHING");
-
-    // Pelan Dagangan Lengkap
     const scalpPlan = buildFixedTradePlan(scalpDirection, price, SETTINGS.scalping);
     const intraPlan = buildFixedTradePlan(intradayDirection, price, SETTINGS.intraday);
 
-    // Setup Scalping Payload
+    // Setup Scalping Payload (Label model dibuang)
     const scalpingPayload = {
       setupId: `SINNCI-SCALPING-${scalpDirection}`,
       type: "SCALPING",
-      model: "MA20_SNR_CMP",
+      timeframe: "H1 -> M5 -> M1",
       symbol: "XAUUSD",
       direction: scalpDirection,
       status: scalpReady ? "READY" : "WAIT",
       entryStatus: scalpReady ? "READY" : "WAIT",
-      score: scalpReady ? 85 : 60,
+      score: scalpScore,
       zone: scalpZone,
-      confirmation: { m1: m1ScalpTrigger },
       plan: scalpPlan,
       reasons: scalpReady 
-        ? ["Zon 35 pips dikesan & Momentum M1 disahkan."] 
-        : ["Zon sedia. Menunggu lonjakan lilin M1."],
+        ? ["Zon bucu 20 pips aktif & sedia untuk eksekusi."] 
+        : [`Zon bucu dikenal pasti (${scalpZone.low} – ${scalpZone.high}). Menghampiri zon.`],
       lastUpdated: new Date().toISOString()
     };
 
-    // Setup Intraday Payload
+    // Setup Intraday Payload (Label model dibuang)
     const intradayPayload = {
       setupId: `SINNCI-INTRADAY-${intradayDirection}`,
       type: "INTRADAY",
-      model: "SNR_MA50_CMP_MAPPING",
+      timeframe: "H1 -> M15 -> M5",
       symbol: "XAUUSD",
       direction: intradayDirection,
       status: intraReady ? "READY" : "WAIT",
       entryStatus: intraReady ? "READY" : "WAIT",
-      score: intraReady ? 90 : 65,
+      score: intraScore,
       zone: intraZone,
       mapping: intradayMapping,
-      confirmation: { m5: m5IntraTrigger },
       plan: intraPlan,
       reasons: intraReady 
-        ? [`Struktur M5 disahkan. ${intradayMapping.holdRule}`] 
-        : [`Zon 35 pips dipetakan. Menunggu lilin M5 tutup & ${intradayMapping.holdRule}`],
+        ? [`Zon bucu 20 pips aktif. ${intradayMapping.holdRule}`] 
+        : [`Zon bucu dipetakan (${intraZone.low} – ${intraZone.high}). ${intradayMapping.holdRule}`],
       lastUpdated: new Date().toISOString()
     };
-
-    const activeSetup = scalpingPayload;
 
     return res.status(200).json({
       success: true,
       status: "success",
-      engine: "SINNCI MARKET ENGINE",
       symbol: "XAUUSD",
       cmp: roundPrice(price),
       direction: {
-        H4: price >= ema50_H4 ? "BULLISH" : "BEARISH",
-        H1: price >= ema20_H1 ? "BULLISH" : "BEARISH",
-        M15: scalpZone.status,
-        M5: m5IntraTrigger.status,
-        M1: m1ScalpTrigger.status
+        H1: price >= ema50_H1 ? "BULLISH" : "BEARISH",
+        M15: intraZone.status,
+        M5: scalpZone.status,
+        M1: scalpReady ? "IN_ZONE" : "APPROACHING"
       },
       bias: scalpDirection === "BUY" ? "BULLISH" : "BEARISH",
       
-      // Zon Aktif Terus Diberikan (Locked & Early Display)
+      // Zon Bucu Aktif Terus Dikeluarkan Awal
       zone: scalpZone,
       intradayMapping,
 
@@ -503,15 +431,10 @@ export default async function handler(req, res) {
         direction: scalpDirection,
         status: scalpReady ? `${scalpDirection} READY` : "WAIT",
         confirmation: scalpReady 
-          ? "Zon 35 pips aktif & momentum M1 disahkan!" 
-          : "Zon 35 pips sedia. Menunggu reaksi lilin M1."
+          ? `Zon bucu 20 pips aktif (Skor: ${scalpScore})` 
+          : `Zon bucu sedia dipantau (${scalpZone.low} – ${scalpZone.high}).`
       },
       signalStatus: scalpReady ? "READY" : "WAIT",
-
-      audit: {
-        m5Break: m5IntraTrigger.confirmed,
-        m1Confirmed: m1ScalpTrigger.confirmed
-      },
 
       scalping: scalpingPayload,
       intraday: intradayPayload,
@@ -520,10 +443,10 @@ export default async function handler(req, res) {
         source: scalpZone.source,
         price: scalpZone.pivot
       },
-      score: activeSetup.score,
+      score: scalpScore,
       settings: {
-        zoneThicknessPips: 35,
-        stopLossPips: 30,
+        zoneThicknessPips: 20,
+        stopLossPips: 35,
         stopLossDistance: SETTINGS.stopLossDistance
       },
       timestamp: new Date().toISOString()

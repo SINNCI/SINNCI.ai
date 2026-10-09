@@ -26,7 +26,7 @@ const SETTINGS = {
     minimumScore: 65
   },
 
-  candleCount: 50,
+  candleCount: 40,
   fetchTimeoutMs: 15000
 };
 
@@ -104,6 +104,8 @@ function normalizeCandles(values) {
     .sort((a, b) => a.time - b.time);
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function fetchCandles(key, timeframeKey) {
   const timeframe = TIMEFRAMES[timeframeKey];
   const url = new URL("https://api.twelvedata.com/time_series");
@@ -129,7 +131,7 @@ async function fetchCandles(key, timeframeKey) {
     try {
       payload = await response.json();
     } catch {
-      throw new Error(`${timeframeKey}: Respons API bukan JSON yang sah.`);
+      throw new Error(`${timeframeKey}: Respons API bukan format JSON yang sah.`);
     }
 
     if (!response.ok || payload.status === "error" || payload.code) {
@@ -138,21 +140,20 @@ async function fetchCandles(key, timeframeKey) {
     }
 
     if (!Array.isArray(payload.values)) {
-      throw new Error(`${timeframeKey}: Tiada data candle diterima.`);
+      throw new Error(`${timeframeKey}: Tiada data lilin pasaran.`);
     }
 
     const candles = normalizeCandles(payload.values);
 
     if (candles.length < 5) {
-      throw new Error(`${timeframeKey}: Data candle tidak mencukupi (${candles.length}).`);
+      throw new Error(`${timeframeKey}: Data lilin tidak mencukupi (${candles.length}).`);
     }
 
     return {
       candles,
       meta: {
         interval: timeframe.interval,
-        received: payload.values.length,
-        usableClosedCandles: candles.length,
+        usableCandles: candles.length,
         lastCandleTime: candles[candles.length - 1].datetime
       }
     };
@@ -177,7 +178,7 @@ function getTrend(candles) {
     return {
       direction: "NEUTRAL",
       score: 0,
-      reason: "Candle tidak mencukupi untuk struktur."
+      reason: "Lilin tidak mencukupi."
     };
   }
 
@@ -212,7 +213,7 @@ function getTrend(candles) {
   return {
     direction: newClose >= oldClose ? "BULLISH" : "BEARISH",
     score: 10,
-    reason: "Arah pasaran mengikut purata penutupan terkini."
+    reason: "Arah pasaran mengikut purata harga semasa."
   };
 }
 
@@ -253,7 +254,7 @@ function buildZone(candles, direction, price) {
     return { valid: false, low: null, high: null, reason: "Tiada data zon." };
   }
 
-  const recent = candles.slice(-40);
+  const recent = candles.slice(-30);
   const swingPoints = direction === "BUY" ? findSwingLows(recent) : findSwingHighs(recent);
 
   const candidates = swingPoints
@@ -272,7 +273,7 @@ function buildZone(candles, direction, price) {
     high: roundPrice(high),
     pivot: roundPrice(pivot),
     source: "M15_SWING",
-    locked: false,
+    locked: true,
     status: price >= low && price <= high ? "IN_ZONE" : price < low ? "BELOW_ZONE" : "ABOVE_ZONE",
     reason: "Zon struktur M15 dikenal pasti.",
     distanceFromZone: roundPrice(direction === "BUY" ? Math.max(0, price - high) : Math.max(0, low - price))
@@ -281,7 +282,7 @@ function buildZone(candles, direction, price) {
 
 function getStructureBreak(candles, direction) {
   if (!Array.isArray(candles) || candles.length < 5) {
-    return { confirmed: false, status: "NOT_CONFIRMED", reason: "Candle M5 tidak mencukupi." };
+    return { confirmed: false, status: "NOT_CONFIRMED", reason: "Lilin M5 tidak mencukupi." };
   }
 
   const last = candles[candles.length - 1];
@@ -295,7 +296,7 @@ function getStructureBreak(candles, direction) {
       status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
       method: "CLOSE_ABOVE_STRUCTURE",
       reference: roundPrice(referenceHigh),
-      reason: confirmed ? "M5 pecah struktur atas." : "M5 belum pecah struktur rintangan."
+      reason: confirmed ? "M5 pecah rintangan struktur." : "M5 belum pecah rintangan."
     };
   }
 
@@ -306,13 +307,13 @@ function getStructureBreak(candles, direction) {
     status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
     method: "CLOSE_BELOW_STRUCTURE",
     reference: roundPrice(referenceLow),
-    reason: confirmed ? "M5 pecah struktur bawah." : "M5 belum pecah struktur sokongan."
+    reason: confirmed ? "M5 pecah sokongan struktur." : "M5 belum pecah sokongan."
   };
 }
 
 function getM1Confirmation(candles, direction) {
   if (!Array.isArray(candles) || candles.length < 3) {
-    return { confirmed: false, status: "NOT_CONFIRMED", reason: "Candle M1 tidak mencukupi." };
+    return { confirmed: false, status: "NOT_CONFIRMED", reason: "Lilin M1 tidak mencukupi." };
   }
 
   const last = candles[candles.length - 1];
@@ -374,7 +375,7 @@ function makeSetup({ type, direction, price, higherTrend, lowerTrend, m15, m5, m
     zone,
     confirmation: { m5: m5Confirm, m1: m1Confirm },
     plan: ready ? buildTradePlan(direction, price, settings) : null,
-    reasons: ready ? ["Setup lengkap dan disahkan."] : ["Menunggu pencetus konfirmasi M5/M1."],
+    reasons: ready ? ["Setup lengkap dan disahkan."] : ["Menunggu pengesahan M5 & M1."],
     lastUpdated: new Date().toISOString()
   };
 }
@@ -387,21 +388,26 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  // Membenarkan kedua-dua kaedah GET dan POST
+  // Membenarkan GET dan POST
   if (req.method !== "GET" && req.method !== "POST") {
     return responseError(res, 405, "METHOD_NOT_ALLOWED", "Kaedah HTTP tidak dibenarkan.");
   }
 
   const apiKey = process.env.TWELVE_DATA_API_KEY;
   if (!apiKey) {
-    return responseError(res, 500, "MISSING_API_KEY", "TWELVE_DATA_API_KEY tiada di Vercel Environment.");
+    return responseError(res, 500, "MISSING_API_KEY", "TWELVE_DATA_API_KEY tiada dalam Environment Vercel.");
   }
 
   try {
     const timeframeKeys = ["H4", "H1", "M15", "M5", "M1"];
-    const fetched = await Promise.all(
-      timeframeKeys.map(async (key) => [key, await fetchCandles(apiKey, key)])
-    );
+    const fetched = [];
+
+    // Mengambil data secara berperingkat untuk mengelakkan had kadar Twelve Data (8 calls/min)
+    for (const key of timeframeKeys) {
+      const result = await fetchCandles(apiKey, key);
+      fetched.push([key, result]);
+      await sleep(150);
+    }
 
     const data = Object.fromEntries(fetched);
     const candles = Object.fromEntries(timeframeKeys.map((key) => [key, data[key].candles]));
@@ -440,17 +446,44 @@ export default async function handler(req, res) {
       settings: SETTINGS.intraday
     });
 
+    const activeSetup = scalping;
+
     return res.status(200).json({
       success: true,
       status: "success",
       engine: "SINNCI MARKET ENGINE",
       symbol: "XAUUSD",
+      cmp: roundPrice(price),
       market: {
         price: roundPrice(price),
         trends: { H4: trendH4, H1: trendH1, M15: trendM15 }
       },
+      direction: {
+        H4: trendH4.direction,
+        H1: trendH1.direction,
+        M15: trendM15.direction,
+        M5: activeSetup.confirmation.m5.status,
+        M1: activeSetup.confirmation.m1.status
+      },
+      bias: trendH1.direction,
+      zone: activeSetup.zone,
+      signal: {
+        direction: activeSetup.direction,
+        status: activeSetup.entryStatus,
+        confirmation: activeSetup.reasons[0]
+      },
+      signalStatus: activeSetup.entryStatus,
+      audit: {
+        m5Break: activeSetup.confirmation.m5.confirmed,
+        m1Confirmed: activeSetup.confirmation.m1.confirmed
+      },
       scalping,
       intraday,
+      punca: {
+        source: activeSetup.zone.source,
+        price: activeSetup.zone.pivot
+      },
+      score: activeSetup.score,
       settings: {
         stopLossDistance: SETTINGS.stopLossDistance
       },
@@ -461,7 +494,7 @@ export default async function handler(req, res) {
       res,
       502,
       "MARKET_DATA_ERROR",
-      "Gagal mendapatkan data pasaran.",
+      "Gagal memproses data pasaran.",
       error.message
     );
   }

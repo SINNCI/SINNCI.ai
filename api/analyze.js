@@ -7,9 +7,9 @@
  * - SL: 35 pips ($3.50) uniform for both modes
  * - Scalping TP: TP1 60 pips ($6.00), TP2 120 pips ($12.00)
  * - Intraday TP: TP1 130 pips ($13.00), TP2 220 pips ($22.00)
- * - TF Scalping: H1 -> M5 -> M1 (MA 8 + SNR Bucu / Breakout M5)
- * - TF Intraday: H1 -> M15 -> M5 (MA 50 + SNR Bucu / Breakout M15)
- * - Techniques: SNR Bucu + Breakout & React (Instant Trigger)
+ * - TF Scalping: H1 -> M5 -> M1 (Bucu, Breakout & Reentry M5, dua hala fleksibel)
+ * - TF Intraday: H1 -> M15 -> M5 (MA 50 + SNR Bucu / Breakout / Reentry M15)
+ * - Techniques: SNR Bucu + Breakout & React + Reentry Pullback
  *
  * Data source: Twelve Data time_series
  */
@@ -219,7 +219,7 @@ function findSwingHighs(candles) {
 }
 
 // =========================================================================
-// 1. ZON ENTRY (TEKNIK ASAL BUCU + TAMBAHAN BREAKOUT & REACT)
+// 1. ZON ENTRY (SNR BUCU + BREAKOUT & REACT + REENTRY PULLBACK)
 // =========================================================================
 function buildEarlyZone(candles, direction, price, maLevel) {
   if (!candles || !candles.length || price === null) {
@@ -233,20 +233,31 @@ function buildEarlyZone(candles, direction, price, maLevel) {
   let pivot = null;
   let sourceTechnique = "ZONE_BUCU_SNR";
   let isBreakoutActive = false;
+  let isReentryActive = false;
+
+  // Kira aras EMA dinamik untuk pengesanan Reentry
+  const tfEMA = calculateEMA(candles, 20);
 
   if (direction === "BUY") {
-    // TAMBAHAN TEKNIK: Breakout & React (RBS: Resistance yang pecah)
+    // 1. TEKNIK: Breakout & React (RBS: Resistance yang pecah)
     const brokenResistance = swingHighs.filter((sh) => {
       const diff = price - sh.price;
       return diff >= 0 && diff <= 2.50; // Baru melepasi / sedang retest
     }).sort((a, b) => b.price - a.price);
 
+    // 2. TEKNIK: Reentry Pullback ke sokongan dinamik EMA
+    const isPullbackReentry = price >= tfEMA - 1.00 && Math.abs(price - tfEMA) <= 1.50;
+
     if (brokenResistance.length > 0) {
       pivot = brokenResistance[0].price;
       sourceTechnique = "BREAKOUT_REACT_RBS";
       isBreakoutActive = true;
+    } else if (isPullbackReentry) {
+      pivot = tfEMA;
+      sourceTechnique = "REENTRY_PULLBACK";
+      isReentryActive = true;
     } else {
-      // TEKNIK ASAL: Bucu Support Terdekat
+      // 3. TEKNIK ASAL: Bucu Support Terdekat
       const candidates = swingLows
         .filter((point) => point.price <= price)
         .sort((a, b) => b.price - a.price);
@@ -254,18 +265,25 @@ function buildEarlyZone(candles, direction, price, maLevel) {
       sourceTechnique = "ZONE_BUCU_SNR";
     }
   } else {
-    // TAMBAHAN TEKNIK: Breakout & React (SBR: Support yang pecah)
+    // 1. TEKNIK: Breakout & React (SBR: Support yang pecah)
     const brokenSupport = swingLows.filter((sl) => {
       const diff = sl.price - price;
       return diff >= 0 && diff <= 2.50; // Baru melepasi / sedang retest
     }).sort((a, b) => a.price - b.price);
 
+    // 2. TEKNIK: Reentry Pullback ke rintangan dinamik EMA
+    const isPullbackReentry = price <= tfEMA + 1.00 && Math.abs(price - tfEMA) <= 1.50;
+
     if (brokenSupport.length > 0) {
       pivot = brokenSupport[0].price;
       sourceTechnique = "BREAKOUT_REACT_SBR";
       isBreakoutActive = true;
+    } else if (isPullbackReentry) {
+      pivot = tfEMA;
+      sourceTechnique = "REENTRY_PULLBACK";
+      isReentryActive = true;
     } else {
-      // TEKNIK ASAL: Bucu Resistance Terdekat
+      // 3. TEKNIK ASAL: Bucu Resistance Terdekat
       const candidates = swingHighs
         .filter((point) => point.price >= price)
         .sort((a, b) => a.price - b.price);
@@ -283,8 +301,10 @@ function buildEarlyZone(candles, direction, price, maLevel) {
   const dist = direction === "BUY" ? Math.max(0, price - high) : Math.max(0, low - price);
   const isApproaching = dist <= 1.50;
 
-  // Jika breakout aktif atau berada dalam zon, tandakan IN_ZONE
-  const status = isBreakoutActive ? "IN_ZONE" : (inZone ? "IN_ZONE" : (isApproaching ? "APPROACHING" : "WATCH"));
+  // Jika breakout, reentry atau CMP dalam zon, tandakan IN_ZONE
+  const status = (isBreakoutActive || isReentryActive || inZone)
+    ? "IN_ZONE"
+    : (isApproaching ? "APPROACHING" : "WATCH");
 
   return {
     valid: true,
@@ -294,15 +314,40 @@ function buildEarlyZone(candles, direction, price, maLevel) {
     widthPips: 20,
     source: sourceTechnique,
     isBreakout: isBreakoutActive,
+    isReentry: isReentryActive,
     locked: true,
     status,
     reason: isBreakoutActive 
       ? `Breakout dikesan pada aras bucu ${roundPrice(pivot)}.`
-      : inZone 
-        ? "Harga aktif dalam zon persediaan (20 pips)." 
-        : `Zon entry sedia dipantau (${low} – ${high}).`,
+      : isReentryActive
+        ? `Reentry Pullback dikesan pada paras purata bergerak ${roundPrice(pivot)}.`
+        : inZone 
+          ? "Harga aktif dalam zon persediaan (20 pips)." 
+          : `Zon entry sedia dipantau (${low} – ${high}).`,
     distanceFromZone: roundPrice(dist)
   };
+}
+
+// =========================================================================
+// PENGESANAN SCALPING DUA HALA (UNLOCKED DARI TREND H1)
+// =========================================================================
+function resolveScalpDualMode(candlesM5, price, maLevel) {
+  const buyZone = buildEarlyZone(candlesM5, "BUY", price, maLevel);
+  const sellZone = buildEarlyZone(candlesM5, "SELL", price, maLevel);
+
+  // Utamakan arah yang mempunyai Breakout, Reentry atau berada dalam zon aktif M5
+  if (sellZone.isBreakout || sellZone.isReentry || sellZone.status === "IN_ZONE") {
+    return { direction: "SELL", zone: sellZone };
+  }
+  if (buyZone.isBreakout || buyZone.isReentry || buyZone.status === "IN_ZONE") {
+    return { direction: "BUY", zone: buyZone };
+  }
+
+  // Jika belum aktif, pilih arah persediaan yang paling hampir dengan CMP
+  if (sellZone.distanceFromZone < buyZone.distanceFromZone) {
+    return { direction: "SELL", zone: sellZone };
+  }
+  return { direction: "BUY", zone: buyZone };
 }
 
 // =========================================================================
@@ -396,24 +441,24 @@ export default async function handler(req, res) {
     const ema50_H1 = calculateEMA(candles.H1, 50);
 
     // 1. PENENTUAN ARAH
-    // Scalping: MA 8 H1 + CMP
-    const scalpDirection = price >= ema8_H1 ? "BUY" : "SELL";
-    // Intraday: EMA 50 H1 + CMP
-    const intradayDirection = price >= ema50_H1 ? "BUY" : "SELL";
+    // Scalping: Fleksibel dua hala berasaskan aksi harga bucu/breakout M5 (unlocked dari H1)
+    const scalpResolved = resolveScalpDualMode(candles.M5, price, ema8_H1);
+    const scalpDirection = scalpResolved.direction;
+    const scalpZone = scalpResolved.zone;
 
-    // 2. PEMETAAN ZON AWAL & BREAKOUT (TF M5 untuk Scalping, TF M15 untuk Intraday)
-    const scalpZone = buildEarlyZone(candles.M5, scalpDirection, price, ema8_H1);
+    // Intraday: Mengikut trend EMA 50 H1 + CMP
+    const intradayDirection = price >= ema50_H1 ? "BUY" : "SELL";
     const intraZone = buildEarlyZone(candles.M15, intradayDirection, price, ema50_H1);
 
-    // 3. MAPPING KHAS INTRADAY
+    // 2. MAPPING KHAS INTRADAY
     const intradayMapping = buildIntradayMapping(candles.H1, intradayDirection, price, ema50_H1);
 
-    // 4. KELULUSAN SKOR & STATUS (Breakout / In Zone = 75, Approaching = 65)
-    const scalpReady = scalpZone.status === "IN_ZONE" || scalpZone.status === "APPROACHING" || scalpZone.isBreakout;
-    const scalpScore = (scalpZone.isBreakout || scalpZone.status === "IN_ZONE") ? 75 : (scalpZone.status === "APPROACHING" ? 65 : 45);
+    // 3. KELULUSAN SKOR & STATUS (Breakout / Reentry / In Zone = 75, Approaching = 65)
+    const scalpReady = scalpZone.status === "IN_ZONE" || scalpZone.status === "APPROACHING" || scalpZone.isBreakout || scalpZone.isReentry;
+    const scalpScore = (scalpZone.isBreakout || scalpZone.isReentry || scalpZone.status === "IN_ZONE") ? 75 : (scalpZone.status === "APPROACHING" ? 65 : 45);
 
-    const intraReady = intraZone.status === "IN_ZONE" || intraZone.status === "APPROACHING" || intraZone.isBreakout;
-    const intraScore = (intraZone.isBreakout || intraZone.status === "IN_ZONE") ? 75 : (intraZone.status === "APPROACHING" ? 65 : 45);
+    const intraReady = intraZone.status === "IN_ZONE" || intraZone.status === "APPROACHING" || intraZone.isBreakout || intraZone.isReentry;
+    const intraScore = (intraZone.isBreakout || intraZone.isReentry || intraZone.status === "IN_ZONE") ? 75 : (intraZone.status === "APPROACHING" ? 65 : 45);
 
     // Pelan Dagangan Lengkap
     const scalpPlan = buildFixedTradePlan(scalpDirection, price, SETTINGS.scalping);

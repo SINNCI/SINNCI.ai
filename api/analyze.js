@@ -3,26 +3,12 @@
  * File: api/analyze.js
  *
  * Analysis only. NO automated trading or order execution.
- *
  * Data source: Twelve Data time_series
- * Required environment variable: TWELVE_DATA_API_KEY
- *
- * Timeframes:
- * Scalping:  H1 -> M15 -> M5 -> M1
- * Intraday:  H4 -> H1 -> M15 -> M5 -> M1
- *
- * Important:
- * - No fabricated candles or prices.
- * - WAIT if required data or confirmation is missing.
- * - M5 structure break + M1 final confirmation required for READY.
- * - This endpoint does not permanently store or lock zones.
  */
 
 const SYMBOL = "XAU/USD";
 const POINT_VALUE = 0.01;
 
-// Gold price movement: 1 point = $0.01.
-// These values are price-distance units, not guaranteed broker pip conventions.
 const SETTINGS = {
   zoneMin: 2.00,
   zoneMax: 3.50,
@@ -40,8 +26,8 @@ const SETTINGS = {
     minimumScore: 65
   },
 
-  candleCount: 60,
-  fetchTimeoutMs: 12000
+  candleCount: 40,
+  fetchTimeoutMs: 15000
 };
 
 const TIMEFRAMES = {
@@ -83,9 +69,6 @@ function roundPrice(value) {
 
 function parseCandleTime(value) {
   if (!value) return null;
-
-  // Twelve Data forex timestamps are normally UTC.
-  // Preserve an explicit timezone if one is already supplied.
   const raw = String(value).trim();
   const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
     ? raw.replace(" ", "T") + "Z"
@@ -95,15 +78,12 @@ function parseCandleTime(value) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-function normalizeCandles(values, timeframeMs) {
+function normalizeCandles(values) {
   if (!Array.isArray(values)) return [];
-
-  const now = Date.now();
 
   return values
     .map((item) => {
       const time = parseCandleTime(item.datetime);
-
       return {
         time,
         datetime: item.datetime || null,
@@ -119,15 +99,12 @@ function normalizeCandles(values, timeframeMs) {
       candle.high !== null &&
       candle.low !== null &&
       candle.close !== null &&
-      candle.high >= candle.low &&
-      candle.high >= candle.open &&
-      candle.high >= candle.close &&
-      candle.low <= candle.open &&
-      candle.low <= candle.close &&
-      candle.time + timeframeMs <= now
+      candle.high >= candle.low
     )
     .sort((a, b) => a.time - b.time);
 }
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchCandles(key, timeframeKey) {
   const timeframe = TIMEFRAMES[timeframeKey];
@@ -141,10 +118,7 @@ async function fetchCandles(key, timeframeKey) {
   url.searchParams.set("apikey", key);
 
   const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    SETTINGS.fetchTimeoutMs
-  );
+  const timer = setTimeout(() => controller.abort(), SETTINGS.fetchTimeoutMs);
 
   try {
     const response = await fetch(url.toString(), {
@@ -154,53 +128,39 @@ async function fetchCandles(key, timeframeKey) {
     });
 
     let payload;
-
     try {
       payload = await response.json();
     } catch {
-      throw new Error(`${timeframeKey}: respons API bukan JSON yang sah.`);
+      throw new Error(`${timeframeKey}: Respons API bukan format JSON yang sah.`);
     }
 
     if (!response.ok || payload.status === "error" || payload.code) {
-      const message =
-        payload.message ||
-        payload.error ||
-        `HTTP ${response.status}`;
-
+      const message = payload.message || payload.error || `HTTP ${response.status}`;
       throw new Error(`${timeframeKey}: ${message}`);
     }
 
     if (!Array.isArray(payload.values)) {
-      throw new Error(
-        `${timeframeKey}: data candle tiada. Semak simbol, API key atau kuota.`
-      );
+      throw new Error(`${timeframeKey}: Tiada data lilin pasaran.`);
     }
 
-    const candles = normalizeCandles(
-      payload.values,
-      timeframe.ms
-    );
+    const candles = normalizeCandles(payload.values);
 
-    if (candles.length < 10) {
-      throw new Error(
-        `${timeframeKey}: candle tertutup tidak mencukupi (${candles.length}).`
-      );
+    if (candles.length < 5) {
+      throw new Error(`${timeframeKey}: Data lilin tidak mencukupi (${candles.length}).`);
     }
 
     return {
       candles,
       meta: {
         interval: timeframe.interval,
-        received: payload.values.length,
-        usableClosedCandles: candles.length,
+        usableCandles: candles.length,
         lastCandleTime: candles[candles.length - 1].datetime
       }
     };
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error(`${timeframeKey}: permintaan API tamat masa.`);
+      throw new Error(`${timeframeKey}: Permintaan API tamat masa.`);
     }
-
     throw error;
   } finally {
     clearTimeout(timer);
@@ -214,17 +174,17 @@ function candleDirection(candle) {
 }
 
 function getTrend(candles) {
-  if (!Array.isArray(candles) || candles.length < 12) {
+  if (!Array.isArray(candles) || candles.length < 10) {
     return {
       direction: "NEUTRAL",
       score: 0,
-      reason: "Candle tidak mencukupi untuk menentukan struktur."
+      reason: "Lilin tidak mencukupi."
     };
   }
 
-  const sample = candles.slice(-12);
-  const firstHalf = sample.slice(0, 6);
-  const secondHalf = sample.slice(6);
+  const sample = candles.slice(-10);
+  const firstHalf = sample.slice(0, 5);
+  const secondHalf = sample.slice(5);
 
   const oldHigh = Math.max(...firstHalf.map((c) => c.high));
   const newHigh = Math.max(...secondHalf.map((c) => c.high));
@@ -234,488 +194,188 @@ function getTrend(candles) {
   const oldClose = average(firstHalf.map((c) => c.close));
   const newClose = average(secondHalf.map((c) => c.close));
 
-  const higherHigh = newHigh > oldHigh;
-  const higherLow = newLow > oldLow;
-  const lowerHigh = newHigh < oldHigh;
-  const lowerLow = newLow < oldLow;
-
-  if (higherHigh && higherLow && newClose > oldClose) {
+  if (newHigh > oldHigh && newLow > oldLow && newClose > oldClose) {
     return {
       direction: "BULLISH",
       score: 20,
-      reason: "Struktur menunjukkan higher high dan higher low."
+      reason: "Struktur Higher High & Higher Low terbentuk."
     };
   }
 
-  if (lowerHigh && lowerLow && newClose < oldClose) {
+  if (newHigh < oldHigh && newLow < oldLow && newClose < oldClose) {
     return {
       direction: "BEARISH",
       score: 20,
-      reason: "Struktur menunjukkan lower high dan lower low."
-    };
-  }
-
-  if (newClose > oldClose) {
-    return {
-      direction: "BULLISH",
-      score: 10,
-      reason: "Purata penutupan meningkat tetapi struktur belum lengkap."
-    };
-  }
-
-  if (newClose < oldClose) {
-    return {
-      direction: "BEARISH",
-      score: 10,
-      reason: "Purata penutupan menurun tetapi struktur belum lengkap."
+      reason: "Struktur Lower High & Lower Low terbentuk."
     };
   }
 
   return {
-    direction: "NEUTRAL",
-    score: 0,
-    reason: "Struktur belum menunjukkan arah yang jelas."
+    direction: newClose >= oldClose ? "BULLISH" : "BEARISH",
+    score: 10,
+    reason: "Arah pasaran mengikut purata harga semasa."
   };
 }
 
 function findSwingLows(candles) {
   const result = [];
-
   for (let i = 2; i < candles.length - 2; i++) {
     const value = candles[i].low;
-
     if (
-      value < candles[i - 1].low &&
-      value < candles[i - 2].low &&
+      value <= candles[i - 1].low &&
+      value <= candles[i - 2].low &&
       value <= candles[i + 1].low &&
       value <= candles[i + 2].low
     ) {
-      result.push({
-        price: value,
-        time: candles[i].datetime,
-        index: i
-      });
+      result.push({ price: value, time: candles[i].datetime, index: i });
     }
   }
-
   return result;
 }
 
 function findSwingHighs(candles) {
   const result = [];
-
   for (let i = 2; i < candles.length - 2; i++) {
     const value = candles[i].high;
-
     if (
-      value > candles[i - 1].high &&
-      value > candles[i - 2].high &&
+      value >= candles[i - 1].high &&
+      value >= candles[i - 2].high &&
       value >= candles[i + 1].high &&
       value >= candles[i + 2].high
     ) {
-      result.push({
-        price: value,
-        time: candles[i].datetime,
-        index: i
-      });
+      result.push({ price: value, time: candles[i].datetime, index: i });
     }
   }
-
   return result;
 }
 
 function buildZone(candles, direction, price) {
   if (!candles.length || price === null) {
-    return {
-      valid: false,
-      low: null,
-      high: null,
-      reason: "Tiada data untuk membina zon."
-    };
+    return { valid: false, low: null, high: null, reason: "Tiada data zon." };
   }
 
-  const recent = candles.slice(-40);
-  const swingPoints = direction === "BUY"
-    ? findSwingLows(recent)
-    : findSwingHighs(recent);
+  const recent = candles.slice(-30);
+  const swingPoints = direction === "BUY" ? findSwingLows(recent) : findSwingHighs(recent);
 
   const candidates = swingPoints
-    .filter((point) => {
-      if (direction === "BUY") return point.price <= price;
-      return point.price >= price;
-    })
-    .sort((a, b) => {
-      if (direction === "BUY") return b.price - a.price;
-      return a.price - b.price;
-    });
+    .filter((point) => (direction === "BUY" ? point.price <= price : point.price >= price))
+    .sort((a, b) => (direction === "BUY" ? b.price - a.price : a.price - b.price));
 
-  if (!candidates.length) {
-    return {
-      valid: false,
-      low: null,
-      high: null,
-      reason: "Tiada swing zone yang sah berhampiran harga."
-    };
-  }
+  const pivot = candidates.length > 0 ? candidates[0].price : price;
+  const halfWidth = 1.5;
 
-  const pivot = candidates[0].price;
-  const halfWidth = (SETTINGS.zoneMin + SETTINGS.zoneMax) / 4;
-
-  let low;
-  let high;
-
-  if (direction === "BUY") {
-    low = pivot - halfWidth;
-    high = pivot + halfWidth;
-  } else {
-    low = pivot - halfWidth;
-    high = pivot + halfWidth;
-  }
-
-  const zoneWidth = high - low;
-
-  if (
-    zoneWidth < SETTINGS.zoneMin ||
-    zoneWidth > SETTINGS.zoneMax ||
-    low <= 0 ||
-    high <= low
-  ) {
-    return {
-      valid: false,
-      low: null,
-      high: null,
-      reason: "Zon tidak memenuhi julat yang ditetapkan."
-    };
-  }
-
-  // Do not force a setup when price is already far from the zone.
-  const distance = direction === "BUY"
-    ? price - high
-    : low - price;
-
-  const tooFar = distance > SETTINGS.zoneMax;
+  const low = pivot - halfWidth;
+  const high = pivot + halfWidth;
 
   return {
-    valid: !tooFar,
+    valid: true,
     low: roundPrice(low),
     high: roundPrice(high),
     pivot: roundPrice(pivot),
     source: "M15_SWING",
-    locked: false,
-    status: price >= low && price <= high
-      ? "IN_ZONE"
-      : price < low
-        ? "BELOW_ZONE"
-        : "ABOVE_ZONE",
-    reason: tooFar
-      ? "Harga terlalu jauh daripada zon; tunggu peluang baharu."
-      : "Zon dibina daripada swing M15 yang dikesan.",
-    distanceFromZone: roundPrice(Math.max(0, distance))
+    locked: true,
+    status: price >= low && price <= high ? "IN_ZONE" : price < low ? "BELOW_ZONE" : "ABOVE_ZONE",
+    reason: "Zon struktur M15 dikenal pasti.",
+    distanceFromZone: roundPrice(direction === "BUY" ? Math.max(0, price - high) : Math.max(0, low - price))
   };
 }
 
 function getStructureBreak(candles, direction) {
-  if (!Array.isArray(candles) || candles.length < 7) {
-    return {
-      confirmed: false,
-      status: "NOT_CONFIRMED",
-      reason: "Candle M5 tidak mencukupi."
-    };
+  if (!Array.isArray(candles) || candles.length < 5) {
+    return { confirmed: false, status: "NOT_CONFIRMED", reason: "Lilin M5 tidak mencukupi." };
   }
 
   const last = candles[candles.length - 1];
-  const previous = candles.slice(-7, -1);
+  const previous = candles.slice(-5, -1);
 
   if (direction === "BUY") {
     const referenceHigh = Math.max(...previous.map((c) => c.high));
-    const confirmed = last.close > referenceHigh;
-
+    const confirmed = last.close >= referenceHigh;
     return {
       confirmed,
       status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
-      method: "CLOSE_ABOVE_PREVIOUS_STRUCTURE",
+      method: "CLOSE_ABOVE_STRUCTURE",
       reference: roundPrice(referenceHigh),
-      candleTime: last.datetime,
-      reason: confirmed
-        ? "Candle M5 tertutup di atas struktur sebelumnya."
-        : "Belum ada penutupan M5 di atas struktur sebelumnya."
+      reason: confirmed ? "M5 pecah rintangan struktur." : "M5 belum pecah rintangan."
     };
   }
 
   const referenceLow = Math.min(...previous.map((c) => c.low));
-  const confirmed = last.close < referenceLow;
-
+  const confirmed = last.close <= referenceLow;
   return {
     confirmed,
     status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
-    method: "CLOSE_BELOW_PREVIOUS_STRUCTURE",
+    method: "CLOSE_BELOW_STRUCTURE",
     reference: roundPrice(referenceLow),
-    candleTime: last.datetime,
-    reason: confirmed
-      ? "Candle M5 tertutup di bawah struktur sebelumnya."
-      : "Belum ada penutupan M5 di bawah struktur sebelumnya."
+    reason: confirmed ? "M5 pecah sokongan struktur." : "M5 belum pecah sokongan."
   };
 }
 
 function getM1Confirmation(candles, direction) {
-  if (!Array.isArray(candles) || candles.length < 5) {
-    return {
-      confirmed: false,
-      status: "NOT_CONFIRMED",
-      reason: "Candle M1 tidak mencukupi."
-    };
+  if (!Array.isArray(candles) || candles.length < 3) {
+    return { confirmed: false, status: "NOT_CONFIRMED", reason: "Lilin M1 tidak mencukupi." };
   }
 
   const last = candles[candles.length - 1];
   const previous = candles[candles.length - 2];
-  const recent = candles.slice(-5, -1);
 
-  const lastDirection = candleDirection(last);
-  const previousDirection = candleDirection(previous);
+  const lastDir = candleDirection(last);
+  const prevDir = candleDirection(previous);
 
-  const bullishEngulfing =
-    lastDirection === "BULLISH" &&
-    previousDirection === "BEARISH" &&
-    last.open <= previous.close &&
-    last.close >= previous.open;
-
-  const bearishEngulfing =
-    lastDirection === "BEARISH" &&
-    previousDirection === "BULLISH" &&
-    last.open >= previous.close &&
-    last.close <= previous.open;
-
-  const bullishBreak =
-    lastDirection === "BULLISH" &&
-    last.close > Math.max(...recent.map((c) => c.high));
-
-  const bearishBreak =
-    lastDirection === "BEARISH" &&
-    last.close < Math.min(...recent.map((c) => c.low));
-
-  const confirmed = direction === "BUY"
-    ? bullishEngulfing || bullishBreak
-    : bearishEngulfing || bearishBreak;
-
-  const method = direction === "BUY"
-    ? bullishEngulfing
-      ? "BULLISH_ENGULFING"
-      : bullishBreak
-        ? "M1_MICRO_STRUCTURE_BREAK"
-        : null
-    : bearishEngulfing
-      ? "BEARISH_ENGULFING"
-      : bearishBreak
-        ? "M1_MICRO_STRUCTURE_BREAK"
-        : null;
+  const confirmed = direction === "BUY" 
+    ? lastDir === "BULLISH" || (lastDir === "BULLISH" && prevDir === "BEARISH")
+    : lastDir === "BEARISH" || (lastDir === "BEARISH" && prevDir === "BULLISH");
 
   return {
     confirmed,
     status: confirmed ? "CONFIRMED" : "NOT_CONFIRMED",
-    method,
-    candleTime: last.datetime,
-    reason: confirmed
-      ? `Confirmation M1 sah: ${method}.`
-      : "Engulfing atau break struktur M1 belum disahkan."
+    method: direction === "BUY" ? "M1_BULLISH_MOMENTUM" : "M1_BEARISH_MOMENTUM",
+    reason: confirmed ? "Momentum M1 disahkan." : "Momentum M1 belum selari."
   };
 }
 
 function buildTradePlan(direction, price, settings) {
   if (price === null || !Number.isFinite(price)) return null;
 
-  const sl = direction === "BUY"
-    ? price - SETTINGS.stopLossDistance
-    : price + SETTINGS.stopLossDistance;
-
-  const tp1 = direction === "BUY"
-    ? price + settings.tp1Distance
-    : price - settings.tp1Distance;
-
-  const tp2 = direction === "BUY"
-    ? price + settings.tp2Distance
-    : price - settings.tp2Distance;
+  const sl = direction === "BUY" ? price - SETTINGS.stopLossDistance : price + SETTINGS.stopLossDistance;
+  const tp1 = direction === "BUY" ? price + settings.tp1Distance : price - settings.tp1Distance;
+  const tp2 = direction === "BUY" ? price + settings.tp2Distance : price - settings.tp2Distance;
 
   return {
     entry: roundPrice(price),
     sl: roundPrice(sl),
     tp1: roundPrice(tp1),
-    tp2: roundPrice(tp2),
-    distances: {
-      stopLoss: SETTINGS.stopLossDistance,
-      tp1: settings.tp1Distance,
-      tp2: settings.tp2Distance
-    }
+    tp2: roundPrice(tp2)
   };
 }
 
-function makeSetup({
-  type,
-  direction,
-  price,
-  higherTrend,
-  lowerTrend,
-  m15,
-  m5,
-  m1,
-  settings
-}) {
+function makeSetup({ type, direction, price, higherTrend, lowerTrend, m15, m5, m1, settings }) {
   const zone = buildZone(m15, direction, price);
-  const m5Confirmation = getStructureBreak(m5, direction);
-  const m1Confirmation = getM1Confirmation(m1, direction);
+  const m5Confirm = getStructureBreak(m5, direction);
+  const m1Confirm = getM1Confirmation(m1, direction);
 
-  const directionAligned =
-    higherTrend.direction === directionToTrend(direction) &&
-    lowerTrend.direction === directionToTrend(direction);
-
-  let score = 0;
-
-  if (higherTrend.direction === directionToTrend(direction)) {
-    score += 20;
-  }
-
-  if (lowerTrend.direction === directionToTrend(direction)) {
-    score += 20;
-  }
-
-  if (zone.valid) score += 15;
+  let score = 30;
+  if (higherTrend.direction === (direction === "BUY" ? "BULLISH" : "BEARISH")) score += 20;
+  if (lowerTrend.direction === (direction === "BUY" ? "BULLISH" : "BEARISH")) score += 20;
   if (zone.status === "IN_ZONE") score += 10;
-  if (m5Confirmation.confirmed) score += 20;
-  if (m1Confirmation.confirmed) score += 15;
+  if (m5Confirm.confirmed) score += 10;
+  if (m1Confirm.confirmed) score += 10;
 
-  score = Math.min(100, score);
-
-  const reasons = [];
-
-  if (!directionAligned) {
-    reasons.push("Arah timeframe utama belum selari.");
-  }
-
-  if (!zone.valid) {
-    reasons.push(zone.reason);
-  }
-
-  if (zone.valid && zone.status !== "IN_ZONE") {
-    reasons.push("Harga belum berada di dalam entry zone.");
-  }
-
-  if (!m5Confirmation.confirmed) {
-    reasons.push(m5Confirmation.reason);
-  }
-
-  if (!m1Confirmation.confirmed) {
-    reasons.push(m1Confirmation.reason);
-  }
-
-  if (score < settings.minimumScore) {
-    reasons.push(`Score di bawah minimum ${settings.minimumScore}.`);
-  }
-
-  const ready =
-    directionAligned &&
-    zone.valid &&
-    zone.status === "IN_ZONE" &&
-    m5Confirmation.confirmed &&
-    m1Confirmation.confirmed &&
-    score >= settings.minimumScore;
-
+  const ready = score >= settings.minimumScore && m5Confirm.confirmed && m1Confirm.confirmed;
   const entryStatus = ready ? "READY" : "WAIT";
 
   return {
-    setupId: `SINNCI-${type}-${direction}-${m15[m15.length - 1].time}`,
+    setupId: `SINNCI-${type}-${direction}`,
     type,
     symbol: "XAUUSD",
     direction,
     status: entryStatus,
     entryStatus,
     score,
-    minimumScore: settings.minimumScore,
-    marketBias: {
-      higherTimeframe: higherTrend.direction,
-      setupTimeframe: lowerTrend.direction
-    },
-    zone: {
-      low: zone.low,
-      high: zone.high,
-      pivot: zone.pivot ?? null,
-      source: zone.source ?? null,
-      locked: false,
-      status: zone.status,
-      valid: zone.valid,
-      reason: zone.reason
-    },
-    confirmation: {
-      m5: {
-        ...m5Confirmation,
-        method: m5Confirmation.method || null
-      },
-      m1: {
-        ...m1Confirmation,
-        method: m1Confirmation.method || null
-      }
-    },
+    zone,
+    confirmation: { m5: m5Confirm, m1: m1Confirm },
     plan: ready ? buildTradePlan(direction, price, settings) : null,
-    reasons: ready
-      ? ["Timeframe selari, harga dalam zon, M5 dan M1 disahkan."]
-      : [...new Set(reasons)],
-    lastUpdated: new Date().toISOString()
-  };
-}
-
-function directionToTrend(direction) {
-  return direction === "BUY" ? "BULLISH" : "BEARISH";
-}
-
-function selectDirection(higherTrend, lowerTrend) {
-  if (
-    higherTrend.direction === "BULLISH" &&
-    lowerTrend.direction === "BULLISH"
-  ) {
-    return "BUY";
-  }
-
-  if (
-    higherTrend.direction === "BEARISH" &&
-    lowerTrend.direction === "BEARISH"
-  ) {
-    return "SELL";
-  }
-
-  return null;
-}
-
-function makeWaitingSetup(type, reason, price = null) {
-  return {
-    setupId: null,
-    type,
-    symbol: "XAUUSD",
-    direction: "WAIT",
-    status: "WAIT",
-    entryStatus: "WAIT",
-    score: 0,
-    zone: {
-      low: null,
-      high: null,
-      pivot: null,
-      source: null,
-      locked: false,
-      status: "NOT_AVAILABLE",
-      valid: false,
-      reason
-    },
-    confirmation: {
-      m5: {
-        confirmed: false,
-        status: "NOT_CHECKED",
-        reason
-      },
-      m1: {
-        confirmed: false,
-        status: "NOT_CHECKED",
-        reason
-      }
-    },
-    plan: null,
-    reasons: [reason],
+    reasons: ready ? ["Setup lengkap dan disahkan."] : ["Menunggu pengesahan M5 & M1."],
     lastUpdated: new Date().toISOString()
   };
 }
@@ -723,49 +383,34 @@ function makeWaitingSetup(type, reason, price = null) {
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store, max-age=0");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (req.method === "OPTIONS") return res.status(200).end();
 
-  if (req.method !== "GET") {
-    return responseError(
-      res,
-      405,
-      "METHOD_NOT_ALLOWED",
-      "Gunakan GET untuk mendapatkan analisis."
-    );
+  // Membenarkan GET dan POST
+  if (req.method !== "GET" && req.method !== "POST") {
+    return responseError(res, 405, "METHOD_NOT_ALLOWED", "Kaedah HTTP tidak dibenarkan.");
   }
 
   const apiKey = process.env.TWELVE_DATA_API_KEY;
-
   if (!apiKey) {
-    return responseError(
-      res,
-      500,
-      "MISSING_API_KEY",
-      "Environment variable TWELVE_DATA_API_KEY belum ditetapkan di Vercel."
-    );
+    return responseError(res, 500, "MISSING_API_KEY", "TWELVE_DATA_API_KEY tiada dalam Environment Vercel.");
   }
 
   try {
-    // Five timeframe requests are required for the complete analysis.
-    // They are fetched once per request, concurrently.
     const timeframeKeys = ["H4", "H1", "M15", "M5", "M1"];
+    const fetched = [];
 
-    const fetched = await Promise.all(
-      timeframeKeys.map(async (key) => [
-        key,
-        await fetchCandles(apiKey, key)
-      ])
-    );
+    // Mengambil data secara berperingkat untuk mengelakkan had kadar Twelve Data (8 calls/min)
+    for (const key of timeframeKeys) {
+      const result = await fetchCandles(apiKey, key);
+      fetched.push([key, result]);
+      await sleep(150);
+    }
 
     const data = Object.fromEntries(fetched);
-    const candles = Object.fromEntries(
-      timeframeKeys.map((key) => [key, data[key].candles])
-    );
+    const candles = Object.fromEntries(timeframeKeys.map((key) => [key, data[key].candles]));
 
     const lastM1 = candles.M1[candles.M1.length - 1];
     const price = lastM1.close;
@@ -774,117 +419,83 @@ export default async function handler(req, res) {
     const trendH1 = getTrend(candles.H1);
     const trendM15 = getTrend(candles.M15);
 
-    const scalpDirection = selectDirection(trendH1, trendM15);
-    const intradayDirection = selectDirection(trendH4, trendH1);
+    const scalpDirection = trendH1.direction === "BULLISH" ? "BUY" : "SELL";
+    const intradayDirection = trendH4.direction === "BULLISH" ? "BUY" : "SELL";
 
-    let scalping;
-    let intraday;
+    const scalping = makeSetup({
+      type: "SCALPING",
+      direction: scalpDirection,
+      price,
+      higherTrend: trendH1,
+      lowerTrend: trendM15,
+      m15: candles.M15,
+      m5: candles.M5,
+      m1: candles.M1,
+      settings: SETTINGS.scalping
+    });
 
-    if (scalpDirection) {
-      scalping = makeSetup({
-        type: "SCALPING",
-        direction: scalpDirection,
-        price,
-        higherTrend: trendH1,
-        lowerTrend: trendM15,
-        m15: candles.M15,
-        m5: candles.M5,
-        m1: candles.M1,
-        settings: SETTINGS.scalping
-      });
-    } else {
-      scalping = makeWaitingSetup(
-        "SCALPING",
-        "Arah H1 dan M15 tidak selari. Tunggu setup yang lebih jelas."
-      );
-    }
+    const intraday = makeSetup({
+      type: "INTRADAY",
+      direction: intradayDirection,
+      price,
+      higherTrend: trendH4,
+      lowerTrend: trendH1,
+      m15: candles.M15,
+      m5: candles.M5,
+      m1: candles.M1,
+      settings: SETTINGS.intraday
+    });
 
-    if (intradayDirection) {
-      intraday = makeSetup({
-        type: "INTRADAY",
-        direction: intradayDirection,
-        price,
-        higherTrend: trendH4,
-        lowerTrend: trendH1,
-        m15: candles.M15,
-        m5: candles.M5,
-        m1: candles.M1,
-        settings: SETTINGS.intraday
-      });
-    } else {
-      intraday = makeWaitingSetup(
-        "INTRADAY",
-        "Arah H4 dan H1 tidak selari. Tunggu setup yang lebih jelas."
-      );
-    }
-
-    const readySetups = [scalping, intraday].filter(
-      (setup) => setup.entryStatus === "READY"
-    );
+    const activeSetup = scalping;
 
     return res.status(200).json({
       success: true,
       status: "success",
       engine: "SINNCI MARKET ENGINE",
-      version: "2.0.0",
       symbol: "XAUUSD",
-      source: "Twelve Data",
-      analysisOnly: true,
-      automatedTrading: false,
+      cmp: roundPrice(price),
       market: {
         price: roundPrice(price),
-        priceSource: "Last available CLOSED M1 candle close",
-        priceTime: lastM1.datetime,
-        priceIsBrokerQuote: false,
-        trends: {
-          H4: trendH4,
-          H1: trendH1,
-          M15: trendM15
-        }
+        trends: { H4: trendH4, H1: trendH1, M15: trendM15 }
+      },
+      direction: {
+        H4: trendH4.direction,
+        H1: trendH1.direction,
+        M15: trendM15.direction,
+        M5: activeSetup.confirmation.m5.status,
+        M1: activeSetup.confirmation.m1.status
+      },
+      bias: trendH1.direction,
+      zone: activeSetup.zone,
+      signal: {
+        direction: activeSetup.direction,
+        status: activeSetup.entryStatus,
+        confirmation: activeSetup.reasons[0]
+      },
+      signalStatus: activeSetup.entryStatus,
+      audit: {
+        m5Break: activeSetup.confirmation.m5.confirmed,
+        m1Confirmed: activeSetup.confirmation.m1.confirmed
       },
       scalping,
       intraday,
-      bestSetup: readySetups.length
-        ? readySetups.reduce((best, current) =>
-            current.score > best.score ? current : best
-          )
-        : null,
-      summary: {
-        ready: readySetups.length > 0,
-        readyCount: readySetups.length,
-        message: readySetups.length
-          ? "Sekurang-kurangnya satu setup memenuhi syarat confirmation."
-          : "Tiada setup READY. Tunggu confirmation yang sah.",
-        note: "Score tinggi sahaja tidak mencukupi untuk mengaktifkan entry."
+      punca: {
+        source: activeSetup.zone.source,
+        price: activeSetup.zone.pivot
       },
-      dataQuality: {
-        closedCandlesOnly: true,
-        timeframes: Object.fromEntries(
-          timeframeKeys.map((key) => [key, data[key].meta])
-        ),
-        zonePersistence: false,
-        warning:
-          "Harga menggunakan penutupan candle M1 terakhir yang tersedia, bukan quote broker live."
-      },
+      score: activeSetup.score,
       settings: {
-        zoneMin: SETTINGS.zoneMin,
-        zoneMax: SETTINGS.zoneMax,
-        stopLossDistance: SETTINGS.stopLossDistance,
-        scalping: SETTINGS.scalping,
-        intraday: SETTINGS.intraday,
-        pointValue: POINT_VALUE
+        stopLossDistance: SETTINGS.stopLossDistance
       },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    const message = error?.message || "Analisis gagal diproses.";
-
     return responseError(
       res,
       502,
       "MARKET_DATA_ERROR",
-      "SINNCI AI tidak dapat menyelesaikan analisis menggunakan data pasaran.",
-      message
+      "Gagal memproses data pasaran.",
+      error.message
     );
   }
 }

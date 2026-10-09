@@ -2993,36 +2993,33 @@ function renderCompleteDashboard(data){
 }
 
 /* =========================================================
-   ANALYZE MARKET (TRIGGERED ON BUTTON CLICK ONLY)
+   ANALYZE MARKET (GET METHOD DENGAN COOLDOWN 60 SAAT)
    ========================================================= */
 async function analyze(){
-  analyzeBtn.disabled=true;
-  analyzeBtn.textContent="◌ ANALYZING MARKET...";
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = "◌ ANALYZING MARKET...";
 
-  aiStatus.textContent="SCANNING";
-  aiStatus.style.color="var(--gold)";
-  aiDescription.textContent="Running full multi-timeframe analysis (H4/H1/M15/M5/M1)...";
+  aiStatus.textContent = "SCANNING";
+  aiStatus.style.color = "var(--gold)";
+  aiDescription.textContent = "Running full multi-timeframe analysis (H4/H1/M15/M5/M1)...";
 
-  signalCard.className="card signal-card wait";
-  signalIcon.textContent="◌";
-  signalName.textContent="ANALYZING";
-  signalSub.textContent="Identifying locked structural zones...";
+  signalCard.className = "card signal-card wait";
+  signalIcon.textContent = "◌";
+  signalName.textContent = "ANALYZING";
+  signalSub.textContent = "Identifying locked structural zones...";
 
   try{
     await getLivePrice();
 
+    // Kaedah GET digunakan untuk mematuhi sekatan api/analyze.js
     const response = await fetch("/api/analyze", { 
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        mode: activeTFMode === "scalp" ? "scalping" : "intraday",
-        currentPrice: currentLivePrice
-      })
-    }).catch(() => fetch("/api/analyze", { cache: "no-store" }));
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
 
     const data = await response.json();
 
-    // SEMAK STATUS & DIAGNOSIS RALAT TELUS
+    // Semak ralat daripada backend
     if(!response.ok || data.status === "error" || data.success === false){
       const errDetail = data.details || data.error || "Analysis failed";
       const errSource = data.source ? ` [${data.source}]` : "";
@@ -3033,42 +3030,42 @@ async function analyze(){
     renderCompleteDashboard(data);
 
     updateSessionDisplay();
-    startCooldown(30);
+    startCooldown(60);
   }catch(error){
     console.error("SINNCI ANALYZE ERROR:", error);
-    signalCard.className="card signal-card noconfirm";
-    signalIcon.textContent="⚠";
-    signalName.textContent="ERROR";
-    signalSub.textContent=error.message;
-    aiStatus.textContent="ERROR";
-    aiStatus.style.color="var(--red)";
-    aiDescription.textContent=error.message; // Memaparkan ralat sebenar (contoh: API quota exceeded)
+    signalCard.className = "card signal-card noconfirm";
+    signalIcon.textContent = "⚠";
+    signalName.textContent = "ERROR";
+    signalSub.textContent = error.message;
+    aiStatus.textContent = "ERROR";
+    aiStatus.style.color = "var(--red)";
+    aiDescription.textContent = error.message;
     setText("reason", error.message);
-    startCooldown(10);
+    startCooldown(60);
   }
 }
 
 /* =========================================================
-   COOLDOWN
+   COOLDOWN (60 SAAT)
    ========================================================= */
-let cooldownTimer=null;
+let cooldownTimer = null;
 
-function startCooldown(seconds=30){
+function startCooldown(seconds = 60){
   clearInterval(cooldownTimer);
-  let remaining=seconds;
-  analyzeBtn.disabled=true;
-  analyzeBtn.textContent=`ANALYZED • COOLDOWN (${remaining}s)`;
+  let remaining = seconds;
+  analyzeBtn.disabled = true;
+  analyzeBtn.textContent = `ANALYZED • COOLDOWN (${remaining}s)`;
 
-  cooldownTimer=setInterval(()=>{
+  cooldownTimer = setInterval(() => {
     remaining--;
-    if(remaining<=0){
+    if(remaining <= 0){
       clearInterval(cooldownTimer);
-      analyzeBtn.disabled=false;
-      analyzeBtn.textContent="✦ ANALYZE MARKET";
+      analyzeBtn.disabled = false;
+      analyzeBtn.textContent = "✦ ANALYZE MARKET";
       return;
     }
-    analyzeBtn.textContent=`ANALYZED • COOLDOWN (${remaining}s)`;
-  },1000);
+    analyzeBtn.textContent = `ANALYZED • COOLDOWN (${remaining}s)`;
+  }, 1000);
 }
 
 /* =========================================================

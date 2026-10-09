@@ -5,26 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SINNCI AI</title>
 
-<!-- =========================================================
-     OPEN GRAPH & SOCIAL MEDIA PREVIEW (SINNCI AI)
-     ========================================================= -->
 <meta name="title" content="SINNCI AI — XAUUSD Market Intelligence">
-<meta name="description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
+<meta name="description" content="AI XAUUSD Market Analysis & Signal. Real-time active scalping & precision intraday execution.">
 
-<!-- Open Graph / WhatsApp / Telegram / Facebook / Discord -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sinnci-ai.vercel.app/">
 <meta property="og:title" content="SINNCI AI — XAUUSD Market Intelligence">
-<meta property="og:description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
+<meta property="og:description" content="AI XAUUSD Market Analysis & Signal. Real-time active scalping & precision intraday execution.">
 <meta property="og:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 <meta property="og:image:secure_url" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 <meta property="og:image:type" content="image/jpeg">
 
-<!-- Twitter / X Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:url" content="https://sinnci-ai.vercel.app/">
 <meta name="twitter:title" content="SINNCI AI — XAUUSD Market Intelligence">
-<meta name="twitter:description" content="AI XAUUSD Market Analysis &amp; Signal. Real-time active scalping &amp; precision intraday execution.">
+<meta name="twitter:description" content="AI XAUUSD Market Analysis & Signal. Real-time active scalping & precision intraday execution.">
 <meta name="twitter:image" content="https://sinnci-ai.vercel.app/IMG-20261008-WA4384.jpg">
 
 <style>
@@ -69,37 +64,6 @@ body::before{
   mask-image:linear-gradient(to bottom,black,transparent 90%);
 }
 
-body::after{
-  content:"";
-  position:fixed;
-  left:-5%;
-  right:-5%;
-  bottom:5%;
-  height:300px;
-  pointer-events:none;
-  opacity:.08;
-  background:
-    linear-gradient(135deg,
-      transparent 0 8%,
-      var(--gold) 8.2% 8.5%,
-      transparent 8.7% 18%,
-      var(--green) 18.2% 18.5%,
-      transparent 8.7% 32%,
-      var(--gold) 32.2% 32.5%,
-      transparent 32.7% 47%,
-      var(--red) 47.2% 47.5%,
-      transparent 47.7% 61%,
-      var(--green) 61.2% 61.5%,
-      transparent 61.7% 76%,
-      var(--gold) 76.2% 76.5%,
-      transparent 76.7% 100%);
-  transform:skewY(-7deg);
-}
-
-/* =========================================================
-   SINNCI AI — INTRO
-   ========================================================= */
-
 #sinnciIntro{
   position:fixed;
   inset:0;
@@ -131,18 +95,6 @@ body::after{
     );
   background-size:220% 100%;
   animation:introLight 3.5s linear infinite;
-}
-
-#sinnciIntro::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  opacity:.13;
-  background-image:
-    linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
-  background-size:45px 45px;
-  mask-image:radial-gradient(circle,black,transparent 75%);
 }
 
 .intro-particles{
@@ -189,27 +141,10 @@ body::after{
   max-width:none;
   transform:translate(-50%,-50%) scale(.72);
   opacity:0;
-  filter:
-    contrast(1.18)
-    saturate(.72)
-    brightness(.72)
-    drop-shadow(0 0 45px rgba(216,180,90,.12));
+  filter:contrast(1.18) saturate(.72) brightness(.72);
   user-select:none;
   pointer-events:none;
   animation:introBeasts 1.4s cubic-bezier(.16,.8,.25,1) .9s forwards;
-}
-
-.intro-beast-overlay{
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(
-      ellipse at center,
-      transparent 20%,
-      rgba(0,0,0,.18) 55%,
-      rgba(0,0,0,.72) 100%
-    );
-  pointer-events:none;
 }
 
 .intro-vs{
@@ -222,7 +157,6 @@ body::after{
   letter-spacing:5px;
   color:rgba(255,255,255,.42);
   opacity:0;
-  text-shadow:0 0 15px rgba(255,255,255,.15);
   animation:introVS .8s ease 1.55s forwards;
 }
 
@@ -239,39 +173,8 @@ body::after{
   letter-spacing:4px;
   white-space:nowrap;
   opacity:0;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:0;
-  text-shadow:0 0 20px rgba(255,255,255,.12);
   animation:introWelcome .4s ease 2.5s forwards;
 }
-
-.intro-welcome span{
-  display:inline-block;
-  opacity:0;
-  transform:translateX(-25px) translateY(-8px);
-  animation:introWelcomeLetter .42s cubic-bezier(.16,.8,.25,1) forwards;
-}
-
-.intro-welcome span:nth-child(1){animation-delay:2.55s}
-.intro-welcome span:nth-child(2){animation-delay:2.61s}
-.intro-welcome span:nth-child(3){animation-delay:2.67s}
-.intro-welcome span:nth-child(4){animation-delay:2.73s}
-.intro-welcome span:nth-child(5){animation-delay:2.79s}
-.intro-welcome span:nth-child(6){animation-delay:2.85s}
-.intro-welcome span:nth-child(7){animation-delay:2.91s}
-.intro-welcome span:nth-child(8){animation-delay:2.97s}
-.intro-welcome span:nth-child(9){animation-delay:3.03s}
-.intro-welcome span:nth-child(10){animation-delay:3.09s}
-.intro-welcome span:nth-child(11){animation-delay:3.15s}
-.intro-welcome span:nth-child(12){animation-delay:3.21s}
-.intro-welcome span:nth-child(13){animation-delay:3.27s}
-.intro-welcome span:nth-child(14){animation-delay:3.33s}
-.intro-welcome span:nth-child(15){animation-delay:3.39s}
-.intro-welcome span:nth-child(16){animation-delay:3.45s}
-.intro-welcome span:nth-child(17){animation-delay:3.51s}
-.intro-welcome span:nth-child(18){animation-delay:3.57s}
 
 .intro-title{
   position:absolute;
@@ -284,29 +187,8 @@ body::after{
   font-weight:1000;
   letter-spacing:clamp(5px,2vw,15px);
   color:#f3d37a;
-  text-shadow:
-    0 0 15px rgba(216,180,90,.35),
-    0 0 45px rgba(216,180,90,.22),
-    0 0 90px rgba(216,180,90,.10);
   opacity:0;
   animation:introTitle 1.15s cubic-bezier(.16,.8,.25,1) 3.65s forwards;
-}
-
-.intro-flash{
-  position:absolute;
-  left:50%;
-  top:51%;
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:#fff4cf;
-  transform:translate(-50%,-50%) scale(0);
-  opacity:0;
-  box-shadow:
-    0 0 20px rgba(255,255,255,.9),
-    0 0 70px rgba(216,180,90,.8),
-    0 0 140px rgba(216,180,90,.5);
-  animation:introFlash .7s ease 3.65s forwards;
 }
 
 .intro-line{
@@ -317,7 +199,6 @@ body::after{
   height:1px;
   transform:translateX(-50%);
   background:linear-gradient(90deg,transparent,var(--gold),transparent);
-  box-shadow:0 0 15px rgba(216,180,90,.5);
   animation:introLine 1.2s ease 4s forwards;
 }
 
@@ -334,116 +215,29 @@ body::after{
 }
 
 @keyframes introBeasts{
-  0%{
-    opacity:0;
-    transform:translate(-50%,-50%) scale(.72) translateY(18px);
-    filter:contrast(1.1) saturate(.5) brightness(.38) blur(2px)
-      drop-shadow(0 0 20px rgba(216,180,90,.05));
-  }
-  22%{opacity:1}
-  65%{
-    transform:translate(-50%,-50%) scale(.91) translateY(0);
-    filter:contrast(1.2) saturate(.75) brightness(.76) blur(0)
-      drop-shadow(0 0 50px rgba(216,180,90,.14));
-  }
-  100%{
-    opacity:.78;
-    transform:translate(-50%,-50%) scale(.98) translateY(-3px);
-    filter:contrast(1.2) saturate(.8) brightness(.72) blur(0)
-      drop-shadow(0 0 55px rgba(216,180,90,.12));
-  }
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.72) translateY(18px);}
+  100%{opacity:.78;transform:translate(-50%,-50%) scale(.98) translateY(-3px);}
 }
-
 @keyframes introVS{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
-  50%{opacity:1}
   100%{opacity:1;transform:translate(-50%,-50%) scale(1)}
 }
-
-@keyframes introWelcome{
-  from{opacity:0}
-  to{opacity:1}
-}
-
-@keyframes introWelcomeLetter{
-  0%{opacity:0;transform:translateX(-25px) translateY(-8px);}
-  65%{opacity:1}
-  100%{opacity:1;transform:translateX(0) translateY(0);}
-}
-
+@keyframes introWelcome{from{opacity:0}to{opacity:1}}
 @keyframes introTitle{
   0%{opacity:0;transform:translate(-50%,-50%) scale(.55);filter:blur(14px);}
-  45%{opacity:1;transform:translate(-50%,-50%) scale(1.12);filter:blur(0);}
-  65%{transform:translate(-50%,-50%) scale(.96)}
   100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0);}
 }
-
-@keyframes introFlash{
-  0%{opacity:0;transform:translate(-50%,-50%) scale(0);}
-  25%{opacity:.9;transform:translate(-50%,-50%) scale(1);}
-  55%{opacity:.12;transform:translate(-50%,-50%) scale(22);}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(35);}
-}
-
-@keyframes introLine{
-  0%{width:0}
-  100%{width:min(430px,70%)}
-}
-
-@keyframes introLoading{
-  from{opacity:0}
-  to{opacity:1}
-}
-
-@keyframes introLight{
-  0%{background-position:-100% 0}
-  100%{background-position:200% 0}
-}
-
+@keyframes introLine{0%{width:0}100%{width:min(430px,70%)}}
+@keyframes introLoading{from{opacity:0}to{opacity:1}}
+@keyframes introLight{0%{background-position:-100% 0}100%{background-position:200% 0}}
 @keyframes introParticle{
   0%{opacity:0;transform:translateY(25px) scale(.5);}
-  20%{opacity:.8}
-  80%{opacity:.35}
   100%{opacity:0;transform:translateY(-70px) scale(1.3);}
 }
-
 @keyframes sinnciIntroExit{
   0%{opacity:1;visibility:visible}
-  70%{opacity:1;visibility:visible}
   100%{opacity:0;visibility:hidden;pointer-events:none;}
 }
-
-@media(max-width:600px){
-  .intro-beasts{width:145vw;max-width:none;animation-name:introBeastsMobile;}
-  .intro-vs{top:50%;font-size:9px;letter-spacing:4px;}
-  .intro-welcome{top:40%;font-size:8px;letter-spacing:2.5px;}
-  .intro-title{top:50%;font-size:43px;letter-spacing:5px;}
-  .intro-line{bottom:20%}
-  .intro-loading{bottom:13%;font-size:7px;letter-spacing:3px;}
-
-  @keyframes introBeastsMobile{
-    0%{
-      opacity:0;
-      transform:translate(-50%,-50%) scale(.65) translateY(20px);
-      filter:contrast(1.1) saturate(.5) brightness(.35) blur(2px);
-    }
-    25%{opacity:1}
-    70%{
-      opacity:.82;
-      transform:translate(-50%,-50%) scale(.91) translateY(0);
-      filter:contrast(1.2) saturate(.75) brightness(.72) blur(0);
-    }
-    100%{
-      opacity:.76;
-      transform:translate(-50%,-50%) scale(.97) translateY(-2px);
-      filter:contrast(1.2) saturate(.8) brightness(.7) blur(0);
-    }
-  }
-}
-
-/* ==============================
-   AUTH
-   ============================== */
 
 #authScreen{
   position:fixed;
@@ -453,9 +247,7 @@ body::after{
   align-items:center;
   justify-content:center;
   padding:20px;
-  background:
-    radial-gradient(circle at 50% 20%,rgba(216,180,90,.10),transparent 35%),
-    rgba(5,6,7,.97);
+  background:radial-gradient(circle at 50% 20%,rgba(216,180,90,.10),transparent 35%),rgba(5,6,7,.97);
 }
 
 .auth-box{
@@ -465,7 +257,6 @@ body::after{
   border:1px solid rgba(216,180,90,.18);
   border-radius:24px;
   background:linear-gradient(145deg,rgba(22,24,29,.97),rgba(9,11,14,.96));
-  box-shadow:0 25px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.025);
 }
 
 .auth-logo{
@@ -482,594 +273,100 @@ body::after{
   background:rgba(216,180,90,.06);
 }
 
-.auth-title{
-  text-align:center;
-  font-size:25px;
-  font-weight:900;
-  letter-spacing:1px;
-}
-
-.auth-subtitle{
-  text-align:center;
-  color:var(--muted);
-  font-size:11px;
-  margin-top:7px;
-  line-height:1.5;
-}
-
-.auth-tabs{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:7px;
-  margin-top:24px;
-}
-
-.auth-tab{
-  padding:11px;
-  border:1px solid var(--line);
-  border-radius:10px;
-  background:rgba(255,255,255,.025);
-  color:var(--muted);
-  cursor:pointer;
-  font-weight:800;
-}
-
-.auth-tab.active{
-  color:#111;
-  background:var(--gold);
-  border-color:var(--gold);
-}
-
+.auth-title{text-align:center;font-size:25px;font-weight:900;letter-spacing:1px;}
+.auth-subtitle{text-align:center;color:var(--muted);font-size:11px;margin-top:7px;}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:24px;}
+.auth-tab{padding:11px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.025);color:var(--muted);cursor:pointer;font-weight:800;}
+.auth-tab.active{color:#111;background:var(--gold);border-color:var(--gold);}
 .auth-form{margin-top:18px}
-
-.auth-input{
-  width:100%;
-  padding:14px;
-  margin-bottom:10px;
-  border-radius:11px;
-  border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.035);
-  color:var(--white);
-  outline:none;
-  font-size:13px;
-}
-
-.auth-input:focus{
-  border-color:rgba(216,180,90,.5);
-}
-
-.auth-btn{
-  width:100%;
-  padding:14px;
-  border:0;
-  border-radius:11px;
-  background:linear-gradient(135deg,var(--gold2),var(--gold));
-  color:#111;
-  font-weight:900;
-  cursor:pointer;
-  margin-top:4px;
-}
-
-.auth-message{
-  margin-top:13px;
-  text-align:center;
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.5;
-}
-
+.auth-input{width:100%;padding:14px;margin-bottom:10px;border-radius:11px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--white);outline:none;font-size:13px;}
+.auth-btn{width:100%;padding:14px;border:0;border-radius:11px;background:linear-gradient(135deg,var(--gold2),var(--gold));color:#111;font-weight:900;cursor:pointer;margin-top:4px;}
+.auth-message{margin-top:13px;text-align:center;color:var(--muted);font-size:11px;}
 .auth-error{color:var(--red)}
 .auth-success{color:var(--green)}
 
-#pendingScreen{
-  display:none;
-  position:fixed;
-  inset:0;
-  z-index:9998;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:rgba(5,6,7,.97);
-}
-
-.pending-box{
-  width:100%;
-  max-width:420px;
-  padding:30px;
-  text-align:center;
-  border:1px solid rgba(216,180,90,.18);
-  border-radius:24px;
-  background:linear-gradient(145deg,rgba(22,24,29,.97),rgba(9,11,14,.96));
-}
-
-.pending-icon{
-  font-size:42px;
-  margin-bottom:15px;
-}
-
-.pending-title{
-  font-size:23px;
-  font-weight:900;
-}
-
-.pending-text{
-  margin-top:10px;
-  color:var(--muted);
-  font-size:12px;
-  line-height:1.6;
-}
-
-.logout-btn{
-  margin-top:20px;
-  padding:11px 22px;
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:10px;
-  background:rgba(255,255,255,.04);
-  color:var(--white);
-  cursor:pointer;
-}
-
-/* ==============================
-   MAIN
-   ============================== */
+#pendingScreen{display:none;position:fixed;inset:0;z-index:9998;align-items:center;justify-content:center;padding:20px;background:rgba(5,6,7,.97);}
+.pending-box{width:100%;max-width:420px;padding:30px;text-align:center;border:1px solid rgba(216,180,90,.18);border-radius:24px;background:linear-gradient(145deg,rgba(22,24,29,.97),rgba(9,11,14,.96));}
+.pending-icon{font-size:42px;margin-bottom:15px;}
+.pending-title{font-size:23px;font-weight:900;}
+.pending-text{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.6;}
+.logout-btn{margin-top:20px;padding:11px 22px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);color:var(--white);cursor:pointer;}
 
 #app{display:none}
+.topbar{position:relative;z-index:2;max-width:1250px;margin:auto;padding:24px 20px 12px;display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:12px;}
+.logo{width:42px;height:42px;border:1px solid rgba(216,180,90,.5);border-radius:12px;display:grid;place-items:center;color:var(--gold2);font-size:20px;font-weight:900;background:rgba(216,180,90,.06);}
+.brand-title{font-size:21px;font-weight:900;letter-spacing:1.5px;}
+.brand-sub{font-size:9px;color:var(--gold);letter-spacing:2px;margin-top:3px;}
+.live{display:flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid rgba(32,217,139,.2);border-radius:30px;background:rgba(32,217,139,.05);font-size:11px;color:#9ff5ce;font-weight:700;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);}
+.container{position:relative;z-index:1;max-width:1250px;margin:auto;padding:12px 20px 50px;}
 
-.topbar{
-  position:relative;
-  z-index:2;
-  max-width:1250px;
-  margin:auto;
-  padding:24px 20px 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
+.hero{display:grid;grid-template-columns:1.35fr .65fr;gap:16px;margin-bottom:16px;}
+.card{border:1px solid var(--line);background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));border-radius:22px;backdrop-filter:blur(14px);}
+.price-card{padding:24px;position:relative;overflow:hidden;}
+.market-label{color:var(--gold);font-size:11px;letter-spacing:2px;font-weight:700;}
+.symbol{margin-top:9px;font-size:28px;font-weight:900;}
+.symbol span{color:var(--muted);font-size:12px;font-weight:500;margin-left:8px;}
+.price{margin-top:18px;font-size:42px;font-weight:900;}
+.price-change{margin-top:6px;color:var(--green);font-size:13px;}
+.market-status{position:absolute;right:22px;top:22px;color:var(--muted);font-size:11px;}
+.timeframe{margin-top:22px;display:flex;gap:7px;}
+.tf{padding:8px 14px;border-radius:10px;border:1px solid var(--line);color:var(--muted);font-size:10px;cursor:pointer;user-select:none;}
+.tf.active{color:#111;background:var(--gold);border-color:var(--gold);font-weight:900;}
 
-.brand{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
+.ai-card{padding:24px;display:flex;flex-direction:column;justify-content:space-between;}
+.ai-head{display:flex;justify-content:space-between;align-items:center;}
+.ai-title{font-weight:800;font-size:14px;}
+.ai-badge{font-size:9px;padding:6px 9px;border-radius:20px;background:rgba(216,180,90,.08);color:var(--gold);border:1px solid rgba(216,180,90,.18);}
+.ai-icon{width:62px;height:62px;border-radius:18px;margin-top:20px;display:grid;place-items:center;font-size:28px;background:rgba(216,180,90,.07);border:1px solid rgba(216,180,90,.16);}
+.ai-status{margin-top:16px;font-size:26px;font-weight:900;color:var(--yellow);}
+.ai-desc{margin-top:6px;color:var(--muted);font-size:11px;line-height:1.5;}
 
-.logo{
-  width:42px;
-  height:42px;
-  border:1px solid rgba(216,180,90,.5);
-  border-radius:12px;
-  display:grid;
-  place-items:center;
-  color:var(--gold2);
-  font-size:20px;
-  font-weight:900;
-  background:rgba(216,180,90,.06);
-  box-shadow:0 0 25px rgba(216,180,90,.08);
-}
+.engine-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.zone-panel{padding:24px;border-radius:22px;background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));border:1px solid rgba(216,180,90,.3);}
+.zone-header{display:flex;align-items:center;justify-content:space-between;}
+.badge-locked{padding:5px 10px;border-radius:8px;font-size:9px;font-weight:900;background:rgba(216,180,90,.12);color:var(--gold2);border:1px solid rgba(216,180,90,.3);}
+.zone-box{margin:16px 0 14px;padding:16px;border-radius:16px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);text-align:center;}
+.zone-title{font-size:11px;color:var(--gold);letter-spacing:1px;font-weight:900;}
+.zone-range-text{font-size:28px;font-weight:900;margin-top:6px;}
+.zone-cmp-row{margin-top:8px;font-size:12px;color:var(--muted);display:flex;justify-content:center;gap:8px;}
+.zone-cmp-val{font-weight:900;color:var(--white);}
+.zone-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+.zone-meta-box{padding:10px;border-radius:10px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.04);text-align:center;}
+.zone-meta-label{font-size:8px;color:var(--muted);}
+.zone-meta-val{font-size:11px;font-weight:900;margin-top:4px;color:var(--gold2);}
 
-.brand-title{
-  font-size:21px;
-  font-weight:900;
-  letter-spacing:1.5px;
-}
-
-.brand-sub{
-  font-size:9px;
-  color:var(--gold);
-  letter-spacing:2px;
-  margin-top:3px;
-}
-
-.live{
-  display:flex;
-  align-items:center;
-  gap:7px;
-  padding:8px 14px;
-  border:1px solid rgba(32,217,139,.2);
-  border-radius:30px;
-  background:rgba(32,217,139,.05);
-  font-size:11px;
-  color:#9ff5ce;
-  font-weight:700;
-}
-
-.live-dot{
-  width:7px;
-  height:7px;
-  border-radius:50%;
-  background:var(--green);
-  box-shadow:0 0 12px var(--green);
-}
-
-.container{
-  position:relative;
-  z-index:1;
-  max-width:1250px;
-  margin:auto;
-  padding:12px 20px 50px;
-}
-
-.hero{
-  display:grid;
-  grid-template-columns:1.35fr .65fr;
-  gap:16px;
-  margin-bottom:16px;
-}
-
-.card{
-  border:1px solid var(--line);
-  background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));
-  border-radius:22px;
-  box-shadow:0 18px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.025);
-  backdrop-filter:blur(14px);
-}
-
-.price-card{
-  padding:24px;
-  position:relative;
-  overflow:hidden;
-}
-
-.price-card::after{
-  content:"";
-  position:absolute;
-  width:180px;
-  height:180px;
-  right:-70px;
-  top:-70px;
-  border-radius:50%;
-  border:1px solid rgba(216,180,90,.13);
-  box-shadow:
-    0 0 0 30px rgba(216,180,90,.025),
-    0 0 0 60px rgba(216,180,90,.015);
-}
-
-.market-label{
-  color:var(--gold);
-  font-size:11px;
-  letter-spacing:2px;
-  font-weight:700;
-}
-
-.symbol{
-  margin-top:9px;
-  font-size:28px;
-  font-weight:900;
-}
-
-.symbol span{
-  color:var(--muted);
-  font-size:12px;
-  font-weight:500;
-  margin-left:8px;
-}
-
-.price{
-  margin-top:18px;
-  font-size:42px;
-  font-weight:900;
-}
-
-.price-change{
-  margin-top:6px;
-  color:var(--green);
-  font-size:13px;
-}
-
-.market-status{
-  position:absolute;
-  right:22px;
-  top:22px;
-  color:var(--muted);
-  font-size:11px;
-}
-
-.timeframe{
-  margin-top:22px;
-  display:flex;
-  gap:7px;
-}
-
-.tf{
-  padding:8px 14px;
-  border-radius:10px;
-  border:1px solid var(--line);
-  color:var(--muted);
-  font-size:10px;
-  cursor:pointer;
-  transition:all .2s;
-  user-select:none;
-}
-
-.tf.active{
-  color:#111;
-  background:var(--gold);
-  border-color:var(--gold);
-  font-weight:900;
-}
-
-.ai-card{
-  padding:24px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-}
-
-.ai-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.ai-title{
-  font-weight:800;
-  font-size:14px;
-}
-
-.ai-badge{
-  font-size:9px;
-  padding:6px 9px;
-  border-radius:20px;
-  background:rgba(216,180,90,.08);
-  color:var(--gold);
-  border:1px solid rgba(216,180,90,.18);
-}
-
-.ai-icon{
-  width:62px;
-  height:62px;
-  border-radius:18px;
-  margin-top:20px;
-  display:grid;
-  place-items:center;
-  font-size:28px;
-  background:rgba(216,180,90,.07);
-  border:1px solid rgba(216,180,90,.16);
-}
-
-.ai-status{
-  margin-top:16px;
-  font-size:26px;
-  font-weight:900;
-  color:var(--yellow);
-}
-
-.ai-desc{
-  margin-top:6px;
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.5;
-}
-
-/* =========================================================
-   2 BAHAGIAN UTAMA: ZONE SETUP vs ENTRY SIGNAL
-   ========================================================= */
-
-.engine-duo{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:16px;
-  margin-bottom:16px;
-}
-
-.zone-panel{
-  padding:24px;
-  border-radius:22px;
-  background:linear-gradient(145deg,rgba(22,24,29,.94),rgba(9,11,14,.9));
-  border:1px solid rgba(216,180,90,.3);
-  position:relative;
-  overflow:hidden;
-}
-
-.zone-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-
-.badge-locked{
-  padding:5px 10px;
-  border-radius:8px;
-  font-size:9px;
-  font-weight:900;
-  letter-spacing:.6px;
-  background:rgba(216,180,90,.12);
-  color:var(--gold2);
-  border:1px solid rgba(216,180,90,.3);
-}
-
-.zone-box{
-  margin:16px 0 14px;
-  padding:16px;
-  border-radius:16px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.05);
-  text-align:center;
-}
-
-.zone-title{
-  font-size:11px;
-  color:var(--gold);
-  letter-spacing:1px;
-  font-weight:900;
-}
-
-.zone-range-text{
-  font-size:28px;
-  font-weight:900;
-  margin-top:6px;
-  letter-spacing:.5px;
-}
-
-.zone-cmp-row{
-  margin-top:8px;
-  font-size:12px;
-  color:var(--muted);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:8px;
-}
-
-.zone-cmp-val{
-  font-weight:900;
-  color:var(--white);
-}
-
-.zone-meta-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  margin-top:10px;
-}
-
-.zone-meta-box{
-  padding:10px;
-  border-radius:10px;
-  background:rgba(255,255,255,.02);
-  border:1px solid rgba(255,255,255,.04);
-  text-align:center;
-}
-
-.zone-meta-label{
-  font-size:8px;
-  color:var(--muted);
-  letter-spacing:.5px;
-}
-
-.zone-meta-val{
-  font-size:11px;
-  font-weight:900;
-  margin-top:4px;
-  color:var(--gold2);
-}
-
-.signal-card{
-  padding:24px;
-  position:relative;
-  overflow:hidden;
-}
-
+.signal-card{padding:24px;}
 .signal-card.ready{border-color:rgba(32,217,139,.35);box-shadow:0 0 35px rgba(32,217,139,.1);}
-.signal-card.checking{border-color:rgba(56,189,248,.35);}
 .signal-card.wait{border-color:rgba(242,201,76,.2);}
-.signal-card.noconfirm{border-color:rgba(255,82,104,.25);}
-
-.signal-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.signal-main{
-  display:flex;
-  align-items:center;
-  gap:13px;
-}
-
-.signal-icon{
-  width:48px;
-  height:48px;
-  border-radius:15px;
-  display:grid;
-  place-items:center;
-  font-size:23px;
-  font-weight:900;
-}
-
+.signal-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.signal-main{display:flex;align-items:center;gap:13px;}
+.signal-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:23px;font-weight:900;}
 .ready .signal-icon{color:var(--green);background:rgba(32,217,139,.12);}
-.checking .signal-icon{color:var(--blue);background:rgba(56,189,248,.12);}
 .wait .signal-icon{color:var(--yellow);background:rgba(242,201,76,.08);}
-.noconfirm .signal-icon{color:var(--red);background:rgba(255,82,104,.1);}
+.signal-name{font-size:22px;font-weight:900;}
+.signal-sub{color:var(--muted);font-size:10px;margin-top:3px;}
 
-.signal-name{
-  font-size:22px;
-  font-weight:900;
-}
-
-.signal-sub{
-  color:var(--muted);
-  font-size:10px;
-  margin-top:3px;
-}
-
-.flow-tracker{
-  margin-top:16px;
-  padding:11px 14px;
-  border-radius:12px;
-  background:rgba(0,0,0,.45);
-  border:1px solid rgba(255,255,255,.05);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-size:9px;
-  font-weight:800;
-  letter-spacing:.5px;
-}
-
+.flow-tracker{margin-top:16px;padding:11px 14px;border-radius:12px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between;font-size:9px;font-weight:800;}
 .step-node{color:var(--muted)}
-.step-node.active{color:var(--blue)}
 .step-node.done{color:var(--green)}
 
-/* =========================================================
-   TRADE PLAN (GATED BEFORE SIGNAL READY)
-   ========================================================= */
-
-.plan-section{
-  margin-bottom:16px;
-}
-
-.signal-grid{
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:9px;
-}
-
-.metric{
-  padding:14px;
-  border-radius:13px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.045);
-}
-
-.metric-label{
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:1px;
-}
-
-.metric-value{
-  margin-top:7px;
-  font-size:15px;
-  font-weight:800;
-}
-
-.plan-gate-overlay{
-  padding:18px;
-  text-align:center;
-  background:rgba(255,255,255,.02);
-  border-radius:14px;
-  border:1px dashed rgba(255,255,255,.1);
-  color:var(--muted);
-  font-size:11px;
-  line-height:1.6;
-}
+.plan-section{margin-bottom:16px;}
+.signal-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;}
+.metric{padding:14px;border-radius:13px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.045);}
+.metric-label{color:var(--muted);font-size:9px;letter-spacing:1px;}
+.metric-value{margin-top:7px;font-size:15px;font-weight:800;}
+.plan-gate-overlay{padding:18px;text-align:center;background:rgba(255,255,255,.02);border-radius:14px;border:1px dashed rgba(255,255,255,.1);color:var(--muted);font-size:11px;line-height:1.6;}
 
 /* =========================================================
-   MULTI-TIMEFRAME RADAR
+   MULTI-TIMEFRAME RADAR (KEKAL SEPENUHNYA - 4 TIMEFRAME)
    ========================================================= */
-
 .direction-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:10px;
-  transition:all .3s ease;
 }
-
-.direction-grid.show-h4{
-  grid-template-columns:repeat(5,1fr);
-}
-
 .direction{
   padding:14px 8px;
   text-align:center;
@@ -1077,14 +374,12 @@ body::after{
   background:var(--panel);
   border:1px solid var(--line);
 }
-
 .tf-name{
   color:var(--muted);
   font-size:9px;
   letter-spacing:1px;
   font-weight:700;
 }
-
 .dir{
   margin-top:8px;
   font-size:11px;
@@ -1093,562 +388,100 @@ body::after{
   overflow:hidden;
   text-overflow:ellipsis;
 }
-
 .bullish{color:var(--green)}
 .bearish{color:var(--red)}
 .neutral{color:var(--yellow)}
-.checking-color{color:var(--blue)}
 
-/* =========================================================
-   TRADING SETUPS (CARDS)
-   ========================================================= */
-
-.setup-section{
-  margin-top:4px;
-  margin-bottom:20px;
-}
-
-.setup-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
-
-.setup-card{
-  position:relative;
-  overflow:hidden;
-  padding:20px;
-  border-radius:19px;
-  background:linear-gradient(145deg,rgba(22,24,29,.96),rgba(9,11,14,.92));
-  border:1px solid var(--line);
-  box-shadow:0 14px 45px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.025);
-}
-
+.setup-section{margin-top:4px;margin-bottom:20px;}
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.setup-card{padding:20px;border-radius:19px;background:linear-gradient(145deg,rgba(22,24,29,.96),rgba(9,11,14,.92));border:1px solid var(--line);}
 .setup-card.buy{border-color:rgba(32,217,139,.22);}
 .setup-card.sell{border-color:rgba(255,82,104,.22);}
-.setup-card.setup{border-color:rgba(216,180,90,.20);}
 .setup-card.wait{border-color:rgba(242,201,76,.14);}
-
-.setup-head{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.setup-title{
-  font-size:15px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
-
-.setup-path{
-  margin-top:5px;
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:.7px;
-}
-
-.setup-status{
-  flex-shrink:0;
-  padding:6px 9px;
-  border-radius:8px;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:.7px;
-}
-
-.setup-status.signal,
-.setup-status.ready{
-  color:#9ff5ce;
-  background:rgba(32,217,139,.08);
-  border:1px solid rgba(32,217,139,.16);
-}
-
-.setup-status.checking{
-  color:#a5f3fc;
-  background:rgba(56,189,248,.08);
-  border:1px solid rgba(56,189,248,.18);
-}
-
-.setup-status.setup{
-  color:var(--gold2);
-  background:rgba(216,180,90,.08);
-  border:1px solid rgba(216,180,90,.16);
-}
-
-.setup-status.wait{
-  color:var(--yellow);
-  background:rgba(242,201,76,.06);
-  border:1px solid rgba(242,201,76,.11);
-}
-
-.setup-direction{
-  margin-top:17px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.setup-arrow{
-  width:38px;
-  height:38px;
-  display:grid;
-  place-items:center;
-  border-radius:12px;
-  background:rgba(255,255,255,.035);
-  font-size:19px;
-  font-weight:900;
-}
-
+.setup-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.setup-title{font-size:15px;font-weight:900;}
+.setup-path{margin-top:5px;color:var(--muted);font-size:9px;}
+.setup-status{padding:6px 9px;border-radius:8px;font-size:8px;font-weight:900;}
+.setup-status.ready{color:#9ff5ce;background:rgba(32,217,139,.08);border:1px solid rgba(32,217,139,.16);}
+.setup-status.wait{color:var(--yellow);background:rgba(242,201,76,.06);border:1px solid rgba(242,201,76,.11);}
+.setup-direction{margin-top:17px;display:flex;align-items:center;gap:10px;}
+.setup-arrow{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.035);font-size:19px;font-weight:900;}
 .setup-direction.buy .setup-arrow{color:var(--green);background:rgba(32,217,139,.08);}
 .setup-direction.sell .setup-arrow{color:var(--red);background:rgba(255,82,104,.08);}
 .setup-direction.wait .setup-arrow{color:var(--yellow);background:rgba(242,201,76,.07);}
-
-.setup-direction-text{
-  font-size:18px;
-  font-weight:900;
-}
-
+.setup-direction-text{font-size:18px;font-weight:900;}
 .setup-direction.buy .setup-direction-text{color:var(--green);}
 .setup-direction.sell .setup-direction-text{color:var(--red);}
 .setup-direction.wait .setup-direction-text{color:var(--yellow);}
+.setup-score{margin-left:auto;color:var(--gold);font-size:9px;font-weight:800;}
+.setup-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:17px;}
+.setup-metric{padding:10px;border-radius:11px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.045);min-width:0;}
+.setup-metric-label{color:var(--muted);font-size:7px;}
+.setup-metric-value{margin-top:6px;font-size:11px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.setup-reason{margin-top:13px;padding:11px;border-radius:11px;background:rgba(255,255,255,.02);color:var(--muted);font-size:9px;}
 
-.setup-score{
-  margin-left:auto;
-  color:var(--gold);
-  font-size:9px;
-  font-weight:800;
-}
+.analyze-wrap{display:flex;justify-content:center;margin:20px 0;}
+.analyze-btn{border:0;cursor:pointer;padding:15px 38px;border-radius:14px;color:#111;background:linear-gradient(135deg,var(--gold2),var(--gold));font-weight:900;box-shadow:0 10px 35px rgba(216,180,90,.18);}
+.analyze-btn:disabled{opacity:.55;cursor:not-allowed;}
+.section-title{margin:25px 0 11px;color:var(--gold);font-size:10px;letter-spacing:2px;font-weight:800;}
 
-.setup-metrics{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:7px;
-  margin-top:17px;
-}
+.session-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.session-card{padding:17px;border-radius:16px;background:var(--panel);border:1px solid var(--line);}
+.session-card.open{border-color:rgba(32,217,139,.28);}
+.session-head{display:flex;align-items:center;justify-content:space-between;}
+.session-name{font-size:12px;font-weight:900;}
+.session-status{padding:5px 7px;border-radius:20px;font-size:8px;font-weight:900;}
+.session-status.open{color:#9ff5ce;background:rgba(32,217,139,.08);}
+.session-status.closed{color:#777c84;background:rgba(255,255,255,.035);}
+.session-time{margin-top:13px;color:var(--white);font-size:13px;font-weight:800;}
+.session-activity{margin-top:13px;font-size:9px;font-weight:900;color:var(--gold);}
 
-.setup-metric{
-  padding:10px;
-  border-radius:11px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.045);
-  min-width:0;
-}
-
-.setup-metric-label{
-  color:var(--muted);
-  font-size:7px;
-  letter-spacing:.7px;
-}
-
-.setup-metric-value{
-  margin-top:6px;
-  font-size:11px;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.setup-reason{
-  margin-top:13px;
-  padding:11px;
-  border-radius:11px;
-  background:rgba(255,255,255,.02);
-  border:1px solid rgba(255,255,255,.04);
-  color:var(--muted);
-  font-size:9px;
-  line-height:1.5;
-}
-
-.setup-confirm{
-  margin-top:9px;
-  color:var(--gold);
-  font-size:8px;
-  letter-spacing:.4px;
-}
-
-.analyze-wrap{
-  display:flex;
-  justify-content:center;
-  margin:20px 0;
-}
-
-.analyze-btn{
-  border:0;
-  cursor:pointer;
-  padding:15px 38px;
-  border-radius:14px;
-  color:#111;
-  background:linear-gradient(135deg,var(--gold2),var(--gold));
-  font-weight:900;
-  letter-spacing:.5px;
-  box-shadow:0 10px 35px rgba(216,180,90,.18);
-  transition:.2s;
-}
-
-.analyze-btn:hover:not(:disabled){
-  transform:translateY(-2px);
-  box-shadow:0 14px 40px rgba(216,180,90,.27);
-}
-
-.analyze-btn:disabled{
-  opacity:.55;
-  cursor:not-allowed;
-}
-
-.section-title{
-  margin:25px 0 11px;
-  color:var(--gold);
-  font-size:10px;
-  letter-spacing:2px;
-  font-weight:800;
-}
-
-/* =========================================================
-   FOREX SESSIONS
-   ========================================================= */
-
-.session-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
-
-.session-card{
-  position:relative;
-  padding:17px;
-  border-radius:16px;
-  background:var(--panel);
-  border:1px solid var(--line);
-  overflow:hidden;
-}
-
-.session-card.open{
-  border-color:rgba(32,217,139,.28);
-  box-shadow:inset 0 0 25px rgba(32,217,139,.025);
-}
-
-.session-card.overlap{
-  border-color:rgba(216,180,90,.32);
-  box-shadow:inset 0 0 30px rgba(216,180,90,.035);
-}
-
-.session-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-}
-
-.session-name{
-  font-size:12px;
-  font-weight:900;
-}
-
-.session-status{
-  padding:5px 7px;
-  border-radius:20px;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
-
-.session-status.open{
-  color:#9ff5ce;
-  background:rgba(32,217,139,.08);
-  border:1px solid rgba(32,217,139,.16);
-}
-
-.session-status.closed{
-  color:#777c84;
-  background:rgba(255,255,255,.035);
-  border:1px solid rgba(255,255,255,.06);
-}
-
-.session-time{
-  margin-top:13px;
-  color:var(--white);
-  font-size:13px;
-  font-weight:800;
-}
-
-.session-zone{
-  margin-top:4px;
-  color:var(--muted);
-  font-size:8px;
-}
-
-.session-activity{
-  margin-top:13px;
-  font-size:9px;
-  letter-spacing:1px;
-  font-weight:900;
-  color:var(--gold);
-}
-
-.session-live{
-  position:absolute;
-  right:-25px;
-  bottom:-25px;
-  width:70px;
-  height:70px;
-  border-radius:50%;
-  border:1px solid rgba(32,217,139,.08);
-}
-
-/* =========================================================
-   NEWS
-   ========================================================= */
-
-.news-list{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.news-card{
-  padding:18px;
-  border-radius:18px;
-  background:var(--panel);
-  border:1px solid var(--line);
-}
-
-.news-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:14px;
-}
-
-.news-heading{
-  font-size:14px;
-  font-weight:900;
-}
-
-.news-subheading{
-  margin-top:4px;
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:.5px;
-}
-
-.news-filters{
-  display:flex;
-  gap:5px;
-}
-
-.news-filter{
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.035);
-  color:var(--muted);
-  padding:6px 8px;
-  border-radius:8px;
-  font-size:8px;
-  font-weight:900;
-  cursor:pointer;
-}
-
-.news-filter.active{
-  color:#111;
-  background:var(--gold);
-  border-color:var(--gold);
-}
-
-.news-item{
-  padding:14px;
-  border-radius:14px;
-  background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.055);
-}
-
+.news-card{padding:18px;border-radius:18px;background:var(--panel);border:1px solid var(--line);}
+.news-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.news-heading{font-size:14px;font-weight:900;}
+.news-subheading{margin-top:4px;color:var(--muted);font-size:9px;}
+.news-filters{display:flex;gap:5px;}
+.news-filter{border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);padding:6px 8px;border-radius:8px;font-size:8px;font-weight:900;cursor:pointer;}
+.news-filter.active{color:#111;background:var(--gold);border-color:var(--gold);}
+.news-list{display:flex;flex-direction:column;gap:10px;}
+.news-item{padding:14px;border-radius:14px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.055);}
 .news-item.high{border-color:rgba(255,82,104,.16);}
 .news-item.medium{border-color:rgba(242,201,76,.13);}
-
-.news-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.news-name{
-  font-size:12px;
-  font-weight:900;
-  line-height:1.35;
-}
-
-.news-time{
-  margin-top:5px;
-  color:var(--muted);
-  font-size:9px;
-}
-
-.news-impact{
-  flex-shrink:0;
-  padding:5px 8px;
-  border-radius:7px;
-  font-size:8px;
-  font-weight:900;
-  letter-spacing:.5px;
-}
-
-.news-impact.high{
-  color:#ff7182;
-  background:rgba(255,82,104,.09);
-  border:1px solid rgba(255,82,104,.15);
-}
-
-.news-impact.medium{
-  color:#f3d37a;
-  background:rgba(242,201,76,.08);
-  border:1px solid rgba(242,201,76,.13);
-}
-
-.news-countdown{
-  margin-top:12px;
-  font-size:11px;
-  font-weight:900;
-}
-
+.news-top{display:flex;justify-content:space-between;}
+.news-name{font-size:12px;font-weight:900;}
+.news-time{margin-top:5px;color:var(--muted);font-size:9px;}
+.news-impact{padding:5px 8px;border-radius:7px;font-size:8px;font-weight:900;}
+.news-impact.high{color:#ff7182;background:rgba(255,82,104,.09);}
+.news-impact.medium{color:#f3d37a;background:rgba(242,201,76,.08);}
+.news-countdown{margin-top:12px;font-size:11px;font-weight:900;}
 .news-live{color:var(--red)}
+.news-data{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:11px;}
+.news-box{padding:8px;border-radius:9px;background:rgba(255,255,255,.025);}
+.news-label{color:var(--muted);font-size:7px;}
+.news-value{margin-top:4px;font-size:10px;font-weight:900;}
+.news-source{margin-top:12px;text-align:center;color:#5f646c;font-size:8px;}
+.news-source a{color:var(--gold);text-decoration:none;}
+.news-empty{padding:22px;text-align:center;color:var(--muted);font-size:10px;}
 
-.news-data{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:6px;
-  margin-top:11px;
-}
-
-.news-box{
-  padding:8px;
-  border-radius:9px;
-  background:rgba(255,255,255,.025);
-}
-
-.news-label{
-  color:var(--muted);
-  font-size:7px;
-  letter-spacing:.7px;
-}
-
-.news-value{
-  margin-top:4px;
-  font-size:10px;
-  font-weight:900;
-}
-
-.news-warning{
-  margin-top:10px;
-  color:#ff9aa6;
-  font-size:9px;
-  line-height:1.4;
-}
-
-.news-source{
-  margin-top:12px;
-  text-align:center;
-  color:#5f646c;
-  font-size:8px;
-}
-
-.news-source a{
-  color:var(--gold);
-  text-decoration:none;
-}
-
-.news-empty{
-  padding:22px;
-  text-align:center;
-  color:var(--muted);
-  font-size:10px;
-}
-
-/* =========================================================
-   MARKET DATA
-   ========================================================= */
-
-.data-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
-
-.data-card{
-  padding:18px;
-  border-radius:16px;
-  background:var(--panel);
-  border:1px solid var(--line);
-}
-
-.data-label{
-  color:var(--muted);
-  font-size:9px;
-  letter-spacing:1px;
-}
-
-.data-value{
-  margin-top:8px;
-  font-size:17px;
-  font-weight:900;
-}
-
-.data-small{
-  margin-top:4px;
-  color:var(--muted);
-  font-size:9px;
-}
-
-.footer{
-  text-align:center;
-  margin-top:40px;
-  color:#555a62;
-  font-size:9px;
-  letter-spacing:2px;
-}
-
+.data-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.data-card{padding:18px;border-radius:16px;background:var(--panel);border:1px solid var(--line);}
+.data-label{color:var(--muted);font-size:9px;letter-spacing:1px;}
+.data-value{margin-top:8px;font-size:17px;font-weight:900;}
+.data-small{margin-top:4px;color:var(--muted);font-size:9px;}
+.footer{text-align:center;margin-top:40px;color:#555a62;font-size:9px;letter-spacing:2px;}
 .footer strong{color:var(--gold)}
 
 @media(max-width:800px){
-  .topbar{padding:18px 14px 10px;}
-  .container{padding:10px 14px 35px;}
-  .hero{grid-template-columns:1fr;}
-  .engine-duo{grid-template-columns:1fr;}
+  .hero,.engine-duo,.setup-grid{grid-template-columns:1fr;}
   .price{font-size:35px;}
-  .signal-grid{grid-template-columns:repeat(2,1fr);}
-  .session-grid{grid-template-columns:repeat(2,1fr);}
-  .data-grid{grid-template-columns:repeat(2,1fr);}
-  .setup-grid{grid-template-columns:1fr;}
+  .signal-grid,.session-grid,.data-grid{grid-template-columns:repeat(2,1fr);}
   .direction-grid{gap:6px;}
-  .direction{padding:10px 4px;}
-  .tf-name{font-size:8px;}
-  .dir{font-size:10px;}
 }
-
 @media(max-width:480px){
-  .signal-card,
-  .price-card,
-  .zone-panel,
-  .ai-card{padding:18px;border-radius:18px;}
+  .signal-card,.price-card,.zone-panel,.ai-card{padding:18px;border-radius:18px;}
   .signal-name{font-size:19px;}
   .zone-range-text{font-size:22px;}
-  .metric{padding:11px;}
-  .metric-value{font-size:13px;}
-  .price{font-size:32px;}
-  .auth-box,.pending-box{padding:23px;}
-  .session-grid{grid-template-columns:1fr 1fr;}
-  .session-card{padding:13px;}
-  .session-name{font-size:10px;}
-  .session-time{font-size:11px;}
-  .news-header{align-items:flex-start;flex-direction:column;}
-  .news-filters{width:100%;}
-  .news-filter{flex:1;}
-  .setup-card{padding:16px;}
   .setup-metrics{grid-template-columns:repeat(2,1fr);}
-  .setup-title{font-size:14px;}
-  .setup-direction-text{font-size:16px;}
   .direction-grid{gap:4px;}
   .direction{padding:8px 2px;}
   .tf-name{font-size:7px;}
@@ -1656,92 +489,68 @@ body::after{
 }
 </style>
 
-<!-- SUPABASE -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
 const SUPABASE_URL = "https://bmxkpkizuyqkxvpasmnb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_dd0-uoKSoJ_Y3lgFogQYdg_U8yhzqeX";
-
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 </script>
-
 </head>
 
 <body>
-
-<!-- =====================================================
-     SINNCI INTRO
-     ===================================================== -->
 
 <div id="sinnciIntro">
   <div class="intro-particles">
     <span></span><span></span><span></span><span></span>
     <span></span><span></span><span></span><span></span>
   </div>
-
   <div class="intro-center">
     <img class="intro-beasts" src="1791359272050.jpg" alt="3D Bull and Bear">
-    <div class="intro-beast-overlay"></div>
     <div class="intro-vs">BUY × SELL</div>
-    <div class="intro-welcome">
-      <span>S</span><span>E</span><span>L</span><span>A</span><span>M</span><span>A</span><span>T</span>
-      <span>&nbsp;</span>
-      <span>D</span><span>A</span><span>T</span><span>A</span><span>N</span><span>G</span>
-      <span>&nbsp;</span>
-      <span>K</span><span>E</span><span>!</span>
-    </div>
-    <div class="intro-flash"></div>
+    <div class="intro-welcome">SELAMAT DATANG KE!</div>
     <div class="intro-title">SINNCI AI</div>
     <div class="intro-line"></div>
     <div class="intro-loading">MARKET INTELLIGENCE</div>
   </div>
 </div>
 
-<!-- AUTH -->
 <div id="authScreen">
   <div class="auth-box">
     <div class="auth-logo">S</div>
     <div class="auth-title">SINNCI AI</div>
     <div class="auth-subtitle">XAUUSD MARKET INTELLIGENCE</div>
-
     <div class="auth-tabs">
       <button id="loginTab" class="auth-tab active" onclick="showAuthMode('login')">LOGIN</button>
       <button id="registerTab" class="auth-tab" onclick="showAuthMode('register')">REGISTER</button>
     </div>
-
     <form id="authForm" class="auth-form" onsubmit="handleAuth(event)">
       <input id="authEmail" class="auth-input" type="email" placeholder="Email" required>
       <input id="authPassword" class="auth-input" type="password" placeholder="Password" minlength="6" required>
       <button id="authBtn" class="auth-btn" type="submit">LOGIN</button>
     </form>
-
     <div id="authMessage" class="auth-message"></div>
   </div>
 </div>
 
-<!-- PENDING -->
 <div id="pendingScreen">
   <div class="pending-box">
     <div class="pending-icon">⏳</div>
     <div class="pending-title">PENDING APPROVAL</div>
     <div class="pending-text">
-      Your account has been created successfully.<br><br>
-      Please wait for SINNCI admin approval before accessing the dashboard.
+      Akaun anda berjaya dicipta.<br><br>
+      Sila tunggu kelulusan admin SINNCI sebelum mengakses dashboard.
     </div>
     <button class="logout-btn" onclick="logout()">LOGOUT</button>
   </div>
 </div>
 
-<!-- MAIN APP -->
 <div id="app">
-
 <header class="topbar">
   <div class="brand">
     <div class="logo">S</div>
     <div>
       <div class="brand-title">SINNCI AI</div>
-      <div class="brand-sub">SMARTER ANALYSIS • BETTER DECISIONS</div>
+      <div class="brand-sub">PRECISION TRADING ENGINE</div>
     </div>
   </div>
   <div class="live">
@@ -1751,48 +560,39 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 </header>
 
 <main class="container">
-
 <section class="hero">
   <div class="card price-card">
     <div class="market-label">PRECIOUS METAL</div>
-    <div class="symbol">
-      XAUUSD
-      <span>GOLD / U.S. DOLLAR</span>
-    </div>
+    <div class="symbol">XAUUSD<span>GOLD / U.S. DOLLAR</span></div>
     <div id="price" class="price">---</div>
     <div id="priceStatus" class="price-change">Connecting to market...</div>
     <div class="market-status">● REAL DATA</div>
     <div class="timeframe">
-      <div id="tfModeScalp" class="tf active" onclick="selectTimeframeMode('scalp')">SCALPING (H1→M1)</div>
-      <div id="tfModeIntra" class="tf" onclick="selectTimeframeMode('intra')">INTRADAY (H4→M1)</div>
+      <div id="tfModeScalp" class="tf active" onclick="selectTimeframeMode('scalp')">SCALPING (H1→M5→M1)</div>
+      <div id="tfModeIntra" class="tf" onclick="selectTimeframeMode('intra')">INTRADAY (H1→M15→M5)</div>
     </div>
   </div>
 
   <div class="card ai-card">
     <div class="ai-head">
-      <div class="ai-title">SINNCI MARKET ENGINE</div>
-      <div class="ai-badge">AI ACTIVE</div>
+      <div class="ai-title">SINNCI ENGINE</div>
+      <div class="ai-badge">ACTIVE</div>
     </div>
     <div class="ai-icon">✦</div>
     <div>
       <div id="aiStatus" class="ai-status">WAIT</div>
-      <div id="aiDescription" class="ai-desc">Waiting for high-quality market structure.</div>
+      <div id="aiDescription" class="ai-desc">Waiting for zone touch execution.</div>
     </div>
   </div>
 </section>
 
-<!-- =========================================================
-     2 BAHAGIAN UTAMA: ZONE SETUP vs ENTRY SIGNAL
-     ========================================================= -->
+<!-- 2 BAHAGIAN UTAMA: ZONE SETUP vs ENTRY SIGNAL -->
 <div class="engine-duo">
-  
-  <!-- 1. ZONE SETUP (LOCKED & PREVENT CHASE) -->
   <section id="zonePanel" class="zone-panel">
     <div class="zone-header">
       <div style="font-size:12px;font-weight:900;letter-spacing:1px;color:var(--gold);">ZONE SETUP</div>
       <div id="zoneLockBadge" class="badge-locked">LOCKED 🔒</div>
     </div>
-
     <div class="zone-box">
       <div id="zoneTypeTitle" class="zone-title">BUY ZONE</div>
       <div id="zoneRange" class="zone-range-text">----.– – ----.–</div>
@@ -1801,7 +601,6 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         <span id="zoneCmpValue" class="zone-cmp-val">----.--</span>
       </div>
     </div>
-
     <div class="zone-meta-grid">
       <div class="zone-meta-box">
         <div class="zone-meta-label">STATUS</div>
@@ -1812,60 +611,53 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         <div id="zoneScoreText" class="zone-meta-val">--</div>
       </div>
       <div class="zone-meta-box">
-        <div class="zone-meta-label">SETUP / PUNCA</div>
-        <div id="zoneReasonText" class="zone-meta-val">SUPPORT / PULLBACK</div>
+        <div class="zone-meta-label">PUNCA ARAS</div>
+        <div id="zoneReasonText" class="zone-meta-val">SNR BUCU</div>
       </div>
     </div>
-
     <div style="margin-top:12px;font-size:9.5px;color:var(--muted);line-height:1.5;">
-      • Fixed structural boundaries (20–35 pips).<br>
-      • <span style="color:var(--gold);">Zone kekal pada aras asal</span> dan tidak mengejar pergerakan harga semasa.
+      • Fixed structural boundaries: <strong>20 pips ($2.00)</strong>.<br>
+      • <span style="color:var(--gold);">Zon bucu SNR dipetakan awal</span> dan tidak mengejar harga semasa.
     </div>
   </section>
 
-  <!-- 2. ENTRY SIGNAL (GATED) -->
   <section id="signalCard" class="card signal-card wait">
     <div class="signal-top">
       <div class="signal-main">
         <div id="signalIcon" class="signal-icon">⏳</div>
         <div>
           <div id="signalName" class="signal-name">WAIT</div>
-          <div id="signalSub" class="signal-sub">Waiting for M5 break trigger...</div>
+          <div id="signalSub" class="signal-sub">Monitoring zone touch...</div>
         </div>
       </div>
-      <div id="score" class="score">BUY 0 • SELL 0</div>
+      <div id="score" class="score">SCORE 0</div>
     </div>
 
     <!-- Flow Breadcrumb Tracker -->
     <div class="flow-tracker">
-      <span id="stepZone" class="step-node active">ZONE</span>
+      <span id="stepZone" class="step-node done">ZONE MAPPED</span>
       <span>→</span>
-      <span id="stepM5" class="step-node">M5 BREAK</span>
+      <span id="stepCMP" class="step-node">CMP IN ZONE</span>
       <span>→</span>
-      <span id="stepM1" class="step-node">M1 CHECK</span>
-      <span>→</span>
-      <span id="stepSignal" class="step-node">SIGNAL READY</span>
+      <span id="stepSignal" class="step-node">READY</span>
     </div>
 
     <div style="margin-top:12px;font-size:9.5px;color:var(--muted);">
-      Confirmation Gate: <strong id="signalConfirmationText" style="color:var(--gold);">Awaiting M5 trigger</strong>
+      Execution Gate: <strong id="signalConfirmationText" style="color:var(--gold);">Awaiting zone touch</strong>
     </div>
   </section>
 </div>
 
-<!-- =========================================================
-     TRADE PLAN (GATED BEFORE SIGNAL READY)
-     ========================================================= -->
-<div class="section-title">RIGID EXECUTION PLAN • 30 PIPS SL MODEL</div>
+<!-- TRADE PLAN (SL 35 PIPS) -->
+<div class="section-title">RIGID EXECUTION PLAN • 35 PIPS SL MODEL</div>
 <section class="plan-section">
-  <!-- Paparan bila READY -->
   <div id="tradePlanGrid" class="signal-grid" style="display:none;">
     <div class="metric">
       <div class="metric-label">ENTRY</div>
       <div id="planEntry" class="metric-value">---</div>
     </div>
     <div class="metric">
-      <div class="metric-label">SL (30 PIPS)</div>
+      <div class="metric-label">SL (35 PIPS)</div>
       <div id="planSL" class="metric-value" style="color:var(--red);">---</div>
     </div>
     <div class="metric">
@@ -1873,7 +665,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <div id="planTP1" class="metric-value" style="color:var(--green);">---</div>
     </div>
     <div class="metric">
-      <div class="metric-label">TP2 (RUNNER)</div>
+      <div class="metric-label">TP2</div>
       <div id="planTP2" class="metric-value" style="color:var(--green);">---</div>
     </div>
     <div class="metric">
@@ -1882,46 +674,40 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     </div>
   </div>
 
-  <!-- Paparan sebelum READY -->
   <div id="tradePlanGate" class="plan-gate-overlay">
-    🔒 <strong>TRADE PLAN LOCKED</strong><br>
+    🔒 <strong>TRADE PLAN READY & LOCKED</strong><br>
     Entry: <span id="gateEntry">Waiting</span> &bull; 
     SL: <span id="gateSL">Waiting</span> &bull; 
     TP1: <span id="gateTP1">Waiting</span> &bull; 
     TP2: <span id="gateTP2">Waiting</span><br>
-    <span style="font-size:9.5px;color:var(--muted);">Trade plan hanya aktif apabila signal berstatus BUY READY atau SELL READY.</span>
+    <span style="font-size:9.5px;color:var(--muted);">Pelan aktif automatik apabila harga menyentuh zon 20 pips.</span>
   </div>
 </section>
 
 <!-- =========================================================
-     MULTI-TIMEFRAME RADAR (SCALPING & INTRADAY)
+     MULTI-TIMEFRAME RADAR (KEKAL)
      ========================================================= -->
 <div class="section-title">MULTI-TIMEFRAME RADAR • ALIGNMENT ENGINE</div>
 <section id="directionRadarGrid" class="direction-grid">
-  <!-- H4: Tersembunyi pada Scalping, Muncul pada Intraday -->
-  <div id="tfCardH4" class="direction" style="display:none;">
-    <div class="tf-name">H4 MAJOR</div>
-    <div id="h4" class="dir neutral">---</div>
-  </div>
   <div class="direction">
     <div class="tf-name">H1 BIAS</div>
     <div id="h1" class="dir neutral">---</div>
   </div>
   <div class="direction">
-    <div class="tf-name">M15 SETUP</div>
+    <div class="tf-name">M15 ZONE</div>
     <div id="m15" class="dir neutral">---</div>
   </div>
   <div class="direction">
-    <div class="tf-name">M5 TRIGGER</div>
-    <div id="m5" class="dir neutral">WAIT</div>
+    <div class="tf-name">M5 ZONE</div>
+    <div id="m5" class="dir neutral">---</div>
   </div>
   <div class="direction">
-    <div class="tf-name">M1 CONFIRM</div>
-    <div id="m1" class="dir neutral">WAIT</div>
+    <div class="tf-name">M1 CMP</div>
+    <div id="m1" class="dir neutral">---</div>
   </div>
 </section>
 
-<!-- SETUPS (SCALPING & INTRADAY CARDS) -->
+<!-- TRADING SETUPS -->
 <div class="section-title">SINNCI TRADING SETUPS</div>
 <section class="setup-section">
 <div class="setup-grid">
@@ -1931,38 +717,34 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   <div class="setup-head">
     <div>
       <div class="setup-title">⚡ SCALPING</div>
-      <div class="setup-path">H1 → M15 → M5 → M1</div>
+      <div class="setup-path">H1 → M5 → M1</div>
     </div>
     <div id="scalpingStatus" class="setup-status wait">WAIT</div>
   </div>
-
   <div id="scalpingDirection" class="setup-direction wait">
     <div id="scalpingArrow" class="setup-arrow">⏳</div>
     <div id="scalpingDirectionText" class="setup-direction-text">WAIT</div>
     <div id="scalpingScore" class="setup-score">SCORE 0</div>
   </div>
-
   <div class="setup-metrics">
     <div class="setup-metric">
       <div class="setup-metric-label">LOCKED ZONE</div>
       <div id="scalpingEntry" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">SL (30 PIPS)</div>
+      <div class="setup-metric-label">SL (35 PIPS)</div>
       <div id="scalpingSL" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP1 • 600 PTS</div>
+      <div class="setup-metric-label">TP1 • 60 PIPS</div>
       <div id="scalpingTP1" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP2 • 1200 PTS</div>
+      <div class="setup-metric-label">TP2 • 120 PIPS</div>
       <div id="scalpingTP2" class="setup-metric-value">---</div>
     </div>
   </div>
-
-  <div id="scalpingReason" class="setup-reason">Waiting for a valid H1 → M15 → M5 → M1 scalping setup.</div>
-  <div id="scalpingConfirm" class="setup-confirm">M5 trigger pending</div>
+  <div id="scalpingReason" class="setup-reason">Menunggu harga menyentuh zon bucu.</div>
 </div>
 
 <!-- INTRADAY -->
@@ -1970,38 +752,34 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   <div class="setup-head">
     <div>
       <div class="setup-title">📈 INTRADAY</div>
-      <div class="setup-path">H4 → H1 → M15 → M5 → M1</div>
+      <div class="setup-path">H1 → M15 → M5</div>
     </div>
     <div id="intradayStatus" class="setup-status wait">WAIT</div>
   </div>
-
   <div id="intradayDirection" class="setup-direction wait">
     <div id="intradayArrow" class="setup-arrow">⏳</div>
     <div id="intradayDirectionText" class="setup-direction-text">WAIT</div>
     <div id="intradayScore" class="setup-score">SCORE 0</div>
   </div>
-
   <div class="setup-metrics">
     <div class="setup-metric">
       <div class="setup-metric-label">LOCKED ZONE</div>
       <div id="intradayEntry" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">SL (30 PIPS)</div>
+      <div class="setup-metric-label">SL (35 PIPS)</div>
       <div id="intradaySL" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP1 • 1500 PTS</div>
+      <div class="setup-metric-label">TP1 • 130 PIPS</div>
       <div id="intradayTP1" class="setup-metric-value">---</div>
     </div>
     <div class="setup-metric">
-      <div class="setup-metric-label">TP2 • 2300 PTS</div>
+      <div class="setup-metric-label">TP2 • 220 PIPS</div>
       <div id="intradayTP2" class="setup-metric-value">---</div>
     </div>
   </div>
-
-  <div id="intradayReason" class="setup-reason">Waiting for a valid H4 → H1 → M15 → M5 → M1 intraday setup.</div>
-  <div id="intradayConfirm" class="setup-confirm">M5 trigger pending</div>
+  <div id="intradayReason" class="setup-reason">Menunggu pemetaan zon struktur H1.</div>
 </div>
 
 </div>
@@ -2020,9 +798,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <div id="asiaStatus" class="session-status closed">CLOSED</div>
     </div>
     <div id="asiaTime" class="session-time">08:00 — 17:00 MYT</div>
-    <div class="session-zone">TOKYO TIME • AUTO</div>
     <div id="asiaActivity" class="session-activity">MODERATE</div>
-    <div class="session-live"></div>
   </div>
 
   <div id="londonSession" class="session-card">
@@ -2031,9 +807,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <div id="londonStatus" class="session-status closed">CLOSED</div>
     </div>
     <div id="londonTime" class="session-time">AUTO</div>
-    <div class="session-zone">LONDON TIME • AUTO DST</div>
     <div id="londonActivity" class="session-activity">HIGH</div>
-    <div class="session-live"></div>
   </div>
 
   <div id="newYorkSession" class="session-card">
@@ -2042,20 +816,16 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <div id="newyorkStatus" class="session-status closed">CLOSED</div>
     </div>
     <div id="newyorkTime" class="session-time">AUTO</div>
-    <div class="session-zone">NEW YORK TIME • AUTO DST</div>
     <div id="newyorkActivity" class="session-activity">HIGH</div>
-    <div class="session-live"></div>
   </div>
 
-  <div id="overlapSession" class="session-card overlap">
+  <div id="overlapSession" class="session-card">
     <div class="session-head">
       <div class="session-name">🔥 LONDON × NEW YORK</div>
       <div id="overlapStatus" class="session-status closed">INACTIVE</div>
     </div>
     <div id="overlapTime" class="session-time">AUTO</div>
-    <div class="session-zone">OVERLAP • MALAYSIA TIME</div>
     <div id="overlapActivity" class="session-activity">VERY HIGH</div>
-    <div class="session-live"></div>
   </div>
 </section>
 
@@ -2073,14 +843,11 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       <button id="newsMediumBtn" class="news-filter" onclick="filterNews('medium')">MEDIUM</button>
     </div>
   </div>
-
   <div id="newsList" class="news-list">
     <div class="news-empty">Scanning US economic calendar...</div>
   </div>
-
   <div class="news-source">
-    Economic data by
-    <a href="https://www.financecalendar.com/" target="_blank" rel="noopener noreferrer">FinanceCalendar.com</a>
+    Economic data by <a href="https://www.financecalendar.com/" target="_blank" rel="noopener noreferrer">FinanceCalendar.com</a>
   </div>
 </section>
 
@@ -2088,7 +855,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 <div class="section-title">MARKET INTELLIGENCE</div>
 <section class="data-grid">
   <div class="data-card">
-    <div class="data-label">PUNCA SOURCE</div>
+    <div class="data-label">PUNCA ARAS</div>
     <div id="puncaSource" class="data-value">---</div>
     <div class="data-small">Historical structure</div>
   </div>
@@ -2100,12 +867,12 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   <div class="data-card">
     <div class="data-label">MAX RISK</div>
     <div id="maxRisk" class="data-value">---</div>
-    <div class="data-small">Fixed 300 pts (30 pips)</div>
+    <div class="data-small">Fixed 35 pips ($3.50)</div>
   </div>
   <div class="data-card">
     <div class="data-label">REASON</div>
     <div id="reason" class="data-value">---</div>
-    <div class="data-small">AI decision filter</div>
+    <div class="data-small">Zone execution filter</div>
   </div>
 </section>
 
@@ -2118,40 +885,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 <script>
 /* =========================================================
-   INTRO SOUND
-   ========================================================= */
-let sinnciIntroAudioStarted = false;
-const bullSound = new Audio("bull.mp3");
-const bearSound = new Audio("Bear.mp3");
-const whooshSound = new Audio("whoosh.mp3");
-const impactSound = new Audio("Impact.mp3");
-
-bullSound.preload = "auto";
-bearSound.preload = "auto";
-whooshSound.preload = "auto";
-impactSound.preload = "auto";
-
-function playSINNCISound(audio,volume=1){
-  audio.currentTime=0;
-  audio.volume=volume;
-  audio.play().catch(()=>{});
-}
-
-function startSINNCIIntroSound(){
-  if(sinnciIntroAudioStarted) return;
-  sinnciIntroAudioStarted=true;
-
-  setTimeout(()=>{ playSINNCISound(bullSound,1); },1000);
-  setTimeout(()=>{ playSINNCISound(bearSound,1); },1700);
-  setTimeout(()=>{ playSINNCISound(whooshSound,.8); },2500);
-  setTimeout(()=>{ playSINNCISound(impactSound,1); },3800);
-}
-
-window.addEventListener("load",()=>{ startSINNCIIntroSound(); });
-document.addEventListener("pointerdown",()=>{ startSINNCIIntroSound(); },{once:true});
-
-/* =========================================================
-   AUTH
+   AUTH LOGIC
    ========================================================= */
 let authMode="login";
 
@@ -2161,9 +895,7 @@ function showAuthMode(mode){
   const registerTab=document.getElementById("registerTab");
   const authBtn=document.getElementById("authBtn");
   const message=document.getElementById("authMessage");
-
   message.textContent="";
-  message.className="auth-message";
 
   if(mode==="login"){
     loginTab.classList.add("active");
@@ -2201,13 +933,13 @@ async function handleAuth(event){
       const {data,error}=await supabaseClient.auth.signUp({email,password});
       if(error) throw error;
       if(!data.session){
-        showAuthMessage("Account created. Please check your email and confirm your account.","auth-success");
+        showAuthMessage("Akaun berjaya dicipta. Sila semak emel anda.","auth-success");
       }else{
         await checkUserAccess();
       }
     }
   }catch(error){
-    showAuthMessage(error.message || "Authentication failed.","auth-error");
+    showAuthMessage(error.message || "Pengesahan gagal.","auth-error");
   }finally{
     button.disabled=false;
     button.textContent=authMode==="login" ? "LOGIN" : "CREATE ACCOUNT";
@@ -2217,12 +949,7 @@ async function handleAuth(event){
 async function checkUserAccess(){
   try{
     const {data:{user},error:userError}=await supabaseClient.auth.getUser();
-    if(userError){
-      showAuthMessage(userError.message || "Unable to get user.","auth-error");
-      showAuthScreen();
-      return;
-    }
-    if(!user){
+    if(userError || !user){
       showAuthScreen();
       return;
     }
@@ -2232,13 +959,8 @@ async function checkUserAccess(){
       .eq("id",user.id)
       .maybeSingle();
 
-    if(profileError){
-      showAuthMessage("PROFILE ERROR: "+(profileError.message || "Unable to check account approval."),"auth-error");
-      showAuthScreen();
-      return;
-    }
-    if(!profile){
-      showAuthMessage("PROFILE NOT FOUND. Please contact SINNCI admin.","auth-error");
+    if(profileError || !profile){
+      showAuthMessage("Profil tidak dijumpai. Hubungi admin.","auth-error");
       showAuthScreen();
       return;
     }
@@ -2248,7 +970,7 @@ async function checkUserAccess(){
       showPending();
     }
   }catch(error){
-    showAuthMessage("SYSTEM ERROR: "+(error.message || "Unable to check account approval."),"auth-error");
+    showAuthMessage("Ralat sistem. Sila cuba lagi.","auth-error");
     showAuthScreen();
   }
 }
@@ -2269,7 +991,6 @@ function showApp(){
   document.getElementById("authScreen").style.display="none";
   document.getElementById("pendingScreen").style.display="none";
   document.getElementById("app").style.display="block";
-
   getLivePrice();
   updateSessionDisplay();
   loadEconomicNews();
@@ -2280,12 +1001,6 @@ async function logout(){
   showAuthScreen();
 }
 
-supabaseClient.auth.onAuthStateChange(async(event,session)=>{
-  if(event==="SIGNED_OUT"){
-    showAuthScreen();
-  }
-});
-
 (async function(){
   try{
     const {data:{session}}=await supabaseClient.auth.getSession();
@@ -2295,7 +1010,6 @@ supabaseClient.auth.onAuthStateChange(async(event,session)=>{
     }
     await checkUserAccess();
   }catch(error){
-    console.error(error);
     showAuthScreen();
   }
 })();
@@ -2303,23 +1017,12 @@ supabaseClient.auth.onAuthStateChange(async(event,session)=>{
 /* =========================================================
    TIMEFRAME MODE (SCALPING vs INTRADAY)
    ========================================================= */
-let activeTFMode = "scalp"; // "scalp" | "intra"
+let activeTFMode = "scalp";
 
 function selectTimeframeMode(mode){
   activeTFMode = mode;
   document.getElementById("tfModeScalp").classList.toggle("active", mode === "scalp");
   document.getElementById("tfModeIntra").classList.toggle("active", mode === "intra");
-
-  const h4Card = document.getElementById("tfCardH4");
-  const radarGrid = document.getElementById("directionRadarGrid");
-
-  if(mode === "intra"){
-    h4Card.style.display = "block";
-    radarGrid.classList.add("show-h4");
-  } else {
-    h4Card.style.display = "none";
-    radarGrid.classList.remove("show-h4");
-  }
 
   if(window.lastAnalyzedData){
     renderCompleteDashboard(window.lastAnalyzedData);
@@ -2327,7 +1030,7 @@ function selectTimeframeMode(mode){
 }
 
 /* =========================================================
-   LIVE PRICE (FETCH ONLY ON INITIAL / EXPLICIT CALL)
+   LIVE PRICE & HELPERS
    ========================================================= */
 const priceEl=document.getElementById("price");
 const priceStatus=document.getElementById("priceStatus");
@@ -2341,20 +1044,15 @@ const signalConfirmationText=document.getElementById("signalConfirmationText");
 
 const aiStatus=document.getElementById("aiStatus");
 const aiDescription=document.getElementById("aiDescription");
-
 let currentLivePrice = 0;
 
 async function getLivePrice(){
   try{
     const response=await fetch("/api/price");
     const data=await response.json();
-    if(!response.ok || data.error){
-      throw new Error(data.error || "Market data unavailable");
-    }
+    if(!response.ok || data.error) throw new Error(data.error || "Market data unavailable");
     const price=Number(data.price);
-    if(!Number.isFinite(price)){
-      throw new Error("Invalid price");
-    }
+    if(!Number.isFinite(price)) throw new Error("Invalid price");
     currentLivePrice = price;
     priceEl.textContent=price.toFixed(2);
     document.getElementById("zoneCmpValue").textContent = price.toFixed(2);
@@ -2367,282 +1065,20 @@ async function getLivePrice(){
       currentLivePrice = currentOnScreen;
       document.getElementById("zoneCmpValue").textContent = currentOnScreen.toFixed(2);
     }
-    priceStatus.textContent="API: "+error.message;
-    priceStatus.style.color="var(--red)";
     return currentLivePrice;
   }
 }
 
-/* =========================================================
-   SESSION ENGINE
-   ========================================================= */
-function getTimeParts(timeZone){
-  const parts=new Intl.DateTimeFormat("en-GB",{
-    timeZone,hour:"2-digit",minute:"2-digit",hour12:false,weekday:"short"
-  }).formatToParts(new Date());
-
-  const result={};
-  parts.forEach(part=>{ result[part.type]=part.value; });
-  return {
-    hour:Number(result.hour),
-    minute:Number(result.minute),
-    weekday:result.weekday
-  };
-}
-
-function minutesNow(timeZone){
-  const parts=getTimeParts(timeZone);
-  return parts.hour*60+parts.minute;
-}
-
-function isSessionOpen(timeZone,startHour,endHour){
-  const now=minutesNow(timeZone);
-  const start=startHour*60;
-  const end=endHour*60;
-  if(start<end){
-    return now>=start && now<end;
-  }
-  return now>=start || now<end;
-}
-
-function formatMalaysiaSessionTime(timeZone,startHour,endHour){
-  function convert(hour,minute){
-    const now=new Date();
-    const base=new Date(now.toLocaleString("en-US",{timeZone}));
-    base.setHours(hour,minute,0,0);
-    return new Intl.DateTimeFormat("en-GB",{
-      timeZone:"Asia/Kuala_Lumpur",hour:"2-digit",minute:"2-digit",hour12:false
-    }).format(base);
-  }
-  return convert(startHour,0)+" — "+convert(endHour,0)+" MYT";
-}
-
-function updateSessionCard(cardId,statusId,timeId,activityId,open,activity,time){
-  const card=document.getElementById(cardId);
-  const status=document.getElementById(statusId);
-  const timeEl=document.getElementById(timeId);
-  const activityEl=document.getElementById(activityId);
-
-  if(!card || !status) return;
-
-  card.classList.toggle("open",open);
-  status.className="session-status "+(open ? "open":"closed");
-  status.textContent=open ? "OPEN":"CLOSED";
-  timeEl.textContent=time;
-  activityEl.textContent=activity;
-}
-
-function updateSessionDisplay(){
-  const tokyoOpen=isSessionOpen("Asia/Tokyo",9,18);
-  const londonOpen=isSessionOpen("Europe/London",8,17);
-  const newYorkOpen=isSessionOpen("America/New_York",8,17);
-  const overlapOpen=londonOpen && newYorkOpen;
-
-  updateSessionCard("asiaSession","asiaStatus","asiaTime","asiaActivity",tokyoOpen,"MODERATE",formatMalaysiaSessionTime("Asia/Tokyo",9,18));
-  updateSessionCard("londonSession","londonStatus","londonTime","londonActivity",londonOpen,"HIGH",formatMalaysiaSessionTime("Europe/London",8,17));
-  updateSessionCard("newYorkSession","newyorkStatus","newyorkTime","newyorkActivity",newYorkOpen,"HIGH",formatMalaysiaSessionTime("America/New_York",8,17));
-
-  const overlapCard=document.getElementById("overlapSession");
-  const overlapStatus=document.getElementById("overlapStatus");
-  const overlapTime=document.getElementById("overlapTime");
-  const overlapActivity=document.getElementById("overlapActivity");
-
-  overlapCard.classList.toggle("open",overlapOpen);
-  overlapStatus.className="session-status "+(overlapOpen ? "open":"closed");
-  overlapStatus.textContent=overlapOpen ? "ACTIVE" : "INACTIVE";
-  overlapTime.textContent=overlapOpen ? "LONDON × NEW YORK • MYT" : formatMalaysiaSessionTime("Europe/London",8,17);
-  overlapActivity.textContent="VERY HIGH";
-}
-
-setInterval(updateSessionDisplay,60000);
-
-/* =========================================================
-   NEWS ENGINE & ROBUST RESOLVER
-   ========================================================= */
-let sinnciNews=[];
-let newsFilter="all";
-
-function isUSGoldNews(event){
-  const text=`${event.name || ""} ${event.title || ""}`.toLowerCase().trim();
-  const impact=String(event.impact || "").toLowerCase();
-  if(impact!=="high" && impact!=="medium") return false;
-  const category=String(event.category || "").toLowerCase();
-  if(category.includes("earnings") || category.includes("holiday")) return false;
-
-  const explicitUS=text.includes("us ") || text.includes("u.s.") || text.includes("united states") || text.includes("united states of america");
-  const usSpecific=text.includes("fomc") || text.includes("federal reserve") || text.includes("fed ") || text.includes("non-farm") || text.includes("nonfarm") || text.includes("nfp") || text.includes("adp employment") || text.includes("initial jobless claims") || text.includes("jobless claims") || text.includes("cpi") || text.includes("ppi") || text.includes("gdp") || text.includes("retail sales");
-
-  return explicitUS || usSpecific;
-}
-
-function resolveNewsValue(event, keys) {
-  if (!event) return "—";
-  for (const k of keys) {
-    if (event[k] !== undefined && event[k] !== null) {
-      const str = String(event[k]).trim();
-      if (str !== "" && str !== "null" && str !== "undefined") {
-        return str;
-      }
-    }
-  }
-  return "—";
-}
-
-async function loadEconomicNews(){
-  const newsList=document.getElementById("newsList");
-  if(!newsList) return;
-
-  try{
-    newsList.innerHTML=`<div class="news-empty">Scanning US economic calendar...</div>`;
-    const response=await fetch("/api/news");
-    const data=await response.json();
-    if(!response.ok || !data.success || !Array.isArray(data.events)){
-      throw new Error("Economic news unavailable");
-    }
-    sinnciNews=data.events.filter(isUSGoldNews);
-    renderEconomicNews();
-  }catch(error){
-    console.error("SINNCI US NEWS ERROR:",error);
-    newsList.innerHTML=`<div class="news-empty">US economic news temporarily unavailable</div>`;
-  }
-}
-
-function filterNews(type){
-  newsFilter=type;
-  ["newsAllBtn","newsHighBtn","newsMediumBtn"].forEach(id=>{
-    document.getElementById(id)?.classList.remove("active");
-  });
-  const buttonId=type==="all" ? "newsAllBtn" : type==="high" ? "newsHighBtn" : "newsMediumBtn";
-  document.getElementById(buttonId)?.classList.add("active");
-  renderEconomicNews();
-}
-
-function formatNewsMYT(date){
-  return new Intl.DateTimeFormat("en-MY",{
-    timeZone:"Asia/Kuala_Lumpur",day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",hour12:true
-  }).format(date);
-}
-
-function newsCountdown(date){
-  const difference=new Date(date).getTime()-Date.now();
-  if(difference<=0 && difference>-3600000){
-    return { text:"LIVE NOW", live:true };
-  }
-  if(difference<=-3600000){
-    return { text:"PASSED", live:false };
-  }
-  const totalSeconds=Math.floor(difference/1000);
-  const days=Math.floor(totalSeconds/86400);
-  const hours=Math.floor((totalSeconds%86400)/3600);
-  const minutes=Math.floor((totalSeconds%3600)/60);
-
-  if(days>0) return { text:`IN ${days}D ${hours}H`, live:false };
-  if(hours>0) return { text:`IN ${hours}H ${minutes}M`, live:false };
-  return { text:`IN ${Math.max(0,minutes)}M`, live:false };
-}
-
-function renderEconomicNews(){
-  const newsList=document.getElementById("newsList");
-  if(!newsList) return;
-
-  let list=sinnciNews.filter(event=>{
-    if(newsFilter==="all") return true;
-    return String(event.impact || "").toLowerCase()===newsFilter;
-  });
-
-  list=list
-    .filter(event=>event.time_utc)
-    .sort((a,b)=>new Date(a.time_utc)-new Date(b.time_utc))
-    .filter(event=>{
-      const eventTime=new Date(event.time_utc).getTime();
-      return eventTime>=Date.now()-3600000;
-    })
-    .slice(0,10);
-
-  if(!list.length){
-    newsList.innerHTML=`<div class="news-empty">No US HIGH / MEDIUM impact news available.</div>`;
-    return;
-  }
-
-  newsList.innerHTML=list.map(event=>{
-    const impact=String(event.impact || "medium").toLowerCase();
-    const time=new Date(event.time_utc);
-    const countdown=newsCountdown(time);
-    const name=event.name || event.title || "US Economic News";
-
-    const forecastVal = resolveNewsValue(event, [
-      'forecast', 'consensus', 'estimate', 'projected', 'expectation', 'forecastValue', 'expected'
-    ]);
-    const previousVal = resolveNewsValue(event, [
-      'prior', 'previous', 'prev', 'previousValue'
-    ]);
-    const actualVal = resolveNewsValue(event, [
-      'actual', 'actual_value', 'result', 'actualValue', 'value'
-    ]);
-
-    return `
-      <div class="news-item ${impact}" data-news-time="${time.toISOString()}">
-        <div class="news-top">
-          <div>
-            <div class="news-name">🇺🇸 US</div>
-            <div style="margin-top:5px;font-size:12px;font-weight:900;line-height:1.35;">${name}</div>
-            <div class="news-time">${formatNewsMYT(time)} MYT</div>
-          </div>
-          <div class="news-impact ${impact}">${impact==="high" ? "HIGH" : "MEDIUM"}</div>
-        </div>
-        <div class="news-countdown ${countdown.live ? "news-live" : ""}">
-          ${countdown.live ? "🔴" : "⏳"} ${countdown.text}
-        </div>
-        <div class="news-data">
-          <div class="news-box">
-            <div class="news-label">FORECAST</div>
-            <div class="news-value">${forecastVal}</div>
-          </div>
-          <div class="news-box">
-            <div class="news-label">PREVIOUS</div>
-            <div class="news-value">${previousVal}</div>
-          </div>
-          <div class="news-box">
-            <div class="news-label">ACTUAL</div>
-            <div class="news-value">${actualVal}</div>
-          </div>
-        </div>
-        ${impact==="high" ? `<div class="news-warning">⚠ High volatility potential on XAUUSD</div>` : ""}
-      </div>
-    `;
-  }).join("");
-}
-
-function updateNewsCountdowns(){
-  document.querySelectorAll("[data-news-time]").forEach(item=>{
-    const date=new Date(item.dataset.newsTime);
-    const countdown=item.querySelector(".news-countdown");
-    if(!countdown) return;
-    const result=newsCountdown(date);
-    countdown.className="news-countdown "+(result.live ? "news-live" : "");
-    countdown.textContent=(result.live ? "🔴 " : "⏳ ")+result.text;
-  });
-}
-
-setInterval(updateNewsCountdowns,30000);
-setInterval(loadEconomicNews,300000);
-
-/* =========================================================
-   TEXT & DIRECTION FORMATTERS
-   ========================================================= */
 function setDirection(id,value){
   const el=document.getElementById(id);
   if(!el) return;
   const str = String(value || "---").toUpperCase();
   el.textContent=str;
   el.className="dir";
-  
-  if(str.includes("BULLISH") || str.includes("BUY")){
+  if(str.includes("BULLISH") || str.includes("BUY") || str.includes("IN_ZONE") || str.includes("READY")){
     el.classList.add("bullish");
   }else if(str.includes("BEARISH") || str.includes("SELL")){
     el.classList.add("bearish");
-  }else if(str.includes("CHECKING") || str.includes("BREAK")){
-    el.classList.add("checking-color");
   }else{
     el.classList.add("neutral");
   }
@@ -2650,416 +1086,172 @@ function setDirection(id,value){
 
 function setText(id,value){
   const el=document.getElementById(id);
-  if(el){
-    el.textContent=value ?? "---";
-  }
+  if(el) el.textContent=value ?? "---";
 }
 
-function formatSetupPrice(value){
-  if(value===null || value===undefined || value==="" || !Number.isFinite(Number(value))){
-    return "---";
-  }
-  return Number(value).toFixed(2);
+function formatPrice(value){
+  return (value !== null && value !== undefined && Number.isFinite(Number(value)))
+    ? Number(value).toFixed(2)
+    : "---";
 }
 
-function formatZoneDisplay(zone, fallbackEntry){
+function formatZoneDisplay(zone){
   if (zone && Number.isFinite(Number(zone.low)) && Number.isFinite(Number(zone.high))) {
     return `${Number(zone.low).toFixed(2)} – ${Number(zone.high).toFixed(2)}`;
   }
-  return formatSetupPrice(fallbackEntry);
+  return "---";
 }
 
 /* =========================================================
-   ROBUST API DATA EXTRACTOR (BACKWARD & NEW COMPATIBLE)
-   ========================================================= */
-function extractSetup(modeData, rootData){
-  const source = modeData || rootData || {};
-  
-  // Resolve direction
-  const direction = rootData?.signal?.direction 
-    || source.signal 
-    || source.direction 
-    || rootData?.zone?.type 
-    || (source.buy?.score >= source.sell?.score ? "BUY" : "SELL");
-
-  const branch = source[direction?.toLowerCase()] || {};
-
-  const zoneObj = rootData?.zone || source.zone || branch.zone || null;
-  
-  // Resolve signal status without being misled by API status: "success"
-  let rawSignal = rootData?.signalStatus || rootData?.signal?.status || source.signalStatus || source.status || branch.status || "WAIT";
-  if (rawSignal === "success") {
-    rawSignal = rootData?.signalStatus || rootData?.signal?.status || "WAIT";
-  }
-
-  const zoneStatus = rootData?.zone?.status || source.zoneStatus || zoneObj?.status || "WATCH";
-  const confirmation = rootData?.signal?.confirmation || source.confirmation || branch.confirmation || rootData?.waitReason || "Waiting for M5 break";
-
-  return {
-    direction: direction,
-    zoneStatus: zoneStatus,
-    signalStatus: rawSignal,
-    confirmation: confirmation,
-    score: Number(source.score ?? rootData?.score ?? branch.score ?? 85),
-    zone: zoneObj,
-    entry: source.entry ?? rootData?.entry ?? branch.entry ?? null,
-    sl: source.sl ?? rootData?.risk?.sl ?? rootData?.sl ?? branch.sl ?? null,
-    tp1: source.tp1 ?? rootData?.tp1 ?? branch.tp1 ?? null,
-    tp2: source.tp2 ?? rootData?.tp2 ?? branch.tp2 ?? null,
-    reason: source.reason ?? rootData?.reason ?? branch.reason ?? "Structure mapped based on higher TF alignment."
-  };
-}
-
-function renderSetupCard(type, modeData, rootData){
-  const prefix = type === "scalping" ? "scalping" : "intraday";
-  const setup = extractSetup(modeData, rootData);
-
-  const card = document.getElementById(prefix+"Card");
-  const statusEl = document.getElementById(prefix+"Status");
-  const directionEl = document.getElementById(prefix+"Direction");
-  const arrowEl = document.getElementById(prefix+"Arrow");
-  const directionTextEl = document.getElementById(prefix+"DirectionText");
-  const scoreEl = document.getElementById(prefix+"Score");
-  const entryEl = document.getElementById(prefix+"Entry");
-  const slEl = document.getElementById(prefix+"SL");
-  const tp1El = document.getElementById(prefix+"TP1");
-  const tp2El = document.getElementById(prefix+"TP2");
-  const reasonEl = document.getElementById(prefix+"Reason");
-  const confirmEl = document.getElementById(prefix+"Confirm");
-
-  if(!card) return;
-
-  const direction = setup.direction || "BUY";
-  const status = String(setup.signalStatus || "WAIT").toUpperCase();
-  const isBuy = direction === "BUY";
-  const isSell = direction === "SELL";
-  const isReady = status === "READY" || status === "SIGNAL" || status === "BUY READY" || status === "SELL READY";
-  const isChecking = status === "M1_CHECKING" || status === "M1_CONFIRMATION" || status === "M1 CHECKING";
-
-  card.className = "setup-card " + (isBuy ? "buy" : isSell ? "sell" : "wait");
-  statusEl.className = "setup-status " + (isReady ? "ready" : isChecking ? "checking" : "wait");
-  statusEl.textContent = isReady ? (isBuy ? "BUY READY" : "SELL READY") : (isChecking ? "M1 CHECKING" : "WAIT");
-
-  if(isBuy){
-    directionEl.className = "setup-direction buy";
-    arrowEl.textContent = "↑";
-    directionTextEl.textContent = "BUY";
-  } else if(isSell){
-    directionEl.className = "setup-direction sell";
-    arrowEl.textContent = "↓";
-    directionTextEl.textContent = "SELL";
-  } else {
-    directionEl.className = "setup-direction wait";
-    arrowEl.textContent = "⏳";
-    directionTextEl.textContent = "WAIT";
-  }
-
-  scoreEl.textContent = "SCORE " + setup.score;
-  entryEl.textContent = formatZoneDisplay(setup.zone, setup.entry);
-  slEl.textContent = isReady ? formatSetupPrice(setup.sl) : "Waiting";
-  tp1El.textContent = isReady ? formatSetupPrice(setup.tp1) : "Waiting";
-  tp2El.textContent = isReady ? formatSetupPrice(setup.tp2) : "Waiting";
-
-  reasonEl.textContent = setup.reason || "Structure mapped based on higher TF alignment.";
-  confirmEl.textContent = setup.confirmation ? `Gate: ${setup.confirmation}` : (isReady ? "✓ Confirmed" : `⏳ Status: ${status}`);
-}
-
-/* =========================================================
-   DASHBOARD DISPATCHER (SYNCS EXACTLY WITH ANALYZE.JS)
+   DASHBOARD DISPATCHER
    ========================================================= */
 function renderCompleteDashboard(data){
   if(!data) return;
 
-  // 1. KEMAS KINI CMP (CURRENT PRICE)
-  const cmp = Number(data.cmp || data.market?.price || currentLivePrice || 0);
+  const cmp = Number(data.cmp || currentLivePrice || 0);
   if(cmp > 0){
     currentLivePrice = cmp;
     priceEl.textContent = cmp.toFixed(2);
     document.getElementById("zoneCmpValue").textContent = cmp.toFixed(2);
   }
 
-  // JIKA API MEMULANGKAN STATUS "NO VALID SETUP"
-  if (data.setup === null && data.reason) {
-    document.getElementById("zoneRange").textContent = "----.– – ----.–";
-    document.getElementById("zoneStatusText").textContent = "WAIT";
-    document.getElementById("zoneReasonText").textContent = data.reason;
-    signalName.textContent = "WAIT";
-    signalSub.textContent = data.reason;
-    aiStatus.textContent = "WAIT";
-    aiStatus.style.color = "var(--yellow)";
-    aiDescription.textContent = data.reason;
-    setDirection("h4", data.direction?.H4 || "---");
-    setDirection("h1", data.direction?.H1 || "---");
-    setDirection("m15", data.direction?.M15 || "---");
-    setDirection("m5", "WAIT");
-    setDirection("m1", "WAIT");
-    return;
-  }
+  const currentSetup = activeTFMode === "scalp" ? data.scalping : data.intraday;
+  const direction = currentSetup?.direction || data.signal?.direction || "BUY";
+  const zoneObj = currentSetup?.zone || data.zone;
 
-  // 2. DAPATKAN SETUP MENGIKUT MODE (SCALPING ATAU INTRADAY)
-  const scalpSetup = extractSetup(data.scalping, data);
-  const intraSetup = extractSetup(data.intraday, data);
-  const currentSetup = activeTFMode === "scalp" ? scalpSetup : intraSetup;
+  // 1. ZONE PANEL (20 PIPS)
+  document.getElementById("zoneTypeTitle").textContent = `${direction} ZONE (20 PIPS)`;
+  document.getElementById("zoneRange").textContent = formatZoneDisplay(zoneObj);
+  document.getElementById("zoneStatusText").textContent = zoneObj?.status || "WATCH";
+  document.getElementById("zoneScoreText").textContent = currentSetup?.score || 65;
+  document.getElementById("zoneReasonText").textContent = data.punca?.source || "SNR BUCU";
 
-  const direction = currentSetup.direction || data.signal?.direction || data.zone?.type || "BUY";
-  const zoneObj = data.zone || currentSetup.zone;
-
-  // 3. ZONE SETUP PANEL (LOCKED & NO CHASE)
-  const zoneTypeTitle = document.getElementById("zoneTypeTitle");
-  const zoneRangeText = document.getElementById("zoneRange");
-  const zoneStatusText = document.getElementById("zoneStatusText");
-  const zoneScoreText = document.getElementById("zoneScoreText");
-  const zoneReasonText = document.getElementById("zoneReasonText");
-  const zoneLockBadge = document.getElementById("zoneLockBadge");
-
-  zoneTypeTitle.textContent = `${direction} ZONE`;
-
-  if(zoneObj && Number.isFinite(Number(zoneObj.low)) && Number.isFinite(Number(zoneObj.high))){
-    const low = Number(zoneObj.low).toFixed(2);
-    const high = Number(zoneObj.high).toFixed(2);
-    zoneRangeText.textContent = `${low} – ${high}`;
-    zoneStatusText.textContent = zoneObj.status || currentSetup.zoneStatus || "WATCH";
-    zoneLockBadge.textContent = (zoneObj.locked !== false) ? "LOCKED 🔒" : "ACTIVE";
-  } else {
-    zoneRangeText.textContent = "----.– – ----.–";
-    zoneStatusText.textContent = "WATCH";
-  }
-
-  zoneScoreText.textContent = currentSetup.score || data.score || 85;
-  zoneReasonText.textContent = currentSetup.reason || data.punca?.source || "SUPPORT / PULLBACK";
-
-  // 4. M5 STATUS CHECK (WAIT vs CMP BREAK CONFIRMED)
-  let m5Status = "WAIT";
-  const m5Break = data.audit?.m5Break === true;
-  const m5Details = String(data.audit?.m5BreakDetails || data.audit?.m5Status || data.direction?.M5 || "").toUpperCase();
-  if (m5Break || m5Details.includes("BREAK") || m5Details.includes("CMP BREAK CONFIRMED")) {
-    m5Status = "CMP BREAK CONFIRMED";
-  }
-  setDirection("m5", m5Status);
-
-  // 5. M1 STATUS CHECK (WAIT, CHECKING, BULLISH/BEARISH CONFIRMED, NO CONFIRMATION)
-  let m1Status = "WAIT";
-  const m1Confirmed = data.audit?.m1Confirmed === true;
-  const m1Details = String(data.audit?.m1Details || data.audit?.m1Status || data.m1?.status || "").toUpperCase();
-  
-  // Resolve raw signal status
-  let rawSignalStatus = String(data.signalStatus || data.signal?.status || currentSetup.signalStatus || "WAIT").toUpperCase();
-  if (rawSignalStatus === "SUCCESS") {
-    rawSignalStatus = String(data.signalStatus || data.signal?.status || "WAIT").toUpperCase();
-  }
-
-  if (m1Confirmed || rawSignalStatus === "READY") {
-    m1Status = direction === "BUY" ? "BULLISH CONFIRMED" : "BEARISH CONFIRMED";
-  } else if (m1Details.includes("FAILED") || m1Details.includes("NO CONFIRMATION")) {
-    m1Status = "NO CONFIRMATION";
-  } else if (m5Status === "CMP BREAK CONFIRMED" || rawSignalStatus === "M1_CHECKING" || rawSignalStatus === "M1_CONFIRMATION" || m1Details.includes("CHECKING")) {
-    m1Status = "CHECKING";
-  } else {
-    m1Status = "WAIT";
-  }
-  setDirection("m1", m1Status);
-
-  // 6. ENTRY SIGNAL DISPLAY (WAIT, M1 CHECKING, BUY READY, SELL READY, NO CONFIRMATION)
-  let displaySignal = "WAIT";
-  if (rawSignalStatus === "READY" || (m1Status.includes("CONFIRMED") && rawSignalStatus === "SIGNAL")) {
-    displaySignal = direction === "BUY" ? "BUY READY" : "SELL READY";
-  } else if (m1Status === "NO CONFIRMATION") {
-    displaySignal = "NO CONFIRMATION";
-  } else if (m5Status === "CMP BREAK CONFIRMED" || m1Status === "CHECKING" || rawSignalStatus.includes("CHECKING")) {
-    displaySignal = "M1 CHECKING";
-  } else {
-    displaySignal = "WAIT";
-  }
-
-  // Flow Breadcrumbs Tracker
-  const stepZone = document.getElementById("stepZone");
-  const stepM5 = document.getElementById("stepM5");
-  const stepM1 = document.getElementById("stepM1");
+  // 2. SIGNAL CARD & STEP TRACKER
+  const isReady = (currentSetup?.status === "READY" || data.signalStatus === "READY");
+  const stepCMP = document.getElementById("stepCMP");
   const stepSignal = document.getElementById("stepSignal");
 
-  stepZone.className = "step-node done";
-  stepM5.className = "step-node";
-  stepM1.className = "step-node";
-  stepSignal.className = "step-node";
+  signalCard.className = "card signal-card " + (isReady ? "ready" : "wait");
+  signalIcon.textContent = isReady ? (direction === "BUY" ? "↑" : "↓") : "⏳";
+  signalName.textContent = isReady ? `${direction} READY` : "WAIT";
+  signalSub.textContent = isReady ? "Zon bucu aktif & sedia untuk eksekusi" : "Memantau harga menghampiri zon bucu";
+  signalConfirmationText.textContent = isReady ? "Harga kini dalam zon!" : "Menunggu CMP masuk zon";
+  setText("score", `SCORE ${currentSetup?.score || 65}`);
 
-  signalCard.className = "card signal-card";
-  const confirmationMsg = data.signal?.confirmation || currentSetup?.confirmation || data.waitReason || "Waiting for M5 break";
-  signalConfirmationText.textContent = confirmationMsg;
-
-  if (displaySignal === "BUY READY" || displaySignal === "SELL READY") {
-    signalCard.classList.add("ready");
-    signalIcon.textContent = displaySignal === "BUY READY" ? "↑" : "↓";
-    signalName.textContent = displaySignal;
-    signalSub.textContent = "M5 CMP Break + M1 Confirmation Verified";
-
-    stepM5.className = "step-node done";
-    stepM1.className = "step-node done";
+  if (isReady) {
+    stepCMP.className = "step-node done";
     stepSignal.className = "step-node done";
-
     aiStatus.textContent = direction;
     aiStatus.style.color = direction === "BUY" ? "var(--green)" : "var(--red)";
-    aiDescription.textContent = `${displaySignal} confirmed. Trade plan parameters active.`;
+    aiDescription.textContent = `${direction} READY. Pelan dagangan sedia untuk eksekusi.`;
 
-    // UNLOCK TRADE PLAN
     document.getElementById("tradePlanGrid").style.display = "grid";
     document.getElementById("tradePlanGate").style.display = "none";
-
-    const entryVal = currentSetup.entry || data.entry || cmp;
-    const slVal = data.risk?.sl || currentSetup.sl || data.sl || (direction === "BUY" ? cmp - 3.0 : cmp + 3.0);
-    const tp1Val = currentSetup.tp1 || data.tp1 || (direction === "BUY" ? cmp + 6.0 : cmp - 6.0);
-    const tp2Val = currentSetup.tp2 || data.tp2 || (direction === "BUY" ? cmp + 12.0 : cmp - 12.0);
-
-    setText("planEntry", formatSetupPrice(entryVal));
-    setText("planSL", formatSetupPrice(slVal));
-    setText("planTP1", formatSetupPrice(tp1Val));
-    setText("planTP2", formatSetupPrice(tp2Val));
-    setText("planPunca", data.punca?.price ? `${Number(data.punca.price).toFixed(2)} (${data.punca.source || "S/R"})` : (zoneObj ? `${zoneObj.low}–${zoneObj.high}` : "Structure S/R"));
-
-  } else if (displaySignal === "M1 CHECKING") {
-    signalCard.classList.add("checking");
-    signalIcon.textContent = "⚡";
-    signalName.textContent = "M1 CHECKING";
-    signalSub.textContent = "M5 CMP break triggered → M1 confirmation in progress...";
-
-    stepM5.className = "step-node done";
-    stepM1.className = "step-node active";
-
-    aiStatus.textContent = "CHECKING";
-    aiStatus.style.color = "var(--blue)";
-    aiDescription.textContent = "M5 CMP break detected. Engine is validating M1 momentum.";
-
-    // LOCK TRADE PLAN
-    document.getElementById("tradePlanGrid").style.display = "none";
-    document.getElementById("tradePlanGate").style.display = "block";
-
-  } else if (displaySignal === "NO CONFIRMATION") {
-    signalCard.classList.add("noconfirm");
-    signalIcon.textContent = "✕";
-    signalName.textContent = "NO CONFIRMATION";
-    signalSub.textContent = "M1 rejected continuation or momentum not aligned.";
-
-    stepM5.className = "step-node done";
-    stepM1.className = "step-node";
-
-    aiStatus.textContent = "REJECTED";
-    aiStatus.style.color = "var(--red)";
-    aiDescription.textContent = "M1 failed to confirm structure. Awaiting fresh structure.";
-
-    // LOCK TRADE PLAN
-    document.getElementById("tradePlanGrid").style.display = "none";
-    document.getElementById("tradePlanGate").style.display = "block";
-
   } else {
-    // WAIT
-    signalCard.classList.add("wait");
-    signalIcon.textContent = "⏳";
-    signalName.textContent = "WAIT";
-    signalSub.textContent = confirmationMsg;
-
+    stepCMP.className = "step-node";
+    stepSignal.className = "step-node";
     aiStatus.textContent = "WAIT";
     aiStatus.style.color = "var(--yellow)";
-    aiDescription.textContent = "Zone locked. Waiting for M5 CMP/Structure break trigger.";
+    aiDescription.textContent = "Zon dikenal pasti. Menunggu harga menyentuh sempadan zon.";
 
-    // LOCK TRADE PLAN
     document.getElementById("tradePlanGrid").style.display = "none";
     document.getElementById("tradePlanGate").style.display = "block";
   }
 
-  // 7. MULTI-TIMEFRAME RADAR (H4, H1, M15)
-  setDirection("h4", data.direction?.H4);
-  setDirection("h1", data.bias || data.direction?.H1);
-  setDirection("m15", data.structure?.M15 || data.direction?.M15);
+  // 3. TRADE PLAN (SL 35 PIPS)
+  const plan = currentSetup?.plan;
+  setText("planEntry", formatPrice(plan?.entry || cmp));
+  setText("planSL", formatPrice(plan?.sl));
+  setText("planTP1", formatPrice(plan?.tp1));
+  setText("planTP2", formatPrice(plan?.tp2));
+  setText("planPunca", formatPrice(zoneObj?.pivot));
 
-  // 8. MARKET INTELLIGENCE & SCORE
-  if(data.punca){
-    setText("puncaSource", data.punca.source || "---");
-  }
-  setText("risk", "3.00");
-  setText("maxRisk", "3.00 (30 pips)");
-  setText("reason", currentSetup.reason || data.reason || "Key structure monitored.");
+  // 4. RADAR MULTI-TIMEFRAME (H1, M15, M5, M1)
+  setDirection("h1", data.direction?.H1);
+  setDirection("m15", data.direction?.M15);
+  setDirection("m5", data.direction?.M5);
+  setDirection("m1", data.direction?.M1);
 
-  const scalpBuyScore = Number(data.scalping?.buy?.score || 0);
-  const scalpSellScore = Number(data.scalping?.sell?.score || 0);
-  const intraBuyScore = Number(data.intraday?.buy?.score || 0);
-  const intraSellScore = Number(data.intraday?.sell?.score || 0);
+  // 5. SUB-CARDS (SCALPING & INTRADAY)
+  renderSetupSubCard("scalping", data.scalping);
+  renderSetupSubCard("intraday", data.intraday);
 
-  const finalBuyScore = Math.max(scalpBuyScore, intraBuyScore, Number(data.scores?.buy || (direction === "BUY" ? currentSetup.score : 0)));
-  const finalSellScore = Math.max(scalpSellScore, intraSellScore, Number(data.scores?.sell || (direction === "SELL" ? currentSetup.score : 0)));
-  setText("score", `BUY ${finalBuyScore} • SELL ${finalSellScore}`);
+  // 6. INTELLIGENCE
+  setText("puncaSource", data.punca?.source || "ZONE_BUCU_SNR");
+  setText("risk", "3.50");
+  setText("maxRisk", "35 pips ($3.50)");
+  setText("reason", currentSetup?.reasons?.[0] || "Menunggu reaksi zon bucu.");
+}
 
-  // Render Sub-Cards Scalping & Intraday
-  renderSetupCard("scalping", data.scalping, data);
-  renderSetupCard("intraday", data.intraday, data);
+function renderSetupSubCard(type, setupData){
+  if(!setupData) return;
+  const prefix = type === "scalping" ? "scalping" : "intraday";
+  const card = document.getElementById(prefix+"Card");
+  const isReady = setupData.status === "READY";
+  const isBuy = setupData.direction === "BUY";
+
+  card.className = "setup-card " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
+  document.getElementById(prefix+"Status").className = "setup-status " + (isReady ? "ready" : "wait");
+  document.getElementById(prefix+"Status").textContent = isReady ? (isBuy ? "BUY READY" : "SELL READY") : "WAIT";
+
+  const dirEl = document.getElementById(prefix+"Direction");
+  dirEl.className = "setup-direction " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
+  document.getElementById(prefix+"Arrow").textContent = isReady ? (isBuy ? "↑" : "↓") : "⏳";
+  document.getElementById(prefix+"DirectionText").textContent = setupData.direction;
+  document.getElementById(prefix+"Score").textContent = "SCORE " + setupData.score;
+
+  document.getElementById(prefix+"Entry").textContent = formatZoneDisplay(setupData.zone);
+  document.getElementById(prefix+"SL").textContent = isReady ? formatPrice(setupData.plan?.sl) : "Waiting";
+  document.getElementById(prefix+"TP1").textContent = isReady ? formatPrice(setupData.plan?.tp1) : "Waiting";
+  document.getElementById(prefix+"TP2").textContent = isReady ? formatPrice(setupData.plan?.tp2) : "Waiting";
+  document.getElementById(prefix+"Reason").textContent = setupData.reasons?.[0] || "";
 }
 
 /* =========================================================
-   ANALYZE MARKET (GET METHOD DENGAN COOLDOWN 60 SAAT)
+   ANALYZE ACTION (GET METHOD)
    ========================================================= */
 async function analyze(){
   analyzeBtn.disabled = true;
   analyzeBtn.textContent = "◌ ANALYZING MARKET...";
-
   aiStatus.textContent = "SCANNING";
   aiStatus.style.color = "var(--gold)";
-  aiDescription.textContent = "Running full multi-timeframe analysis (H4/H1/M15/M5/M1)...";
-
-  signalCard.className = "card signal-card wait";
-  signalIcon.textContent = "◌";
-  signalName.textContent = "ANALYZING";
-  signalSub.textContent = "Identifying locked structural zones...";
+  aiDescription.textContent = "Mengimbas data H1, M15, M5 & M1...";
 
   try{
     await getLivePrice();
-
-    // Kaedah GET digunakan untuk mematuhi sekatan api/analyze.js
     const response = await fetch("/api/analyze", { 
       method: "GET",
       headers: { "Accept": "application/json" }
     });
-
     const data = await response.json();
 
-    // Semak ralat daripada backend
     if(!response.ok || data.status === "error" || data.success === false){
-      const errDetail = data.details || data.error || "Analysis failed";
-      const errSource = data.source ? ` [${data.source}]` : "";
-      throw new Error(`${errDetail}${errSource}`);
+      throw new Error(data.error || "Analysis failed");
     }
 
     window.lastAnalyzedData = data;
     renderCompleteDashboard(data);
-
     updateSessionDisplay();
     startCooldown(60);
   }catch(error){
     console.error("SINNCI ANALYZE ERROR:", error);
-    signalCard.className = "card signal-card noconfirm";
-    signalIcon.textContent = "⚠";
     signalName.textContent = "ERROR";
     signalSub.textContent = error.message;
     aiStatus.textContent = "ERROR";
     aiStatus.style.color = "var(--red)";
     aiDescription.textContent = error.message;
-    setText("reason", error.message);
     startCooldown(60);
   }
 }
 
-/* =========================================================
-   COOLDOWN (60 SAAT)
-   ========================================================= */
-let cooldownTimer = null;
-
 function startCooldown(seconds = 60){
-  clearInterval(cooldownTimer);
   let remaining = seconds;
   analyzeBtn.disabled = true;
   analyzeBtn.textContent = `ANALYZED • COOLDOWN (${remaining}s)`;
-
-  cooldownTimer = setInterval(() => {
+  const timer = setInterval(() => {
     remaining--;
     if(remaining <= 0){
-      clearInterval(cooldownTimer);
+      clearInterval(timer);
       analyzeBtn.disabled = false;
       analyzeBtn.textContent = "✦ ANALYZE MARKET";
       return;
@@ -3069,8 +1261,75 @@ function startCooldown(seconds = 60){
 }
 
 /* =========================================================
-   INIT
+   SESSION & NEWS ENGINES
    ========================================================= */
+function updateSessionDisplay(){
+  const now = new Date();
+  const mytHours = (now.getUTCHours() + 8) % 24;
+
+  const tokyoOpen = mytHours >= 8 && mytHours < 17;
+  const londonOpen = mytHours >= 15 && mytHours < 24;
+  const newYorkOpen = mytHours >= 20 || mytHours < 5;
+  const overlapOpen = londonOpen && newYorkOpen;
+
+  setSessionCard("asiaSession","asiaStatus",tokyoOpen,"08:00 — 17:00 MYT");
+  setSessionCard("londonSession","londonStatus",londonOpen,"15:00 — 00:00 MYT");
+  setSessionCard("newYorkSession","newyorkStatus",newYorkOpen,"20:00 — 05:00 MYT");
+  setSessionCard("overlapSession","overlapStatus",overlapOpen,"20:00 — 00:00 MYT");
+}
+
+function setSessionCard(cardId, statusId, isOpen, timeStr){
+  const card = document.getElementById(cardId);
+  const status = document.getElementById(statusId);
+  if(!card || !status) return;
+  card.classList.toggle("open", isOpen);
+  status.className = "session-status " + (isOpen ? "open" : "closed");
+  status.textContent = isOpen ? "OPEN" : "CLOSED";
+  const timeEl = card.querySelector(".session-time");
+  if(timeEl) timeEl.textContent = timeStr;
+}
+
+let sinnciNews=[];
+let newsFilter="all";
+
+async function loadEconomicNews(){
+  const newsList=document.getElementById("newsList");
+  if(!newsList) return;
+  try{
+    const response=await fetch("/api/news");
+    const data=await response.json();
+    if(response.ok && data.success && Array.isArray(data.events)){
+      sinnciNews=data.events;
+      renderEconomicNews();
+    }
+  }catch(e){
+    newsList.innerHTML=`<div class="news-empty">US economic news temporarily unavailable</div>`;
+  }
+}
+
+function renderEconomicNews(){
+  const newsList=document.getElementById("newsList");
+  if(!newsList || !sinnciNews.length) return;
+  newsList.innerHTML = sinnciNews.slice(0, 5).map(event => `
+    <div class="news-item medium">
+      <div class="news-top">
+        <div>
+          <div class="news-name">${event.name || event.title || "US News"}</div>
+          <div class="news-time">${event.time_utc || "Today"}</div>
+        </div>
+        <div class="news-impact medium">${event.impact || "MED"}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function filterNews(type){
+  newsFilter = type;
+  document.querySelectorAll(".news-filter").forEach(b => b.classList.remove("active"));
+  document.getElementById(`news${type.charAt(0).toUpperCase() + type.slice(1)}Btn`)?.classList.add("active");
+  renderEconomicNews();
+}
+
 analyzeBtn.addEventListener("click", analyze);
 </script>
 

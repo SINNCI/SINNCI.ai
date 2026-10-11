@@ -1,547 +1,1611 @@
 /**
+ * ============================================================================
  * SINNCI AI — XAUUSD MARKET ANALYSIS ENGINE
  * File: api/analyze.js
  *
- * Rules:
- * - Zone: 20 pips ($2.00) uniform for both modes (bucu SNR based)
- * - SL: 45 pips ($4.50 / 450 points) uniform for both modes
- * - Scalping TP: TP1 60 pips ($6.00 / 600 pts), TP2 120 pips ($12.00 / 1200 pts)
- * - Intraday TP: TP1 150 pips ($15.00 / 1500 pts), TP2 230 pips ($23.00 / 2300 pts)
- * - TF Scalping: H1 -> M5 -> M1 (Trend Lock: CMP + MA 8 + MA 20 H1)
- * - TF Intraday: H1 -> M15 -> M5 (Trend Lock: CMP + EMA 50 + MA 20 H1)
- * - Techniques: SNR Bucu + Breakout & React + Reentry MA 20 Pullback
+ * NOT an automated trading/execution system.
  *
- * Data source: Twelve Data time_series
+ * TIMEFRAMES:
+ * D1  = broad market context
+ * H1  = trend / directional bias
+ * M15 = intraday structure and entry mapping
+ * M5  = scalping structure and entry mapping
+ *
+ * METHODS:
+ * - EMA20 / EMA50
+ * - Support & Resistance (SNR)
+ * - Swing structure
+ * - Breakout & retest
+ * - Reentry / pullback
+ * - Early entry-zone mapping
+ * - Structural stop loss
+ * - SNR-based take profit
+ *
+ * OPTIONAL PERSISTENT SIGNAL LOCK:
+ * Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+ * and create the table described after this code.
+ *
+ * Environment variables:
+ * TWELVE_DATA_API_KEY
+ * SUPABASE_URL                 (optional)
+ * SUPABASE_SERVICE_ROLE_KEY    (optional)
+ * ============================================================================
  */
 
 const SYMBOL = "XAU/USD";
 const POINT_VALUE = 0.01;
 
 const SETTINGS = {
-  // 20 pips = 200 points = $2.00 zon ketebalan
   zoneThickness: 2.00,
-  stopLossDistance: 4.50, // 45 pips = 450 points = $4.50 SL
+  candleCount: 50,
+  fetchTimeoutMs: 15000,
 
   scalping: {
-    tp1Distance: 6.00,    // 60 pips ($6.00 / 600 pts)
-    tp2Distance: 12.00,   // 120 pips ($12.00 / 1200 pts)
-    minimumScore: 65
+    minimumScore: 65,
+    lockMinutes: 720,
+    maxRiskDistance: 8.00,
+    maxTargetDistance: 30.00,
   },
 
   intraday: {
-    tp1Distance: 15.00,   // 150 pips ($15.00 / 1500 pts)
-    tp2Distance: 23.00,   // 230 pips ($23.00 / 2300 pts)
-    minimumScore: 65
+    minimumScore: 65,
+    lockMinutes: 4320,
+    maxRiskDistance: 15.00,
+    maxTargetDistance: 80.00,
   },
-
-  candleCount: 50,
-  fetchTimeoutMs: 15000
 };
 
-// TF H4 dibuang untuk kelajuan API; H1, M15, M5, M1 dikekalkan
 const TIMEFRAMES = {
-  H1: { interval: "1h", ms: 60 * 60 * 1000 },
-  M15: { interval: "15min", ms: 15 * 60 * 1000 },
-  M5: { interval: "5min", ms: 5 * 60 * 1000 },
-  M1: { interval: "1min", ms: 60 * 1000 }
+  D1: {
+    interval: "1day",
+    ms: 86400000,
+  },
+  H1: {
+    interval: "1h",
+    ms: 3600000,
+  },
+  M15: {
+    interval: "15min",
+    ms: 900000,
+  },
+  M5: {
+    interval: "5min",
+    ms: 300000,
+  },
 };
 
-function responseError(res, statusCode, code, message, details = null) {
-  return res.status(statusCode).json({
+// -----------------------------------------------------------------------------
+// GENERAL HELPERS
+// -----------------------------------------------------------------------------
+
+function responseError(message, status = 500, extra = {}) {
+  return {
     success: false,
-    status: "error",
-    code,
     error: message,
-    details,
-    symbol: "XAUUSD",
-    source: "SINNCI AI",
-    timestamp: new Date().toISOString()
-  });
+    status,
+    ...extra,
+  };
 }
 
-function toNumber(value) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+function toNumber(value, fallback = null) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function roundPrice(value) {
-  return value === null || !Number.isFinite(value)
-    ? null
-    : Number(value.toFixed(2));
+  return Math.round(value * 100) / 100;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function average(values) {
-  if (!values.length) return null;
+  if (!values.length) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function calculateEMA(candles, period = 20) {
-  if (!candles || !candles.length) return 0;
-  if (candles.length < period) return candles[candles.length - 1].close;
-  const k = 2 / (period + 1);
-  let ema = candles.slice(0, period).reduce((acc, c) => acc + c.close, 0) / period;
-  for (let i = period; i < candles.length; i++) {
-    ema = candles[i].close * k + ema * (1 - k);
+function calculateEMA(values, period) {
+  if (!Array.isArray(values) || values.length < period) {
+    return null;
   }
-  return ema;
+
+  const multiplier = 2 / (period + 1);
+
+  let ema = average(values.slice(0, period));
+
+  for (let i = period; i < values.length; i++) {
+    ema = values[i] * multiplier + ema * (1 - multiplier);
+  }
+
+  return roundPrice(ema);
 }
 
 function parseCandleTime(value) {
-  if (!value) return null;
-  const raw = String(value).trim();
-  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)
-    ? raw.replace(" ", "T") + "Z"
-    : raw;
+  if (!value) return 0;
 
-  const timestamp = Date.parse(normalized);
-  return Number.isFinite(timestamp) ? timestamp : null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function normalizeCandles(values) {
   if (!Array.isArray(values)) return [];
 
   return values
-    .map((item) => {
-      const time = parseCandleTime(item.datetime);
-      return {
-        time,
-        datetime: item.datetime || null,
-        open: toNumber(item.open),
-        high: toNumber(item.high),
-        low: toNumber(item.low),
-        close: toNumber(item.close)
-      };
-    })
-    .filter((candle) =>
-      candle.time !== null &&
-      candle.open !== null &&
-      candle.high !== null &&
-      candle.low !== null &&
-      candle.close !== null &&
-      candle.high >= candle.low
+    .map((candle) => ({
+      datetime: candle.datetime || candle.date || null,
+      open: toNumber(candle.open),
+      high: toNumber(candle.high),
+      low: toNumber(candle.low),
+      close: toNumber(candle.close),
+      volume: toNumber(candle.volume, 0),
+    }))
+    .filter(
+      (candle) =>
+        candle.open !== null &&
+        candle.high !== null &&
+        candle.low !== null &&
+        candle.close !== null
     )
-    .sort((a, b) => a.time - b.time);
+    .sort(
+      (a, b) =>
+        parseCandleTime(a.datetime) - parseCandleTime(b.datetime)
+    );
 }
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function getCloses(candles) {
+  return candles.map((candle) => candle.close);
+}
 
-async function fetchCandles(key, timeframeKey) {
+function getLatest(candles) {
+  return candles[candles.length - 1] || null;
+}
+
+function getRange(candles) {
+  if (!candles.length) return null;
+
+  return {
+    high: Math.max(...candles.map((candle) => candle.high)),
+    low: Math.min(...candles.map((candle) => candle.low)),
+  };
+}
+
+// -----------------------------------------------------------------------------
+// TWELVE DATA
+// -----------------------------------------------------------------------------
+
+async function fetchCandles(apiKey, timeframeKey) {
   const timeframe = TIMEFRAMES[timeframeKey];
+
+  if (!timeframe) {
+    throw new Error(`Unsupported timeframe: ${timeframeKey}`);
+  }
+
   const url = new URL("https://api.twelvedata.com/time_series");
 
   url.searchParams.set("symbol", SYMBOL);
   url.searchParams.set("interval", timeframe.interval);
   url.searchParams.set("outputsize", String(SETTINGS.candleCount));
-  url.searchParams.set("order", "DESC");
+  url.searchParams.set("order", "ASC");
   url.searchParams.set("timezone", "UTC");
-  url.searchParams.set("apikey", key);
+  url.searchParams.set("apikey", apiKey);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), SETTINGS.fetchTimeoutMs);
+
+  const timeout = setTimeout(
+    () => controller.abort(),
+    SETTINGS.fetchTimeoutMs
+  );
 
   try {
     const response = await fetch(url.toString(), {
       method: "GET",
       signal: controller.signal,
-      headers: { Accept: "application/json" }
+      headers: {
+        Accept: "application/json",
+      },
     });
 
+    const rawText = await response.text();
+
     let payload;
+
     try {
-      payload = await response.json();
+      payload = JSON.parse(rawText);
     } catch {
-      throw new Error(`${timeframeKey}: Respons API bukan format JSON yang sah.`);
+      throw new Error(
+        `Twelve Data returned a non-JSON response for ${timeframeKey}.`
+      );
     }
 
     if (!response.ok || payload.status === "error" || payload.code) {
-      const message = payload.message || payload.error || `HTTP ${response.status}`;
-      throw new Error(`${timeframeKey}: ${message}`);
-    }
-
-    if (!Array.isArray(payload.values)) {
-      throw new Error(`${timeframeKey}: Tiada data lilin pasaran.`);
+      throw new Error(
+        payload.message ||
+          payload.msg ||
+          `Twelve Data request failed for ${timeframeKey}.`
+      );
     }
 
     const candles = normalizeCandles(payload.values);
 
-    if (candles.length < 5) {
-      throw new Error(`${timeframeKey}: Data lilin tidak mencukupi (${candles.length}).`);
+    if (candles.length < 20) {
+      throw new Error(
+        `Insufficient ${timeframeKey} candles: ${candles.length}.`
+      );
     }
 
     return {
       candles,
       meta: {
+        timeframe: timeframeKey,
         interval: timeframe.interval,
-        usableCandles: candles.length,
-        lastCandleTime: candles[candles.length - 1].datetime
-      }
+        count: candles.length,
+        latestCandle: getLatest(candles)?.datetime || null,
+      },
     };
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error(`${timeframeKey}: Permintaan API tamat masa.`);
+      throw new Error(
+        `Twelve Data request timed out for ${timeframeKey}.`
+      );
     }
+
     throw error;
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timeout);
   }
 }
 
-function findSwingLows(candles) {
-  const result = [];
-  for (let i = 2; i < candles.length - 2; i++) {
-    const value = candles[i].low;
-    if (
-      value <= candles[i - 1].low &&
-      value <= candles[i - 2].low &&
-      value <= candles[i + 1].low &&
-      value <= candles[i + 2].low
-    ) {
-      result.push({ price: value, time: candles[i].datetime, index: i });
+// -----------------------------------------------------------------------------
+// MARKET STRUCTURE / SWING DETECTION
+// -----------------------------------------------------------------------------
+
+function findSwingLows(candles, left = 2, right = 2) {
+  const swings = [];
+
+  for (
+    let i = left;
+    i < candles.length - right;
+    i++
+  ) {
+    const current = candles[i];
+    let isSwing = true;
+
+    for (let j = 1; j <= left; j++) {
+      if (candles[i - j].low <= current.low) {
+        isSwing = false;
+        break;
+      }
+    }
+
+    if (!isSwing) continue;
+
+    for (let j = 1; j <= right; j++) {
+      if (candles[i + j].low < current.low) {
+        isSwing = false;
+        break;
+      }
+    }
+
+    if (isSwing) {
+      swings.push({
+        price: roundPrice(current.low),
+        index: i,
+        datetime: current.datetime,
+      });
     }
   }
-  return result;
+
+  return swings;
 }
 
-function findSwingHighs(candles) {
-  const result = [];
-  for (let i = 2; i < candles.length - 2; i++) {
-    const value = candles[i].high;
-    if (
-      value >= candles[i - 1].high &&
-      value >= candles[i - 2].high &&
-      value >= candles[i + 1].high &&
-      value >= candles[i + 2].high
-    ) {
-      result.push({ price: value, time: candles[i].datetime, index: i });
+function findSwingHighs(candles, left = 2, right = 2) {
+  const swings = [];
+
+  for (
+    let i = left;
+    i < candles.length - right;
+    i++
+  ) {
+    const current = candles[i];
+    let isSwing = true;
+
+    for (let j = 1; j <= left; j++) {
+      if (candles[i - j].high >= current.high) {
+        isSwing = false;
+        break;
+      }
+    }
+
+    if (!isSwing) continue;
+
+    for (let j = 1; j <= right; j++) {
+      if (candles[i + j].high > current.high) {
+        isSwing = false;
+        break;
+      }
+    }
+
+    if (isSwing) {
+      swings.push({
+        price: roundPrice(current.high),
+        index: i,
+        datetime: current.datetime,
+      });
     }
   }
-  return result;
+
+  return swings;
 }
 
-// =========================================================================
-// 1. ZON ENTRY (SNR BUCU + BREAKOUT & REACT + REENTRY MA 20 PULLBACK)
-// =========================================================================
-function buildEarlyZone(candles, direction, price, maFallback) {
-  if (!candles || !candles.length || price === null) {
-    return { valid: false, low: null, high: null, reason: "Tiada data zon." };
+function buildStructure(candles) {
+  const swingLows = findSwingLows(candles);
+  const swingHighs = findSwingHighs(candles);
+
+  const recent = candles.slice(-20);
+  const range = getRange(recent);
+
+  const last = getLatest(candles);
+  const previous = candles[candles.length - 2] || last;
+
+  const higherHigh =
+    swingHighs.length >= 2 &&
+    swingHighs[swingHighs.length - 1].price >
+      swingHighs[swingHighs.length - 2].price;
+
+  const higherLow =
+    swingLows.length >= 2 &&
+    swingLows[swingLows.length - 1].price >
+      swingLows[swingLows.length - 2].price;
+
+  const lowerHigh =
+    swingHighs.length >= 2 &&
+    swingHighs[swingHighs.length - 1].price <
+      swingHighs[swingHighs.length - 2].price;
+
+  const lowerLow =
+    swingLows.length >= 2 &&
+    swingLows[swingLows.length - 1].price <
+      swingLows[swingLows.length - 2].price;
+
+  const bullishStructure = higherHigh && higherLow;
+  const bearishStructure = lowerHigh && lowerLow;
+
+  const breakoutUp =
+    last &&
+    previous &&
+    range &&
+    last.close > previous.high &&
+    last.close >= range.high - 0.05;
+
+  const breakoutDown =
+    last &&
+    previous &&
+    range &&
+    last.close < previous.low &&
+    last.close <= range.low + 0.05;
+
+  return {
+    swingLows,
+    swingHighs,
+    range,
+    bullishStructure,
+    bearishStructure,
+    breakoutUp: Boolean(breakoutUp),
+    breakoutDown: Boolean(breakoutDown),
+    lastClose: last?.close ?? null,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// DIRECTIONAL BIAS
+// -----------------------------------------------------------------------------
+
+function getTrend(candles, timeframeKey) {
+  const closes = getCloses(candles);
+
+  const ema20 = calculateEMA(closes, 20);
+  const ema50 = calculateEMA(closes, 50);
+  const last = getLatest(candles);
+
+  if (!last || ema20 === null || ema50 === null) {
+    return {
+      direction: "NEUTRAL",
+      ema20,
+      ema50,
+      price: last?.close ?? null,
+      strength: 0,
+    };
   }
 
-  const recent = candles.slice(-30);
-  const swingLows = findSwingLows(recent);
-  const swingHighs = findSwingHighs(recent);
-  const ma20 = calculateEMA(candles, 20);
+  let direction = "NEUTRAL";
+
+  if (last.close > ema20 && ema20 > ema50) {
+    direction = "BULLISH";
+  } else if (last.close < ema20 && ema20 < ema50) {
+    direction = "BEARISH";
+  } else if (last.close > ema50) {
+    direction = "BULLISH";
+  } else if (last.close < ema50) {
+    direction = "BEARISH";
+  }
+
+  let strength = 0;
+
+  if (direction === "BULLISH") {
+    strength =
+      (last.close > ema20 ? 1 : 0) +
+      (ema20 > ema50 ? 1 : 0);
+  } else if (direction === "BEARISH") {
+    strength =
+      (last.close < ema20 ? 1 : 0) +
+      (ema20 < ema50 ? 1 : 0);
+  }
+
+  return {
+    timeframe: timeframeKey,
+    direction,
+    ema20,
+    ema50,
+    price: last.close,
+    strength,
+  };
+}
+
+function directionToSide(direction) {
+  if (direction === "BULLISH") return "BUY";
+  if (direction === "BEARISH") return "SELL";
+  return "WAIT";
+}
+
+// -----------------------------------------------------------------------------
+// TRENDLINE
+// -----------------------------------------------------------------------------
+
+function calculateTrendline(candles) {
+  const structure = buildStructure(candles);
+
+  const lows = structure.swingLows.slice(-2);
+  const highs = structure.swingHighs.slice(-2);
+
+  let supportLine = null;
+  let resistanceLine = null;
+
+  if (lows.length === 2) {
+    const a = lows[0];
+    const b = lows[1];
+
+    supportLine = {
+      from: a.price,
+      to: b.price,
+      slope: roundPrice(b.price - a.price),
+      direction:
+        b.price > a.price
+          ? "UP"
+          : b.price < a.price
+            ? "DOWN"
+            : "FLAT",
+    };
+  }
+
+  if (highs.length === 2) {
+    const a = highs[0];
+    const b = highs[1];
+
+    resistanceLine = {
+      from: a.price,
+      to: b.price,
+      slope: roundPrice(b.price - a.price),
+      direction:
+        b.price > a.price
+          ? "UP"
+          : b.price < a.price
+            ? "DOWN"
+            : "FLAT",
+    };
+  }
+
+  return {
+    supportLine,
+    resistanceLine,
+  };
+}
+
+// -----------------------------------------------------------------------------
+// EARLY ENTRY ZONE
+// -----------------------------------------------------------------------------
+
+function buildEarlyZone(
+  candles,
+  direction,
+  currentPrice,
+  ema20,
+  timeframeKey
+) {
+  const recent = candles.slice(-35);
+  const structure = buildStructure(recent);
+
+  const swingLows = structure.swingLows;
+  const swingHighs = structure.swingHighs;
+
+  const halfWidth = SETTINGS.zoneThickness / 2;
 
   let pivot = null;
-  let sourceTechnique = "ZONE_BUCU_SNR";
-  let isBreakoutActive = false;
-  let isReentryActive = false;
+  let source = "SNR";
+  let isBreakout = false;
+  let isReentry = false;
+  let reason = "";
 
   if (direction === "BUY") {
-    // 1. Breakout & React (RBS: Resistance yang baru di-breakout)
-    const brokenResistance = swingHighs.filter((sh) => {
-      const diff = price - sh.price;
-      return diff >= 0 && diff <= 2.50;
-    }).sort((a, b) => b.price - a.price);
+    // A recently broken resistance may become support.
+    const brokenResistance = swingHighs
+      .filter(
+        (swing) =>
+          swing.price < currentPrice &&
+          currentPrice - swing.price <= 8
+      )
+      .sort((a, b) => b.price - a.price)[0];
 
-    // 2. Reentry Pullback (MA 20 Dynamic Support)
-    const isMa20Retest = price >= ma20 - 1.00 && Math.abs(price - ma20) <= 1.50;
+    // Prefer the nearest meaningful support beneath current price.
+    const support = swingLows
+      .filter((swing) => swing.price <= currentPrice)
+      .sort((a, b) => b.price - a.price)[0];
 
-    if (brokenResistance.length > 0) {
-      pivot = brokenResistance[0].price;
-      sourceTechnique = "BREAKOUT_REACT_RBS";
-      isBreakoutActive = true;
-    } else if (isMa20Retest) {
-      pivot = ma20;
-      sourceTechnique = "REENTRY_MA20";
-      isReentryActive = true;
-    } else {
-      // 3. Bucu Support Terdekat (Swing Low)
-      const candidates = swingLows
-        .filter((point) => point.price <= price)
-        .sort((a, b) => b.price - a.price);
-      pivot = candidates.length > 0 ? candidates[0].price : (maFallback || price);
-      sourceTechnique = "ZONE_BUCU_SNR";
+    if (
+      brokenResistance &&
+      currentPrice - brokenResistance.price <= 5
+    ) {
+      pivot = brokenResistance.price;
+      source = "SNR_BREAKOUT_RETEST";
+      isBreakout = true;
+      reason = "Resistance lama berpotensi bertukar menjadi support.";
+    } else if (
+      support &&
+      currentPrice - support.price <= 10
+    ) {
+      pivot = support.price;
+      source = "SNR_SUPPORT";
+      reason = "Zon support berdasarkan swing low.";
+    } else if (ema20 !== null && currentPrice >= ema20) {
+      pivot = ema20;
+      source = "EMA20_PULLBACK";
+      isReentry = true;
+      reason = "Kawasan pullback EMA20 dalam bias BUY.";
+    } else if (support) {
+      pivot = support.price;
+      source = "SNR_SUPPORT";
+      reason = "Support struktur terdekat.";
     }
-  } else {
-    // 1. Breakout & React (SBR: Support yang baru di-breakout)
-    const brokenSupport = swingLows.filter((sl) => {
-      const diff = sl.price - price;
-      return diff >= 0 && diff <= 2.50;
-    }).sort((a, b) => a.price - b.price);
+  } else if (direction === "SELL") {
+    const brokenSupport = swingLows
+      .filter(
+        (swing) =>
+          swing.price > currentPrice &&
+          swing.price - currentPrice <= 8
+      )
+      .sort((a, b) => a.price - b.price)[0];
 
-    // 2. Reentry Pullback (MA 20 Dynamic Resistance)
-    const isMa20Retest = price <= ma20 + 1.00 && Math.abs(price - ma20) <= 1.50;
+    const resistance = swingHighs
+      .filter((swing) => swing.price >= currentPrice)
+      .sort((a, b) => a.price - b.price)[0];
 
-    if (brokenSupport.length > 0) {
-      pivot = brokenSupport[0].price;
-      sourceTechnique = "BREAKOUT_REACT_SBR";
-      isBreakoutActive = true;
-    } else if (isMa20Retest) {
-      pivot = ma20;
-      sourceTechnique = "REENTRY_MA20";
-      isReentryActive = true;
-    } else {
-      // 3. Bucu Resistance Terdekat (Swing High)
-      const candidates = swingHighs
-        .filter((point) => point.price >= price)
-        .sort((a, b) => a.price - b.price);
-      pivot = candidates.length > 0 ? candidates[0].price : (maFallback || price);
-      sourceTechnique = "ZONE_BUCU_SNR";
+    if (
+      brokenSupport &&
+      brokenSupport.price - currentPrice <= 5
+    ) {
+      pivot = brokenSupport.price;
+      source = "SNR_BREAKDOWN_RETEST";
+      isBreakout = true;
+      reason = "Support lama berpotensi bertukar menjadi resistance.";
+    } else if (
+      resistance &&
+      resistance.price - currentPrice <= 10
+    ) {
+      pivot = resistance.price;
+      source = "SNR_RESISTANCE";
+      reason = "Zon resistance berdasarkan swing high.";
+    } else if (ema20 !== null && currentPrice <= ema20) {
+      pivot = ema20;
+      source = "EMA20_PULLBACK";
+      isReentry = true;
+      reason = "Kawasan pullback EMA20 dalam bias SELL.";
+    } else if (resistance) {
+      pivot = resistance.price;
+      source = "SNR_RESISTANCE";
+      reason = "Resistance struktur terdekat.";
     }
   }
 
-  // Zon 20 pips ($2.00) seragam: separuh lebar = 1.00
-  const halfWidth = SETTINGS.zoneThickness / 2; // 1.00
+  if (pivot === null || !Number.isFinite(pivot)) {
+    return {
+      valid: false,
+      low: null,
+      high: null,
+      pivot: null,
+      widthPips: SETTINGS.zoneThickness / POINT_VALUE,
+      source: "NO_VALID_SNR",
+      isBreakout: false,
+      isReentry: false,
+      locked: false,
+      status: "WAIT",
+      reason: "Struktur SNR yang sesuai belum dikenal pasti.",
+      distanceFromZone: null,
+      timeframe: timeframeKey,
+    };
+  }
+
   const low = roundPrice(pivot - halfWidth);
   const high = roundPrice(pivot + halfWidth);
 
-  const inZone = price >= low && price <= high;
-  const dist = direction === "BUY" ? Math.max(0, price - high) : Math.max(0, low - price);
-  const isApproaching = dist <= 1.50;
+  let distanceFromZone = 0;
+  let status = "WATCH";
 
-  // Penentuan status
-  const status = (isBreakoutActive || isReentryActive || inZone)
-    ? "IN_ZONE"
-    : (isApproaching ? "APPROACHING" : "WATCH");
+  if (currentPrice < low) {
+    distanceFromZone = roundPrice(low - currentPrice);
+  } else if (currentPrice > high) {
+    distanceFromZone = roundPrice(currentPrice - high);
+  }
+
+  if (currentPrice >= low && currentPrice <= high) {
+    status = "IN_ZONE";
+  } else if (distanceFromZone <= 3) {
+    status = "APPROACHING";
+  }
+
+  if (isBreakout) {
+    reason = reason || "Breakout dan retest pada struktur SNR.";
+  } else if (isReentry) {
+    reason = reason || "Reentry / pullback pada EMA20.";
+  } else {
+    reason = reason || "Zon dipetakan daripada struktur SNR.";
+  }
 
   return {
     valid: true,
     low,
     high,
     pivot: roundPrice(pivot),
-    widthPips: 20,
-    source: sourceTechnique,
-    isBreakout: isBreakoutActive,
-    isReentry: isReentryActive,
-    locked: true,
+    widthPips: SETTINGS.zoneThickness / POINT_VALUE,
+    source,
+    isBreakout,
+    isReentry,
+    locked: false,
     status,
-    reason: isBreakoutActive 
-      ? `Breakout dikesan pada aras bucu ${roundPrice(pivot)}.`
-      : isReentryActive
-        ? `Reentry Pullback diuji pada paras MA 20 (${roundPrice(pivot)}).`
-        : inZone 
-          ? "Harga aktif dalam zon bucu persediaan (20 pips)." 
-          : `Zon bucu sedia dipantau (${low} – ${high}).`,
-    distanceFromZone: roundPrice(dist)
+    reason,
+    distanceFromZone,
+    timeframe: timeframeKey,
   };
 }
 
-// =========================================================================
-// 2. MAPPING KHAS INTRADAY (UNTUK TUJUAN HOLD SETUP)
-// =========================================================================
-function buildIntradayMapping(candlesH1, direction, price, ema50H1) {
-  const h1Recent = candlesH1.slice(-24);
-  const h1Highs = h1Recent.map((c) => c.high);
-  const h1Lows = h1Recent.map((c) => c.low);
+// -----------------------------------------------------------------------------
+// STRUCTURAL STOP LOSS
+// -----------------------------------------------------------------------------
 
-  const highestH1 = Math.max(...h1Highs);
-  const lowestH1 = Math.min(...h1Lows);
+function buildStructuralStop(
+  candles,
+  direction,
+  zone
+) {
+  if (!zone || !zone.valid) return null;
 
-  const invalidationLevel = direction === "BUY" 
-    ? roundPrice(lowestH1 - 0.50) 
-    : roundPrice(highestH1 + 0.50);
+  const recent = candles.slice(-35);
+  const structure = buildStructure(recent);
 
-  const nextTarget = direction === "BUY" ? roundPrice(highestH1) : roundPrice(lowestH1);
-  const dynamicSR = roundPrice(ema50H1);
+  if (direction === "BUY") {
+    const lows = structure.swingLows
+      .filter((swing) => swing.price < zone.low)
+      .sort((a, b) => b.price - a.price);
+
+    if (lows.length) {
+      return roundPrice(lows[0].price - 0.50);
+    }
+
+    return structure.range
+      ? roundPrice(structure.range.low - 0.50)
+      : null;
+  }
+
+  if (direction === "SELL") {
+    const highs = structure.swingHighs
+      .filter((swing) => swing.price > zone.high)
+      .sort((a, b) => a.price - b.price);
+
+    if (highs.length) {
+      return roundPrice(highs[0].price + 0.50);
+    }
+
+    return structure.range
+      ? roundPrice(structure.range.high + 0.50)
+      : null;
+  }
+
+  return null;
+}
+
+// -----------------------------------------------------------------------------
+// SNR TARGETS
+// -----------------------------------------------------------------------------
+
+function uniquePrices(prices) {
+  const result = [];
+
+  for (const value of prices) {
+    if (!Number.isFinite(value)) continue;
+
+    const rounded = roundPrice(value);
+
+    if (!result.some((existing) => Math.abs(existing - rounded) < 0.10)) {
+      result.push(rounded);
+    }
+  }
+
+  return result;
+}
+
+function findTargets(
+  direction,
+  entry,
+  targetCandles,
+  secondaryCandles
+) {
+  const primary = targetCandles.slice(-40);
+  const secondary = secondaryCandles.slice(-40);
+
+  const primaryStructure = buildStructure(primary);
+  const secondaryStructure = buildStructure(secondary);
+
+  let candidates = [];
+
+  if (direction === "BUY") {
+    candidates = [
+      ...primaryStructure.swingHighs.map((swing) => swing.price),
+      ...secondaryStructure.swingHighs.map((swing) => swing.price),
+    ]
+      .filter((price) => price > entry)
+      .sort((a, b) => a - b);
+  } else {
+    candidates = [
+      ...primaryStructure.swingLows.map((swing) => swing.price),
+      ...secondaryStructure.swingLows.map((swing) => swing.price),
+    ]
+      .filter((price) => price < entry)
+      .sort((a, b) => b - a);
+  }
+
+  return uniquePrices(candidates);
+}
+
+function buildTradePlan(
+  direction,
+  zone,
+  stopLoss,
+  targetCandles,
+  secondaryCandles,
+  mode
+) {
+  if (!zone?.valid || stopLoss === null) {
+    return {
+      entry: null,
+      stopLoss: null,
+      tp1: null,
+      tp2: null,
+      riskDistance: null,
+      rewardDistanceTP1: null,
+      rewardDistanceTP2: null,
+      riskRewardTP1: null,
+      riskRewardTP2: null,
+      valid: false,
+      reason: "Entry zone atau structural SL belum tersedia.",
+    };
+  }
+
+  const entry = zone.pivot;
+  const riskDistance = roundPrice(Math.abs(entry - stopLoss));
+
+  const maxRisk =
+    mode === "SCALPING"
+      ? SETTINGS.scalping.maxRiskDistance
+      : SETTINGS.intraday.maxRiskDistance;
+
+  if (
+    riskDistance <= 0 ||
+    riskDistance > maxRisk ||
+    (direction === "BUY" && stopLoss >= zone.low) ||
+    (direction === "SELL" && stopLoss <= zone.high)
+  ) {
+    return {
+      entry,
+      stopLoss,
+      tp1: null,
+      tp2: null,
+      riskDistance,
+      rewardDistanceTP1: null,
+      rewardDistanceTP2: null,
+      riskRewardTP1: null,
+      riskRewardTP2: null,
+      valid: false,
+      reason:
+        "Setup ditolak kerana jarak SL atau kedudukan SL tidak sesuai dengan struktur.",
+    };
+  }
+
+  const targets = findTargets(
+    direction,
+    entry,
+    targetCandles,
+    secondaryCandles
+  );
+
+  const maxTarget =
+    mode === "SCALPING"
+      ? SETTINGS.scalping.maxTargetDistance
+      : SETTINGS.intraday.maxTargetDistance;
+
+  const validTargets = targets.filter((target) => {
+    const distance = Math.abs(target - entry);
+
+    return distance > 0 && distance <= maxTarget;
+  });
+
+  const tp1 = validTargets[0] ?? null;
+  const tp2 = validTargets.find(
+    (target) =>
+      tp1 !== null &&
+      (direction === "BUY" ? target > tp1 : target < tp1)
+  ) ?? null;
+
+  if (tp1 === null) {
+    return {
+      entry,
+      stopLoss,
+      tp1: null,
+      tp2: null,
+      riskDistance,
+      rewardDistanceTP1: null,
+      rewardDistanceTP2: null,
+      riskRewardTP1: null,
+      riskRewardTP2: null,
+      valid: false,
+      reason: "Tiada target SNR yang munasabah ditemui.",
+    };
+  }
+
+  const rewardDistanceTP1 = roundPrice(Math.abs(tp1 - entry));
+  const rewardDistanceTP2 =
+    tp2 === null ? null : roundPrice(Math.abs(tp2 - entry));
 
   return {
-    phase: direction === "BUY" ? "BULLISH_EXPANSION" : "BEARISH_EXPANSION",
-    dynamicSupportResistance: dynamicSR,
-    rangeHigh: roundPrice(highestH1),
-    rangeLow: roundPrice(lowestH1),
-    nextMajorObstacle: nextTarget,
-    structureInvalidation: invalidationLevel,
-    holdRule: direction === "BUY"
-      ? `Kekal HOLD selagi lilin bertahan di atas ${dynamicSR} (EMA 50 H1).`
-      : `Kekal HOLD selagi lilin bertahan di bawah ${dynamicSR} (EMA 50 H1).`
+    entry,
+    stopLoss,
+    tp1,
+    tp2,
+    riskDistance,
+    rewardDistanceTP1,
+    rewardDistanceTP2,
+    riskRewardTP1: roundPrice(rewardDistanceTP1 / riskDistance),
+    riskRewardTP2:
+      rewardDistanceTP2 === null
+        ? null
+        : roundPrice(rewardDistanceTP2 / riskDistance),
+    valid: true,
+    reason: "Entry berdasarkan zon SNR; SL dan TP dipetakan daripada struktur harga.",
   };
 }
 
-// Pelan Dagangan Tetap (SL 45 Pips, TP Mengikut Mod)
-function buildFixedTradePlan(direction, price, tpSettings) {
-  if (price === null || !Number.isFinite(price)) return null;
+// -----------------------------------------------------------------------------
+// SCORING
+// -----------------------------------------------------------------------------
 
-  const sl = direction === "BUY" 
-    ? price - SETTINGS.stopLossDistance 
-    : price + SETTINGS.stopLossDistance;
-  const tp1 = direction === "BUY" 
-    ? price + tpSettings.tp1Distance 
-    : price - tpSettings.tp1Distance;
-  const tp2 = direction === "BUY" 
-    ? price + tpSettings.tp2Distance 
-    : price - tpSettings.tp2Distance;
+function calculateScore({
+  direction,
+  h1Trend,
+  d1Trend,
+  zone,
+  structure,
+  mode,
+}) {
+  if (!zone?.valid || direction === "WAIT") return 0;
+
+  let score = 50;
+
+  if (h1Trend.direction === directionToSide(direction)) {
+    score += 15;
+  }
+
+  if (d1Trend.direction === directionToSide(direction)) {
+    score += mode === "INTRADAY" ? 12 : 5;
+  }
+
+  if (
+    direction === "BUY" &&
+    structure.bullishStructure
+  ) {
+    score += 8;
+  }
+
+  if (
+    direction === "SELL" &&
+    structure.bearishStructure
+  ) {
+    score += 8;
+  }
+
+  if (zone.source.startsWith("SNR")) {
+    score += 5;
+  }
+
+  if (zone.isBreakout) {
+    score += 5;
+  }
+
+  if (zone.isReentry) {
+    score += 3;
+  }
+
+  if (zone.status === "IN_ZONE") {
+    score += 2;
+  }
+
+  return clamp(Math.round(score), 0, 95);
+}
+
+// -----------------------------------------------------------------------------
+// OPTIONAL SUPABASE PERSISTENT SIGNAL LOCK
+// -----------------------------------------------------------------------------
+
+function getSupabaseConfig() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) return null;
 
   return {
-    entry: roundPrice(price),
-    sl: roundPrice(sl),
-    tp1: roundPrice(tp1),
-    tp2: roundPrice(tp2)
+    url: url.replace(/\/+$/, ""),
+    key,
   };
 }
+
+async function supabaseRequest(path, options = {}) {
+  const config = getSupabaseConfig();
+
+  if (!config) return null;
+
+  const response = await fetch(`${config.url}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      apikey: config.key,
+      Authorization: `Bearer ${config.key}`,
+      "Content-Type": "application/json",
+      Prefer: options.prefer || "return=representation",
+      ...(options.headers || {}),
+    },
+  });
+
+  const body = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Supabase error ${response.status}: ${body}`);
+  }
+
+  if (!body) return [];
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return [];
+  }
+}
+
+async function getActiveLock(mode) {
+  if (!getSupabaseConfig()) return null;
+
+  const query =
+    `sinnci_setup_locks?select=*` +
+    `&symbol=eq.XAUUSD` +
+    `&mode=eq.${encodeURIComponent(mode)}` +
+    `&status=eq.ACTIVE` +
+    `&order=updated_at.desc` +
+    `&limit=1`;
+
+  const rows = await supabaseRequest(query);
+
+  return Array.isArray(rows) && rows.length ? rows[0] : null;
+}
+
+function isLockUsable(lock, direction, currentPrice, mode) {
+  if (!lock) return false;
+  if (lock.direction !== direction) return false;
+
+  const createdAt = Date.parse(lock.updated_at || lock.created_at || "");
+  if (!Number.isFinite(createdAt)) return false;
+
+  const maxAge =
+    (mode === "SCALPING"
+      ? SETTINGS.scalping.lockMinutes
+      : SETTINGS.intraday.lockMinutes) * 60000;
+
+  if (Date.now() - createdAt > maxAge) return false;
+
+  const sl = toNumber(lock.stop_loss);
+  const zoneLow = toNumber(lock.zone_low);
+  const zoneHigh = toNumber(lock.zone_high);
+
+  if (
+    sl === null ||
+    zoneLow === null ||
+    zoneHigh === null
+  ) {
+    return false;
+  }
+
+  // Invalidate the old setup if its structural SL is broken.
+  if (direction === "BUY" && currentPrice <= sl) return false;
+  if (direction === "SELL" && currentPrice >= sl) return false;
+
+  return true;
+}
+
+function applyLockToSetup(setup, lock) {
+  if (!setup || !lock) return setup;
+
+  setup.setupId = lock.setup_id;
+  setup.direction = lock.direction;
+
+  setup.zone = {
+    valid: true,
+    low: toNumber(lock.zone_low),
+    high: toNumber(lock.zone_high),
+    pivot: toNumber(lock.entry),
+    widthPips: SETTINGS.zoneThickness / POINT_VALUE,
+    source: lock.source || "SNR_LOCKED",
+    isBreakout: false,
+    isReentry: false,
+    locked: true,
+    status: "LOCKED",
+    reason: "Setup dikekalkan daripada rekod Signal Lock.",
+    distanceFromZone: null,
+    timeframe: setup.zone?.timeframe || null,
+  };
+
+  setup.plan = {
+    entry: toNumber(lock.entry),
+    stopLoss: toNumber(lock.stop_loss),
+    tp1: toNumber(lock.tp1),
+    tp2: toNumber(lock.tp2),
+    valid: true,
+    reason: "Trade plan dikekalkan daripada rekod Signal Lock.",
+  };
+
+  setup.status = "READY";
+  setup.entryStatus = "READY";
+  setup.signalStatus = "LOCKED";
+
+  return setup;
+}
+
+async function saveLock(mode, setup) {
+  if (!getSupabaseConfig()) {
+    return {
+      persisted: false,
+      reason: "Supabase Signal Lock belum dikonfigurasi.",
+    };
+  }
+
+  if (!setup || setup.status !== "READY" || !setup.plan?.valid) {
+    return {
+      persisted: false,
+      reason: "Setup belum layak untuk disimpan.",
+    };
+  }
+
+  const zone = setup.zone;
+  const plan = setup.plan;
+
+  const setupId = [
+    "SINNCI",
+    mode,
+    setup.direction,
+    Number(zone.low).toFixed(2),
+    Number(zone.high).toFixed(2),
+  ].join("-");
+
+  const now = new Date().toISOString();
+
+  const row = {
+    setup_id: setupId,
+    symbol: "XAUUSD",
+    mode,
+    direction: setup.direction,
+    zone_low: zone.low,
+    zone_high: zone.high,
+    entry: plan.entry,
+    stop_loss: plan.stopLoss,
+    tp1: plan.tp1,
+    tp2: plan.tp2,
+    source: zone.source,
+    status: "ACTIVE",
+    updated_at: now,
+  };
+
+  const result = await supabaseRequest(
+    "sinnci_setup_locks?on_conflict=setup_id",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
+      body: JSON.stringify(row),
+    }
+  );
+
+  return {
+    persisted: true,
+    setupId,
+    record: Array.isArray(result) ? result[0] ?? null : null,
+  };
+}
+
+async function invalidateLock(lock) {
+  if (!lock || !getSupabaseConfig()) return;
+
+  const setupId = encodeURIComponent(lock.setup_id);
+
+  await supabaseRequest(
+    `sinnci_setup_locks?setup_id=eq.${setupId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "INVALIDATED",
+        updated_at: new Date().toISOString(),
+      }),
+    }
+  );
+}
+
+// -----------------------------------------------------------------------------
+// SETUP BUILDER
+// -----------------------------------------------------------------------------
+
+function buildSetup({
+  mode,
+  direction,
+  timeframe,
+  candles,
+  secondaryCandles,
+  currentPrice,
+  h1Trend,
+  d1Trend,
+}) {
+  const isScalping = mode === "SCALPING";
+
+  const ema20 = calculateEMA(getCloses(candles), 20);
+
+  const zone = buildEarlyZone(
+    candles,
+    direction,
+    currentPrice,
+    ema20,
+    timeframe
+  );
+
+  const structure = buildStructure(candles);
+
+  const stopLoss = buildStructuralStop(
+    candles,
+    direction,
+    zone
+  );
+
+  const plan = buildTradePlan(
+    direction,
+    zone,
+    stopLoss,
+    candles,
+    secondaryCandles,
+    mode
+  );
+
+  const score = calculateScore({
+    direction,
+    h1Trend,
+    d1Trend,
+    zone,
+    structure,
+    mode,
+  });
+
+  const minimumScore = isScalping
+    ? SETTINGS.scalping.minimumScore
+    : SETTINGS.intraday.minimumScore;
+
+  const ready =
+    zone.valid &&
+    plan.valid &&
+    score >= minimumScore;
+
+  const setupId = [
+    "SINNCI",
+    mode,
+    direction,
+    zone.valid ? zone.pivot.toFixed(2) : "NOZONE",
+  ].join("-");
+
+  return {
+    setupId,
+    type: mode,
+    timeframe: isScalping
+      ? "D1 -> H1 -> M5"
+      : "D1 -> H1 -> M15",
+    symbol: "XAUUSD",
+    direction,
+    status: ready ? "READY" : "WAIT",
+    entryStatus: ready ? "READY" : "WAIT",
+    signalStatus: ready ? "EARLY_SIGNAL" : "WAIT",
+    score,
+    zone,
+    plan,
+    reasons: ready
+      ? [
+          zone.reason,
+          plan.reason,
+          "Signal boleh dikenal pasti sebelum harga menyentuh zon.",
+        ]
+      : [
+          !zone.valid
+            ? zone.reason
+            : !plan.valid
+              ? plan.reason
+              : "Skor setup belum mencapai tahap minimum.",
+        ],
+    structure: {
+      bullish: structure.bullishStructure,
+      bearish: structure.bearishStructure,
+      breakoutUp: structure.breakoutUp,
+      breakoutDown: structure.breakoutDown,
+    },
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+// -----------------------------------------------------------------------------
+// MAIN API HANDLER
+// -----------------------------------------------------------------------------
 
 export default async function handler(req, res) {
-  res.setHeader("Cache-Control", "no-store, max-age=0");
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
 
-  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-  if (req.method !== "GET" && req.method !== "POST") {
-    return responseError(res, 405, "METHOD_NOT_ALLOWED", "Kaedah HTTP tidak dibenarkan.");
+  if (!["GET", "POST"].includes(req.method)) {
+    return res
+      .status(405)
+      .json(responseError("Method not allowed.", 405));
   }
 
   const apiKey = process.env.TWELVE_DATA_API_KEY;
+
   if (!apiKey) {
-    return responseError(res, 500, "MISSING_API_KEY", "TWELVE_DATA_API_KEY tiada dalam Environment Vercel.");
+    return res.status(500).json(
+      responseError(
+        "TWELVE_DATA_API_KEY belum ditetapkan dalam Vercel Environment Variables."
+      )
+    );
   }
 
   try {
-    const timeframeKeys = ["H1", "M15", "M5", "M1"];
-    const fetched = [];
+    // Four timeframe requests; M1 is intentionally removed.
+    const timeframeKeys = ["D1", "H1", "M15", "M5"];
 
-    for (const key of timeframeKeys) {
-      const result = await fetchCandles(apiKey, key);
-      fetched.push([key, result]);
-      await sleep(150);
+    const fetched = await Promise.all(
+      timeframeKeys.map((key) => fetchCandles(apiKey, key))
+    );
+
+    const candles = {};
+    const dataMeta = {};
+
+    timeframeKeys.forEach((key, index) => {
+      candles[key] = fetched[index].candles;
+      dataMeta[key] = fetched[index].meta;
+    });
+
+    const latestM5 = getLatest(candles.M5);
+    const latestH1 = getLatest(candles.H1);
+
+    // The latest M5 close is used as the analysis CMP.
+    // This avoids adding a separate price API request.
+    const price = roundPrice(
+      latestM5?.close ?? latestH1?.close
+    );
+
+    if (!Number.isFinite(price)) {
+      throw new Error("Unable to determine current market price.");
     }
 
-    const data = Object.fromEntries(fetched);
-    const candles = Object.fromEntries(timeframeKeys.map((key) => [key, data[key].candles]));
+    const d1Trend = getTrend(candles.D1, "D1");
+    const h1Trend = getTrend(candles.H1, "H1");
+    const m15Trend = getTrend(candles.M15, "M15");
+    const m5Trend = getTrend(candles.M5, "M5");
 
-    const lastM1 = candles.M1[candles.M1.length - 1];
-    const price = lastM1.close;
+    const h1Structure = buildStructure(candles.H1);
+    const m15Structure = buildStructure(candles.M15);
+    const m5Structure = buildStructure(candles.M5);
 
-    // Moving Averages H1
-    const ema8_H1 = calculateEMA(candles.H1, 8);
-    const ema20_H1 = calculateEMA(candles.H1, 20);
-    const ema50_H1 = calculateEMA(candles.H1, 50);
+    // Scalping follows H1 direction. M5 is used for the entry mapping.
+    let scalpDirection = directionToSide(h1Trend.direction);
 
-    // =========================================================================
-    // TREND LOCK BERLAPIS H1
-    // =========================================================================
-    // Scalping: H1 (CMP + MA 8 + MA 20)
-    let scalpDirection = "BUY";
-    if (price >= ema8_H1 && ema8_H1 >= ema20_H1) {
-      scalpDirection = "BUY";
-    } else if (price < ema8_H1 && ema8_H1 <= ema20_H1) {
-      scalpDirection = "SELL";
-    } else {
-      scalpDirection = price >= ema20_H1 ? "BUY" : "SELL";
+    if (scalpDirection === "WAIT") {
+      scalpDirection = directionToSide(m5Trend.direction);
     }
 
-    // Intraday: H1 (CMP + EMA 50 + MA 20)
-    let intradayDirection = "BUY";
-    if (price >= ema50_H1 && ema20_H1 >= ema50_H1) {
-      intradayDirection = "BUY";
-    } else if (price < ema50_H1 && ema20_H1 <= ema50_H1) {
-      intradayDirection = "SELL";
-    } else {
-      intradayDirection = price >= ema50_H1 ? "BUY" : "SELL";
+    // Intraday uses H1 direction with D1 as broader context.
+    let intradayDirection = directionToSide(h1Trend.direction);
+
+    if (intradayDirection === "WAIT") {
+      intradayDirection = directionToSide(d1Trend.direction);
     }
 
-    // 2. PEMETAAN ZON AWAL (M5 untuk Scalping, M15 untuk Intraday)
-    const scalpZone = buildEarlyZone(candles.M5, scalpDirection, price, ema20_H1);
-    const intraZone = buildEarlyZone(candles.M15, intradayDirection, price, ema50_H1);
-
-    // 3. MAPPING KHAS INTRADAY
-    const intradayMapping = buildIntradayMapping(candles.H1, intradayDirection, price, ema50_H1);
-
-    // 4. KELULUSAN SKOR & STATUS (Breakout / Reentry / In Zone = 75, Approaching = 65)
-    const scalpReady = scalpZone.status === "IN_ZONE" || scalpZone.status === "APPROACHING" || scalpZone.isBreakout || scalpZone.isReentry;
-    const scalpScore = (scalpZone.isBreakout || scalpZone.isReentry || scalpZone.status === "IN_ZONE") ? 75 : (scalpZone.status === "APPROACHING" ? 65 : 45);
-
-    const intraReady = intraZone.status === "IN_ZONE" || intraZone.status === "APPROACHING" || intraZone.isBreakout || intraZone.isReentry;
-    const intraScore = (intraZone.isBreakout || intraZone.isReentry || intraZone.status === "IN_ZONE") ? 75 : (intraZone.status === "APPROACHING" ? 65 : 45);
-
-    // Pelan Dagangan Tetap (SL 45 Pips)
-    const scalpPlan = buildFixedTradePlan(scalpDirection, price, SETTINGS.scalping);
-    const intraPlan = buildFixedTradePlan(intradayDirection, price, SETTINGS.intraday);
-
-    // Setup Scalping Payload
-    const scalpingPayload = {
-      setupId: `SINNCI-SCALPING-${scalpDirection}`,
-      type: "SCALPING",
-      timeframe: "H1 -> M5 -> M1",
-      symbol: "XAUUSD",
+    const scalpSetup = buildSetup({
+      mode: "SCALPING",
       direction: scalpDirection,
-      status: scalpReady ? "READY" : "WAIT",
-      entryStatus: scalpReady ? "READY" : "WAIT",
-      score: scalpScore,
-      zone: scalpZone,
-      plan: scalpPlan,
-      reasons: scalpReady 
-        ? [scalpZone.reason] 
-        : ["Zon sedia. Menunggu sentuhan harga atau breakout."],
-      lastUpdated: new Date().toISOString()
-    };
+      timeframe: "M5",
+      candles: candles.M5,
+      secondaryCandles: candles.H1,
+      currentPrice: price,
+      h1Trend,
+      d1Trend,
+    });
 
-    // Setup Intraday Payload
-    const intradayPayload = {
-      setupId: `SINNCI-INTRADAY-${intradayDirection}`,
-      type: "INTRADAY",
-      timeframe: "H1 -> M15 -> M5",
-      symbol: "XAUUSD",
+    const intradaySetup = buildSetup({
+      mode: "INTRADAY",
       direction: intradayDirection,
-      status: intraReady ? "READY" : "WAIT",
-      entryStatus: intraReady ? "READY" : "WAIT",
-      score: intraScore,
-      zone: intraZone,
-      mapping: intradayMapping,
-      plan: intraPlan,
-      reasons: intraReady 
-        ? [intraZone.reason + " " + intradayMapping.holdRule] 
-        : [`Zon 20 pips dipetakan. ${intradayMapping.holdRule}`],
-      lastUpdated: new Date().toISOString()
+      timeframe: "M15",
+      candles: candles.M15,
+      secondaryCandles: candles.H1,
+      currentPrice: price,
+      h1Trend,
+      d1Trend,
+    });
+
+    // -----------------------------------------------------------------------
+    // Persistent locks are optional. If Supabase is configured, preserve an
+    // existing valid lock; otherwise return the newly calculated setup.
+    // -----------------------------------------------------------------------
+
+    let scalpLockStatus = {
+      enabled: Boolean(getSupabaseConfig()),
+      persisted: false,
+      reason: "No existing lock applied.",
     };
 
-    return res.status(200).json({
+    let intradayLockStatus = {
+      enabled: Boolean(getSupabaseConfig()),
+      persisted: false,
+      reason: "No existing lock applied.",
+    };
+
+    if (getSupabaseConfig()) {
+      try {
+        const activeScalpLock = await getActiveLock("SCALPING");
+
+        if (
+          isLockUsable(
+            activeScalpLock,
+            scalpDirection,
+            price,
+            "SCALPING"
+          )
+        ) {
+          applyLockToSetup(scalpSetup, activeScalpLock);
+
+          scalpLockStatus = {
+            enabled: true,
+            persisted: true,
+            setupId: activeScalpLock.setup_id,
+            reason: "Existing scalping setup lock preserved.",
+          };
+        } else {
+          if (activeScalpLock) {
+            await invalidateLock(activeScalpLock);
+          }
+
+          const saved = await saveLock("SCALPING", scalpSetup);
+
+          scalpLockStatus = {
+            enabled: true,
+            ...saved,
+          };
+        }
+      } catch (error) {
+        scalpLockStatus = {
+          enabled: true,
+          persisted: false,
+          reason: error.message,
+        };
+      }
+
+      try {
+        const activeIntradayLock = await getActiveLock("INTRADAY");
+
+        if (
+          isLockUsable(
+            activeIntradayLock,
+            intradayDirection,
+            price,
+            "INTRADAY"
+          )
+        ) {
+          applyLockToSetup(intradaySetup, activeIntradayLock);
+
+          intradayLockStatus = {
+            enabled: true,
+            persisted: true,
+            setupId: activeIntradayLock.setup_id,
+            reason: "Existing intraday setup lock preserved.",
+          };
+        } else {
+          if (activeIntradayLock) {
+            await invalidateLock(activeIntradayLock);
+          }
+
+          const saved = await saveLock("INTRADAY", intradaySetup);
+
+          intradayLockStatus = {
+            enabled: true,
+            ...saved,
+          };
+        }
+      } catch (error) {
+        intradayLockStatus = {
+          enabled: true,
+          persisted: false,
+          reason: error.message,
+        };
+      }
+    }
+
+    const mainSetup =
+      intradaySetup.status === "READY"
+        ? intradaySetup
+        : scalpSetup;
+
+    const topDirection =
+      mainSetup.status === "READY"
+        ? mainSetup.direction
+        : "WAIT";
+
+    const response = {
       success: true,
-      status: "success",
+      status:
+        scalpSetup.status === "READY" ||
+        intradaySetup.status === "READY"
+          ? "READY"
+          : "WAIT",
+
       symbol: "XAUUSD",
-      cmp: roundPrice(price),
+      cmp: price,
+
       direction: {
-        H1: price >= ema50_H1 ? "BULLISH" : "BEARISH",
-        M15: intraZone.status,
-        M5: scalpZone.status,
-        M1: scalpReady ? "IN_ZONE" : "APPROACHING"
+        D1: d1Trend.direction,
+        H1: h1Trend.direction,
+        M15: intradaySetup.zone.status,
+        M5: scalpSetup.zone.status,
       },
-      bias: scalpDirection === "BUY" ? "BULLISH" : "BEARISH",
-      
-      zone: scalpZone,
-      intradayMapping,
+
+      bias: {
+        overall: h1Trend.direction,
+        daily: d1Trend.direction,
+        hourly: h1Trend.direction,
+        scalping: scalpDirection,
+        intraday: intradayDirection,
+      },
+
+      zone: mainSetup.zone,
+      intradayMapping: {
+        timeframe: "H1 -> M15",
+        direction: intradayDirection,
+        range: h1Structure.range,
+        invalidation:
+          intradayDirection === "BUY"
+            ? h1Structure.range?.low ?? null
+            : intradayDirection === "SELL"
+              ? h1Structure.range?.high ?? null
+              : null,
+        phase:
+          intradayDirection === "BUY"
+            ? "BULLISH_CONTEXT"
+            : intradayDirection === "SELL"
+              ? "BEARISH_CONTEXT"
+              : "NEUTRAL",
+        holdRule:
+          "Selagi struktur H1 tidak invalid, nilai semula zon berdasarkan struktur dan Signal Lock.",
+      },
 
       signal: {
-        direction: scalpDirection,
-        status: scalpReady ? `${scalpDirection} READY` : "WAIT",
-        confirmation: scalpReady 
-          ? `Zon aktif (${scalpZone.source})! Skor: ${scalpScore}` 
-          : `Zon 20 pips sedia (${scalpZone.low} – ${scalpZone.high}).`
+        direction: topDirection,
+        status: mainSetup.status,
+        confirmation: "NO_CANDLE_CONFIRMATION_REQUIRED",
+        entryMode: "EARLY_ZONE",
+        reason:
+          mainSetup.reasons?.[0] ||
+          "Belum ada setup yang memenuhi syarat.",
       },
-      signalStatus: scalpReady ? "READY" : "WAIT",
 
-      scalping: scalpingPayload,
-      intraday: intradayPayload,
+      signalStatus: mainSetup.signalStatus,
+
+      scalping: scalpSetup,
+      intraday: intradaySetup,
 
       punca: {
-        source: scalpZone.source,
-        price: scalpZone.pivot
+        source: mainSetup.zone?.source || "NONE",
+        price: mainSetup.zone?.pivot ?? null,
       },
-      score: scalpScore,
+
+      score: mainSetup.score,
+
+      trendline: {
+        H1: calculateTrendline(candles.H1),
+        M15: calculateTrendline(candles.M15),
+        M5: calculateTrendline(candles.M5),
+      },
+
+      marketStructure: {
+        H1: {
+          bullish: h1Structure.bullishStructure,
+          bearish: h1Structure.bearishStructure,
+          range: h1Structure.range,
+        },
+        M15: {
+          bullish: m15Structure.bullishStructure,
+          bearish: m15Structure.bearishStructure,
+          range: m15Structure.range,
+        },
+        M5: {
+          bullish: m5Structure.bullishStructure,
+          bearish: m5Structure.bearishStructure,
+          range: m5Structure.range,
+        },
+      },
+
+      signalLock: {
+        scalping: scalpLockStatus,
+        intraday: intradayLockStatus,
+      },
+
       settings: {
-        zoneThicknessPips: 20,
-        stopLossPips: 45,
-        stopLossDistance: SETTINGS.stopLossDistance
+        zoneThickness: SETTINGS.zoneThickness,
+        zoneThicknessPips:
+          SETTINGS.zoneThickness / POINT_VALUE,
+        timeframes: ["D1", "H1", "M15", "M5"],
+        scalpingMinimumScore: SETTINGS.scalping.minimumScore,
+        intradayMinimumScore: SETTINGS.intraday.minimumScore,
+        stopLossMethod: "STRUCTURAL_SWING",
+        takeProfitMethod: "SNR_TARGETS",
+        confirmationRequired: false,
       },
-      timestamp: new Date().toISOString()
-    });
+
+      data: dataMeta,
+      timestamp: new Date().toISOString(),
+    };
+
+    return res.status(200).json(response);
   } catch (error) {
-    return responseError(
-      res,
-      502,
-      "MARKET_DATA_ERROR",
-      "Gagal memproses data pasaran.",
-      error.message
+    console.error("[SINNCI AI] Analyze error:", error);
+
+    return res.status(502).json(
+      responseError(
+        error.message || "Market analysis failed.",
+        502
+      )
     );
   }
 }

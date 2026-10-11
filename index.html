@@ -668,7 +668,7 @@ body::before{
 .news-pill-btn.active{color:#000;background:var(--gold);border-color:var(--gold);}
 .news-stack{display:flex;flex-direction:column;gap:8px;}
 .news-row{
-  padding:14px;
+  padding:14px 16px;
   border-radius:14px;
   background:rgba(255,255,255,.02);
   border:1px solid var(--border);
@@ -681,6 +681,25 @@ body::before{
 .news-tag{padding:4px 8px;border-radius:6px;font-size:8px;font-weight:900;}
 .news-tag.high{color:#fda4af;background:rgba(244,63,94,.12);}
 .news-tag.medium{color:var(--gold2);background:rgba(251,191,36,.1);}
+
+/* ECONOMIC DATA METRICS (ACTUAL, FORECAST, PREVIOUS) */
+.news-metrics-bar{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px dashed rgba(255,255,255,.06);
+}
+.news-metric-item{
+  background:rgba(0,0,0,.25);
+  padding:6px 8px;
+  border-radius:8px;
+  text-align:center;
+}
+.news-metric-lbl{font-size:7.5px;color:var(--muted);font-weight:700;letter-spacing:.5px;}
+.news-metric-val{font-family:'Space Grotesk',sans-serif;font-size:11px;font-weight:800;margin-top:3px;}
+.news-metric-val.actual{color:var(--gold2);}
 .news-empty{padding:24px;text-align:center;color:var(--muted);font-size:11px;}
 
 .intel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
@@ -809,8 +828,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
           <span id="priceStatus" class="price-status">● Connecting to institutional feed...</span>
         </div>
         <div class="tf-switcher">
-          <button id="tfModeScalp" class="tf-btn active" onclick="selectTimeframeMode('scalp')">SCALPING (H1→M5→M1)</button>
-          <button id="tfModeIntra" class="tf-btn" onclick="selectTimeframeMode('intra')">INTRADAY (H1→M15→M5)</button>
+          <button id="tfModeScalp" class="tf-btn active" onclick="selectTimeframeMode('scalp')">SCALPING (D1→H1→M5)</button>
+          <button id="tfModeIntra" class="tf-btn" onclick="selectTimeframeMode('intra')">INTRADAY (D1→H1→M15)</button>
         </div>
       </div>
 
@@ -890,7 +909,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     </section>
 
     <!-- TRADE PLAN SECTION -->
-    <div class="section-heading">RIGID EXECUTION PLAN • 35 PIPS SL MODEL</div>
+    <div class="section-heading">RIGID EXECUTION PLAN • STRUCTURAL SWING MODEL</div>
     <section>
       <div id="tradePlanGrid" class="plan-grid" style="display:none;">
         <div class="metric-box">
@@ -898,15 +917,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
           <div id="planEntry" class="metric-val">---</div>
         </div>
         <div class="metric-box">
-          <div class="metric-lbl">SL (35 PIPS)</div>
+          <div class="metric-lbl">STOP LOSS</div>
           <div id="planSL" class="metric-val" style="color:var(--red);">---</div>
         </div>
         <div class="metric-box">
-          <div class="metric-lbl">TP1</div>
+          <div class="metric-lbl">TP1 (SNR)</div>
           <div id="planTP1" class="metric-val" style="color:var(--green);">---</div>
         </div>
         <div class="metric-box">
-          <div class="metric-lbl">TP2</div>
+          <div class="metric-lbl">TP2 (SNR)</div>
           <div id="planTP2" class="metric-val" style="color:var(--green);">---</div>
         </div>
         <div class="metric-box">
@@ -925,24 +944,24 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       </div>
     </section>
 
-    <!-- MULTI-TIMEFRAME RADAR (KEKAL: 4 TF AKTIF) -->
+    <!-- MULTI-TIMEFRAME RADAR (D1, H1, M15, M5) -->
     <div class="section-heading">MULTI-TIMEFRAME RADAR • ALIGNMENT ENGINE</div>
     <section id="directionRadarGrid" class="radar-grid">
+      <div class="radar-cell">
+        <div class="radar-tf">D1 CONTEXT</div>
+        <div id="d1" class="radar-val neutral">---</div>
+      </div>
       <div class="radar-cell">
         <div class="radar-tf">H1 BIAS</div>
         <div id="h1" class="radar-val neutral">---</div>
       </div>
       <div class="radar-cell">
-        <div class="radar-tf">M15 ZONE</div>
+        <div class="radar-tf">M15 STRUCTURE</div>
         <div id="m15" class="radar-val neutral">---</div>
       </div>
       <div class="radar-cell">
-        <div class="radar-tf">M5 ZONE</div>
+        <div class="radar-tf">M5 SCALP</div>
         <div id="m5" class="radar-val neutral">---</div>
-      </div>
-      <div class="radar-cell">
-        <div class="radar-tf">M1 CMP</div>
-        <div id="m1" class="radar-val neutral">---</div>
       </div>
     </section>
 
@@ -954,7 +973,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         <div class="setup-header">
           <div>
             <div class="setup-title">⚡ SCALPING</div>
-            <div class="setup-path">H1 → M5 → M1</div>
+            <div class="setup-path">D1 → H1 → M5</div>
           </div>
           <div id="scalpingStatus" class="setup-badge wait">WAIT</div>
         </div>
@@ -969,15 +988,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             <div id="scalpingEntry" class="setup-metric-tile-val">---</div>
           </div>
           <div class="setup-metric-tile">
-            <div class="setup-metric-tile-lbl">SL (35 PIPS)</div>
+            <div class="setup-metric-tile-lbl">STRUCTURAL SL</div>
             <div id="scalpingSL" class="setup-metric-tile-val">---</div>
           </div>
           <div class="setup-metric-tile">
-            <div class="setup-metric-tile-lbl">TP1 • 60 PIPS</div>
+            <div class="setup-metric-tile-lbl">TP1 (SNR)</div>
             <div id="scalpingTP1" class="setup-metric-tile-val">---</div>
           </div>
           <div class="setup-metric-tile">
-            <div class="setup-metric-tile-lbl">TP2 • 120 PIPS</div>
+            <div class="setup-metric-tile-lbl">TP2 (SNR)</div>
             <div id="scalpingTP2" class="setup-metric-tile-val">---</div>
           </div>
         </div>
@@ -989,7 +1008,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         <div class="setup-header">
           <div>
             <div class="setup-title">📈 INTRADAY</div>
-            <div class="setup-path">H1 → M15 → M5</div>
+            <div class="setup-path">D1 → H1 → M15</div>
           </div>
           <div id="intradayStatus" class="setup-badge wait">WAIT</div>
         </div>
@@ -1004,15 +1023,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             <div id="intradayEntry" class="setup-metric-tile-val">---</div>
           </div>
           <div class="setup-metric-tile">
-            <div class="setup-metric-tile-lbl">SL (35 PIPS)</div>
+            <div class="setup-metric-tile-lbl">STRUCTURAL SL</div>
             <div id="intradaySL" class="setup-metric-tile-val">---</div>
           </div>
           <div class="setup-metric-tile">
-            <div class="setup-metric-tile-lbl">TP1 • 130 PIPS</div>
+            <div class="setup-metric-tile-lbl">TP1 (SNR)</div>
             <div id="intradayTP1" class="setup-metric-tile-val">---</div>
           </div>
           <div class="setup-metric-tile">
-            <div class="setup-metric-tile-lbl">TP2 • 220 PIPS</div>
+            <div class="setup-metric-tile-lbl">TP2 (SNR)</div>
             <div id="intradayTP2" class="setup-metric-tile-val">---</div>
           </div>
         </div>
@@ -1062,7 +1081,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       </div>
     </section>
 
-    <!-- NEWS -->
+    <!-- NEWS WITH PREVIOUS / FORECAST / ACTUAL -->
     <div class="section-heading">HIGH IMPACT CALENDAR • US DOLLAR</div>
     <section class="hud-card news-hud">
       <div class="news-header-row">
@@ -1089,12 +1108,12 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         <div id="puncaSource" class="intel-val">---</div>
       </div>
       <div class="intel-card">
-        <div class="intel-lbl">SYSTEM RISK</div>
-        <div id="risk" class="intel-val">3.50</div>
+        <div class="intel-lbl">ZONE THICKNESS</div>
+        <div id="risk" class="intel-val">2.00</div>
       </div>
       <div class="intel-card">
-        <div class="intel-lbl">MAX RISK</div>
-        <div id="maxRisk" class="intel-val">35 PIPS</div>
+        <div class="intel-lbl">MAX RISK DISTANCE</div>
+        <div id="maxRisk" class="intel-val">STRUCTURAL</div>
       </div>
       <div class="intel-card">
         <div class="intel-lbl">DECISION FILTER</div>
@@ -1354,18 +1373,18 @@ function setText(id, value) {
 function formatPrice(value) {
   return (value !== null && value !== undefined && Number.isFinite(Number(value)))
     ? Number(value).toFixed(2)
-    : "---";
+    : "—";
 }
 
 function formatZoneDisplay(zone) {
   if (zone && Number.isFinite(Number(zone.low)) && Number.isFinite(Number(zone.high))) {
     return `${Number(zone.low).toFixed(2)} – ${Number(zone.high).toFixed(2)}`;
   }
-  return "---";
+  return "—";
 }
 
 /* =========================================================
-   DASHBOARD DISPATCHER
+   DASHBOARD DISPATCHER (COMPATIBLE WITH api/analyze.js)
    ========================================================= */
 function renderCompleteDashboard(data) {
   if (!data) return;
@@ -1377,30 +1396,37 @@ function renderCompleteDashboard(data) {
     document.getElementById("zoneCmpValue").textContent = cmp.toFixed(2);
   }
 
+  // Pilih setup mengikut mode: Scalping atau Intraday
   const currentSetup = activeTFMode === "scalp" ? data.scalping : data.intraday;
-  const direction = currentSetup?.direction || data.signal?.direction || "BUY";
+  const direction = currentSetup?.direction || data.signal?.direction || "WAIT";
   const zoneObj = currentSetup?.zone || data.zone;
 
   // 1. ZONE PANEL (20 PIPS)
   document.getElementById("zoneTypeTitle").textContent = `${direction} ZONE (20 PIPS)`;
   document.getElementById("zoneRange").textContent = formatZoneDisplay(zoneObj);
   document.getElementById("zoneStatusText").textContent = zoneObj?.status || "WATCH";
-  document.getElementById("zoneScoreText").textContent = currentSetup?.score || 65;
-  document.getElementById("zoneReasonText").textContent = data.punca?.source || "SNR BUCU";
+  document.getElementById("zoneScoreText").textContent = currentSetup?.score ?? "--";
+  document.getElementById("zoneReasonText").textContent = zoneObj?.source || data.punca?.source || "SNR BUCU";
+
+  // Kemas kini lencana Signal Lock mengikut data API sebenar
+  const isLockActive = (activeTFMode === "scalp" 
+    ? data.signalLock?.scalping?.persisted 
+    : data.signalLock?.intraday?.persisted) || zoneObj?.locked === true;
+  document.getElementById("zoneLockBadge").textContent = isLockActive ? "LOCKED 🔒" : "DYNAMIC";
 
   // 2. SIGNAL CARD & STEP TRACKER
-  const isReady = (currentSetup?.status === "READY" || data.signalStatus === "READY");
+  const isReady = (currentSetup?.status === "READY" || data.status === "READY");
   const stepCMP = document.getElementById("stepCMP");
   const stepSignal = document.getElementById("stepSignal");
 
   signalCard.className = "hud-card signal-card " + (isReady ? "ready" : "wait");
-  signalIcon.textContent = isReady ? (direction === "BUY" ? "↑" : "↓") : "⏳";
+  signalIcon.textContent = isReady ? (direction === "BUY" ? "↑" : direction === "SELL" ? "↓" : "⏳") : "⏳";
   signalName.textContent = isReady ? `${direction} READY` : "WAIT";
-  signalSub.textContent = isReady ? "Zon bucu aktif & sedia untuk eksekusi" : "Memantau harga menghampiri zon bucu";
-  signalConfirmationText.textContent = isReady ? "Harga kini dalam zon!" : "Menunggu CMP masuk zon";
-  setText("score", `SCORE ${currentSetup?.score || 65}`);
+  signalSub.textContent = isReady ? (currentSetup?.reasons?.[0] || "Zon bucu aktif & sedia untuk eksekusi") : "Memantau harga menghampiri zon bucu";
+  signalConfirmationText.textContent = zoneObj?.status === "IN_ZONE" ? "Harga kini dalam zon!" : (zoneObj?.reason || "Menunggu CMP masuk zon");
+  setText("score", `SCORE ${currentSetup?.score ?? 0}`);
 
-  if (isReady) {
+  if (isReady && direction !== "WAIT") {
     stepCMP.className = "step-node done";
     stepSignal.className = "step-node done";
     aiStatus.textContent = direction;
@@ -1414,34 +1440,42 @@ function renderCompleteDashboard(data) {
     stepSignal.className = "step-node";
     aiStatus.textContent = "WAIT";
     aiStatus.style.color = "var(--yellow)";
-    aiDescription.textContent = "Zon dikenal pasti. Menunggu harga menyentuh sempadan zon.";
+    aiDescription.textContent = currentSetup?.reasons?.[0] || "Zon dikenal pasti. Menunggu harga menyentuh sempadan zon.";
 
     document.getElementById("tradePlanGrid").style.display = "none";
     document.getElementById("tradePlanGate").style.display = "block";
   }
 
-  // 3. TRADE PLAN (SL 35 PIPS)
+  // 3. TRADE PLAN (Structural SL & SNR Targets daripada plan API)
   const plan = currentSetup?.plan;
-  setText("planEntry", formatPrice(plan?.entry || cmp));
-  setText("planSL", formatPrice(plan?.sl));
+  const stopLossValue = plan?.stopLoss ?? plan?.sl ?? null;
+
+  setText("planEntry", formatPrice(plan?.entry ?? zoneObj?.pivot ?? cmp));
+  setText("planSL", formatPrice(stopLossValue));
   setText("planTP1", formatPrice(plan?.tp1));
   setText("planTP2", formatPrice(plan?.tp2));
   setText("planPunca", formatPrice(zoneObj?.pivot));
 
-  // 4. RADAR MULTI-TIMEFRAME (H1, M15, M5, M1)
+  // Teks gate terkunci
+  setText("gateEntry", formatPrice(plan?.entry ?? zoneObj?.pivot));
+  setText("gateSL", formatPrice(stopLossValue));
+  setText("gateTP1", formatPrice(plan?.tp1));
+  setText("gateTP2", formatPrice(plan?.tp2));
+
+  // 4. MULTI-TIMEFRAME RADAR (D1, H1, M15, M5 mengikut API analyze.js)
+  setDirection("d1", data.direction?.D1);
   setDirection("h1", data.direction?.H1);
   setDirection("m15", data.direction?.M15);
   setDirection("m5", data.direction?.M5);
-  setDirection("m1", data.direction?.M1);
 
   // 5. SUB-CARDS (SCALPING & INTRADAY)
   renderSetupSubCard("scalping", data.scalping);
   renderSetupSubCard("intraday", data.intraday);
 
-  // 6. INTELLIGENCE
-  setText("puncaSource", data.punca?.source || "ZONE_BUCU_SNR");
-  setText("risk", "3.50");
-  setText("maxRisk", "35 PIPS ($3.50)");
+  // 6. INTELLIGENCE SYSTEM METRICS
+  setText("puncaSource", currentSetup?.zone?.source || data.punca?.source || "SNR_ZONE");
+  setText("risk", data.settings?.zoneThickness ? `${data.settings.zoneThickness.toFixed(2)}` : "2.00");
+  setText("maxRisk", activeTFMode === "scalp" ? "8.00 (SCALPING)" : "15.00 (INTRADAY)");
   setText("reason", currentSetup?.reasons?.[0] || "Menunggu reaksi zon bucu.");
 }
 
@@ -1451,22 +1485,26 @@ function renderSetupSubCard(type, setupData) {
   const card = document.getElementById(prefix + "Card");
   const isReady = setupData.status === "READY";
   const isBuy = setupData.direction === "BUY";
+  const isSell = setupData.direction === "SELL";
 
   card.className = "hud-card setup-card " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
   document.getElementById(prefix + "Status").className = "setup-badge " + (isReady ? "ready" : "wait");
-  document.getElementById(prefix + "Status").textContent = isReady ? (isBuy ? "BUY READY" : "SELL READY") : "WAIT";
+  document.getElementById(prefix + "Status").textContent = isReady ? `${setupData.direction} READY` : "WAIT";
 
   const dirEl = document.getElementById(prefix + "Direction");
   dirEl.className = "setup-dir-row " + (isReady ? (isBuy ? "buy" : "sell") : "wait");
-  document.getElementById(prefix + "Arrow").textContent = isReady ? (isBuy ? "↑" : "↓") : "⏳";
-  document.getElementById(prefix + "DirectionText").textContent = setupData.direction;
-  document.getElementById(prefix + "Score").textContent = "SCORE " + setupData.score;
+  document.getElementById(prefix + "Arrow").textContent = isReady ? (isBuy ? "↑" : isSell ? "↓" : "⏳") : "⏳";
+  document.getElementById(prefix + "DirectionText").textContent = setupData.direction || "WAIT";
+  document.getElementById(prefix + "Score").textContent = "SCORE " + (setupData.score ?? 0);
+
+  const plan = setupData.plan;
+  const stopLossValue = plan?.stopLoss ?? plan?.sl ?? null;
 
   document.getElementById(prefix + "Entry").textContent = formatZoneDisplay(setupData.zone);
-  document.getElementById(prefix + "SL").textContent = isReady ? formatPrice(setupData.plan?.sl) : "Waiting";
-  document.getElementById(prefix + "TP1").textContent = isReady ? formatPrice(setupData.plan?.tp1) : "Waiting";
-  document.getElementById(prefix + "TP2").textContent = isReady ? formatPrice(setupData.plan?.tp2) : "Waiting";
-  document.getElementById(prefix + "Reason").textContent = setupData.reasons?.[0] || "";
+  document.getElementById(prefix + "SL").textContent = isReady ? formatPrice(stopLossValue) : "Waiting";
+  document.getElementById(prefix + "TP1").textContent = isReady ? formatPrice(plan?.tp1) : "Waiting";
+  document.getElementById(prefix + "TP2").textContent = isReady ? formatPrice(plan?.tp2) : "Waiting";
+  document.getElementById(prefix + "Reason").textContent = setupData.reasons?.[0] || (setupData.zone?.reason || "");
 }
 
 /* =========================================================
@@ -1477,7 +1515,7 @@ async function analyze() {
   analyzeBtn.textContent = "◌ ANALYZING FEED...";
   aiStatus.textContent = "SCANNING";
   aiStatus.style.color = "var(--gold)";
-  aiDescription.textContent = "Mengimbas struktur H1, M15, M5 & M1...";
+  aiDescription.textContent = "Mengimbas struktur D1, H1, M15 & M5...";
 
   try {
     await getLivePrice();
@@ -1560,9 +1598,14 @@ async function loadEconomicNews() {
   try {
     const response = await fetch("/api/news");
     const data = await response.json();
-    if (response.ok && data.success && Array.isArray(data.events)) {
-      sinnciNews = data.events;
+    
+    // Menyokong pelbagai format respons JSON API News (data.events atau data langsung)
+    const events = Array.isArray(data) ? data : (data.events || data.news || []);
+    if (response.ok && Array.isArray(events) && events.length > 0) {
+      sinnciNews = events;
       renderEconomicNews();
+    } else {
+      newsList.innerHTML = `<div class="news-empty">Tiada siaran berita ekonomi berimpak tinggi hari ini.</div>`;
     }
   } catch (e) {
     newsList.innerHTML = `<div class="news-empty">US economic releases temporarily offline</div>`;
@@ -1571,18 +1614,58 @@ async function loadEconomicNews() {
 
 function renderEconomicNews() {
   const newsList = document.getElementById("newsList");
-  if (!newsList || !sinnciNews.length) return;
-  newsList.innerHTML = sinnciNews.slice(0, 5).map(event => `
-    <div class="news-row medium">
-      <div class="news-row-top">
-        <div>
-          <div class="news-event-title">${event.name || event.title || "US Release"}</div>
-          <div class="news-time-sub">${event.time_utc || "Today"}</div>
+  if (!newsList) return;
+
+  const filtered = sinnciNews.filter(item => {
+    if (newsFilter === "all") return true;
+    const impact = String(item.impact || "").toLowerCase();
+    return impact.includes(newsFilter);
+  });
+
+  if (!filtered.length) {
+    newsList.innerHTML = `<div class="news-empty">Tiada berita bagi kategori ini.</div>`;
+    return;
+  }
+
+  newsList.innerHTML = filtered.slice(0, 5).map(event => {
+    const impact = String(event.impact || "MED").toUpperCase();
+    const impactClass = impact.includes("HIGH") ? "high" : "medium";
+    
+    // Pemetaan data sebenar dengan fallback selamat
+    const actual = (event.actual !== undefined && event.actual !== null && event.actual !== "") ? event.actual : "Pending";
+    const forecast = (event.forecast !== undefined && event.forecast !== null && event.forecast !== "") ? event.forecast : "—";
+    const previous = (event.previous !== undefined && event.previous !== null && event.previous !== "") ? event.previous : "—";
+
+    const title = event.name || event.title || event.event || "US Economic Release";
+    const timeDisplay = event.time_utc || event.time || event.date || "Today";
+    const currency = event.currency || event.country || "USD";
+
+    return `
+      <div class="news-row ${impactClass}">
+        <div class="news-row-top">
+          <div>
+            <div class="news-event-title">${currency ? `[${currency}] ` : ""}${title}</div>
+            <div class="news-time-sub">${timeDisplay}</div>
+          </div>
+          <div class="news-tag ${impactClass}">${impact}</div>
         </div>
-        <div class="news-tag medium">${event.impact || "MED"}</div>
+        <div class="news-metrics-bar">
+          <div class="news-metric-item">
+            <div class="news-metric-lbl">ACTUAL</div>
+            <div class="news-metric-val actual">${actual}</div>
+          </div>
+          <div class="news-metric-item">
+            <div class="news-metric-lbl">FORECAST</div>
+            <div class="news-metric-val">${forecast}</div>
+          </div>
+          <div class="news-metric-item">
+            <div class="news-metric-lbl">PREVIOUS</div>
+            <div class="news-metric-val">${previous}</div>
+          </div>
+        </div>
       </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 function filterNews(type) {

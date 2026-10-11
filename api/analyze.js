@@ -3,15 +3,7 @@
  * File: api/analyze.js
  *
  * Analysis only. No automated trading or order execution.
- *
- * Strategy:
- * - Zone accuracy > signal timing > score
- * - D1 + H1 + M15 + M5
- * - Scalping: H1 direction + M5 entry structure
- * - Intraday: H1 direction + M15 entry structure
- * - SNR, breakout/retest, EMA20 reentry
- * - Structural SL, SNR/range targets
- * - Supabase setup locking
+ * Zone accuracy > signal timing > score.
  */
 
 const SETTINGS = {
@@ -28,6 +20,8 @@ const SETTINGS = {
     maxTargetDistance: 30.00,
     tp1Fallback: 6.00,
     tp2Fallback: 12.00,
+    minimumRR1: 1.20,
+    minimumRR2: 2.00,
   },
 
   intraday: {
@@ -37,6 +31,8 @@ const SETTINGS = {
     maxTargetDistance: 80.00,
     tp1Fallback: 15.00,
     tp2Fallback: 23.00,
+    minimumRR1: 1.20,
+    minimumRR2: 1.80,
   },
 };
 
@@ -50,23 +46,23 @@ const TIMEFRAMES = {
 const TABLE = "sinnci_setup_locks";
 
 /* =========================================================
-   HTTP HELPERS
+   GENERAL HELPERS
 ========================================================= */
 
 function json(res, status, payload) {
-  res.status(status).setHeader("Cache-Control", "no-store");
-  return res.json(payload);
+  res.setHeader("Cache-Control", "no-store");
+  return res.status(status).json(payload);
 }
 
 function round(value, decimals = 2) {
   const n = Number(value);
-  if (!Number.isFinite(n)) return null;
-  return Number(n.toFixed(decimals));
+  return Number.isFinite(n) ? Number(n.toFixed(decimals)) : null;
 }
 
 function average(values) {
-  if (!values.length) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
+  return values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : null;
 }
 
 function ema(values, period) {
@@ -99,6 +95,15 @@ function uniquePrices(values, tolerance = 0.15) {
 function getEnv(name) {
   const value = process.env[name];
   return typeof value === "string" ? value.trim() : "";
+}
+
+function isBuy(direction) {
+  return direction === "BUY";
+}
+
+function isCorrectTarget(direction, entry, target) {
+  if (!Number.isFinite(target)) return false;
+  return isBuy(direction) ? target > entry : target < entry;
 }
 
 /* =========================================================
@@ -166,14 +171,15 @@ async function fetchCandles(interval) {
         close: Number(item.close),
         volume: Number(item.volume || 0),
       }))
-      .filter(
-        (c) =>
-          c.time &&
-          Number.isFinite(c.open) &&
-          Number.isFinite(c.high) &&
-          Number.isFinite(c.low) &&
-          Number.isFinite(c.close) &&
-          c.high >= c.low
+      .filter((c) =>
+        c.time &&
+        Number.isFinite(c.open) &&
+        Number.isFinite(c.high) &&
+        Number.isFinite(c.low) &&
+        Number.isFinite(c.close) &&
+        c.high >= c.low &&
+        c.high >= Math.max(c.open, c.close) &&
+        c.low <= Math.min(c.open, c.close)
       )
       .sort((a, b) => new Date(a.time) - new Date(b.time));
 
@@ -209,8 +215,21 @@ function findSwings(candles, wing = 2) {
       if (candles[j].low <= current.low) isLow = false;
     }
 
-    if (isHigh) highs.push({ index: i, price: current.high, time: current.time });
-    if (isLow) lows.push({ index: i, price: current.low, time: current.time });
+    if (isHigh) {
+      highs.push({
+        index: i,
+        price: current.high,
+        time: current.time,
+      });
+    }
+
+    if (isLow) {
+      lows.push({
+        index: i,
+        price: current.low,
+        time: current.time,
+      });
+    }
   }
 
   return { highs, lows };
@@ -253,15 +272,17 @@ function buildStructure(candles) {
     else if (last.close < ema20 && ema20 < ema50) direction = "BEARISH";
   }
 
-  const breakoutUp =
+  const breakoutUp = Boolean(
+    range &&
     last.close > previous.high &&
-    range &&
-    last.close >= range.high - 0.05;
+    last.close >= range.high - 0.05
+  );
 
-  const breakoutDown =
-    last.close < previous.low &&
+  const breakoutDown = Boolean(
     range &&
-    last.close <= range.low + 0.05;
+    last.close < previous.low &&
+    last.close <= range.low + 0.05
+  );
 
   return {
     direction,
@@ -277,10 +298,6 @@ function buildStructure(candles) {
   };
 }
 
-function getTrend(candles) {
-  return buildStructure(candles).direction;
-}
-
 /* =========================================================
    EARLY ENTRY ZONE
 ========================================================= */
@@ -289,28 +306,27 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   const recent = candles.slice(-35);
   const structure = buildStructure(recent);
   const swings = findSwings(recent, 2);
+  const buy = isBuy(direction);
 
-  const isBuy = direction === "BUY";
-  const relevantSwings = isBuy ? swings.lows : swings.highs;
+  // BUY uses support below CMP.
+  // SELL uses resistance above CMP.
+  const relevantSwings = buy ? swings.lows : swings.highs;
 
   const candidates = relevantSwings
-    .filter((s) => isBuy ? s.price < cmp : s.price > cmp)
+    .filter((s) => buy ? s.price < cmp : s.price > cmp)
     .map((s) => ({
       price: s.price,
       time: s.time,
-      source: isBuy ? "SNR_SUPPORT" : "SNR_RESISTANCE",
-      index: s.index,
+      source: buy ? "SNR_SUPPORT" : "SNR_RESISTANCE",
     }));
 
   let pivot = null;
-  let source = "SNR_RANGE";
+  let source = "SNR_RANGE_EDGE";
   let bestDistance = Infinity;
 
   for (const candidate of candidates) {
     const distance = Math.abs(cmp - candidate.price);
 
-    // Keep the nearest valid historical structure level.
-    // Do not chase a level that is already behind current price.
     if (distance < bestDistance) {
       pivot = candidate.price;
       source = candidate.source;
@@ -318,31 +334,11 @@ function buildEarlyZone(candles, direction, cmp, mode) {
     }
   }
 
-  // Breakout/retest structure can become the entry reference.
-  if (isBuy && structure.breakoutUp && structure.range) {
-    const level = structure.range.high;
-
-    if (level < cmp && (pivot === null || Math.abs(cmp - level) < bestDistance)) {
-      pivot = level;
-      source = "SNR_BREAKOUT_RETEST";
-    }
-  }
-
-  if (!isBuy && structure.breakoutDown && structure.range) {
-    const level = structure.range.low;
-
-    if (level > cmp && (pivot === null || Math.abs(cmp - level) < bestDistance)) {
-      pivot = level;
-      source = "SNR_BREAKDOWN_RETEST";
-    }
-  }
-
-  // EMA20 reentry fallback. Use only when it lies on the correct side.
-  const closes = recent.map((c) => c.close);
-  const ema20 = ema(closes, 20);
+  // EMA20 reentry is used only when a valid swing level is unavailable.
+  const ema20 = ema(recent.map((c) => c.close), 20);
 
   if (pivot === null && ema20 !== null) {
-    const correctSide = isBuy ? ema20 < cmp : ema20 > cmp;
+    const correctSide = buy ? ema20 < cmp : ema20 > cmp;
 
     if (correctSide) {
       pivot = ema20;
@@ -350,9 +346,9 @@ function buildEarlyZone(candles, direction, cmp, mode) {
     }
   }
 
-  // Final fallback: use recent range edge, not the current price.
+  // Last fallback: historical range edge, never simply CMP.
   if (pivot === null && structure.range) {
-    pivot = isBuy ? structure.range.low : structure.range.high;
+    pivot = buy ? structure.range.low : structure.range.high;
     source = "SNR_RANGE_EDGE";
   }
 
@@ -373,27 +369,28 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   const half = SETTINGS.zoneThickness / 2;
   const low = round(pivot - half);
   const high = round(pivot + half);
-  const distance = isBuy ? low - cmp : cmp - high;
 
   let status = "WATCH";
 
   if (cmp >= low && cmp <= high) {
     status = "IN_ZONE";
-  } else if (isBuy && cmp < low && low - cmp <= 5) {
+  } else if (buy && cmp > high && cmp - high <= 5) {
+    // BUY support zone: price approaches from above.
     status = "APPROACHING";
-  } else if (!isBuy && cmp > high && cmp - high <= 5) {
+  } else if (!buy && cmp < low && low - cmp <= 5) {
+    // SELL resistance zone: price approaches from below.
     status = "APPROACHING";
   }
 
   return {
-    valid: high > low,
+    valid: Number.isFinite(low) && Number.isFinite(high) && high > low,
     low,
     high,
     entry: round(pivot),
     pivot: round(pivot),
     source,
     status,
-    distance: round(Math.abs(distance)),
+    distance: round(Math.abs(cmp - pivot)),
     timeframe: mode === "scalping" ? "M5" : "M15",
     reason: null,
   };
@@ -406,45 +403,38 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 function buildStructuralStop(direction, zone, candles, maxRisk) {
   const recent = candles.slice(-35);
   const swings = findSwings(recent, 2);
-  const isBuy = direction === "BUY";
+  const buy = isBuy(direction);
 
-  const candidates = isBuy
+  const candidates = buy
     ? swings.lows.map((s) => s.price).filter((p) => p < zone.low)
     : swings.highs.map((s) => s.price).filter((p) => p > zone.high);
 
-  candidates.sort((a, b) => isBuy ? b - a : a - b);
+  candidates.sort((a, b) => buy ? b - a : a - b);
 
   const entry = zone.entry;
   let stop = null;
 
   for (const level of candidates) {
-    const candidate = isBuy ? level - 0.50 : level + 0.50;
+    const candidate = buy ? level - 0.50 : level + 0.50;
     const risk = Math.abs(entry - candidate);
+    const correctSide = buy ? candidate < zone.low : candidate > zone.high;
 
-    if (
-      (isBuy ? candidate < zone.low : candidate > zone.high) &&
-      risk > 0 &&
-      risk <= maxRisk
-    ) {
+    if (correctSide && risk > 0 && risk <= maxRisk) {
       stop = candidate;
       break;
     }
   }
 
-  // Fallback: place a stop outside the entry zone while respecting risk cap.
+  // Fallback stop outside the zone, with a strict maximum-risk check.
   if (stop === null) {
-    const minimumBuffer = 0.50;
-    stop = isBuy
-      ? Math.min(zone.low - minimumBuffer, entry - Math.min(maxRisk, 4.50))
-      : Math.max(zone.high + minimumBuffer, entry + Math.min(maxRisk, 4.50));
+    stop = buy
+      ? Math.min(zone.low - 0.50, entry - Math.min(maxRisk, 4.50))
+      : Math.max(zone.high + 0.50, entry + Math.min(maxRisk, 4.50));
   }
 
   stop = round(stop);
   const risk = round(Math.abs(entry - stop));
-
-  const correctSide = isBuy
-    ? stop < zone.low
-    : stop > zone.high;
+  const correctSide = buy ? stop < zone.low : stop > zone.high;
 
   return {
     value: stop,
@@ -454,7 +444,7 @@ function buildStructuralStop(direction, zone, candles, maxRisk) {
 }
 
 /* =========================================================
-   TARGETS: SWINGS + RECENT RANGE EXTREMES
+   TARGET CANDIDATES
 ========================================================= */
 
 function findTargets(direction, entry, targetCandles, secondaryCandles) {
@@ -466,30 +456,41 @@ function findTargets(direction, entry, targetCandles, secondaryCandles) {
 
   let candidates = [];
 
-  if (direction === "BUY") {
+  if (isBuy(direction)) {
     candidates = [
       ...primaryStructure.swingHighs.map((s) => s.price),
       ...secondaryStructure.swingHighs.map((s) => s.price),
       primaryStructure.range?.high,
       secondaryStructure.range?.high,
-    ]
-      .filter((price) => Number.isFinite(price) && price > entry)
-      .sort((a, b) => a - b);
-  } else if (direction === "SELL") {
+    ];
+  } else {
     candidates = [
       ...primaryStructure.swingLows.map((s) => s.price),
       ...secondaryStructure.swingLows.map((s) => s.price),
       primaryStructure.range?.low,
       secondaryStructure.range?.low,
-    ]
-      .filter((price) => Number.isFinite(price) && price < entry)
-      .sort((a, b) => b - a);
+    ];
   }
 
-  return uniquePrices(candidates);
+  return uniquePrices(
+    candidates
+      .filter((price) => isCorrectTarget(direction, entry, price))
+      .sort((a, b) => isBuy(direction) ? a - b : b - a)
+  );
 }
 
-function buildTradePlan(direction, zone, stopResult, primary, secondary, config) {
+/* =========================================================
+   TRADE PLAN
+========================================================= */
+
+function buildTradePlan(
+  direction,
+  zone,
+  stopResult,
+  primary,
+  secondary,
+  config
+) {
   if (!zone.valid || !stopResult.valid) {
     return {
       valid: false,
@@ -503,84 +504,150 @@ function buildTradePlan(direction, zone, stopResult, primary, secondary, config)
   }
 
   const entry = zone.entry;
-  const risk = stopResult.risk;
+  const sl = stopResult.value;
+  const risk = round(Math.abs(entry - sl));
 
-  const targets = findTargets(direction, entry, primary, secondary)
+  if (!Number.isFinite(risk) || risk <= 0) {
+    return {
+      valid: false,
+      entry,
+      sl,
+      tp1: null,
+      tp2: null,
+      risk,
+      reason: "Risiko SL tidak sah.",
+    };
+  }
+
+  const minDistance1 = Math.max(
+    config.tp1Fallback,
+    risk * config.minimumRR1
+  );
+
+  const minDistance2 = Math.max(
+    config.tp2Fallback,
+    risk * config.minimumRR2
+  );
+
+  const rawTargets = findTargets(
+    direction,
+    entry,
+    primary,
+    secondary
+  );
+
+  // Reject targets too close to entry, even if they are real swing levels.
+  const targets = rawTargets
     .map((price) => round(price))
     .filter((price) => {
       const distance = Math.abs(price - entry);
-      return distance > 0 && distance <= config.maxTargetDistance;
+
+      return (
+        isCorrectTarget(direction, entry, price) &&
+        distance >= minDistance1 &&
+        distance <= config.maxTargetDistance
+      );
     });
 
   let tp1 = targets[0] ?? null;
-  let tp2 = targets[1] ?? null;
+  let tp2 = targets.find((price) => {
+    const distance = Math.abs(price - entry);
 
-  // A fallback TP is allowed only when no reasonable SNR target exists.
-  // It must remain in the correct direction and within the configured limit.
+    return (
+      distance >= minDistance2 &&
+      (tp1 === null ||
+        (isBuy(direction) ? price > tp1 : price < tp1))
+    );
+  }) ?? null;
+
+  // Fallback targets are estimates, not guaranteed SNR levels.
   if (tp1 === null) {
-    const fallback = direction === "BUY"
-      ? entry + config.tp1Fallback
-      : entry - config.tp1Fallback;
+    const fallbackDistance = round(minDistance1);
+    const fallback = isBuy(direction)
+      ? entry + fallbackDistance
+      : entry - fallbackDistance;
 
-    if (Math.abs(fallback - entry) <= config.maxTargetDistance) {
+    if (fallbackDistance <= config.maxTargetDistance) {
       tp1 = round(fallback);
     }
   }
 
   if (tp2 === null && tp1 !== null) {
-    const fallback = direction === "BUY"
-      ? entry + config.tp2Fallback
-      : entry - config.tp2Fallback;
+    const fallbackDistance = round(
+      Math.max(minDistance2, Math.abs(tp1 - entry) + 0.01)
+    );
+
+    const fallback = isBuy(direction)
+      ? entry + fallbackDistance
+      : entry - fallbackDistance;
 
     if (
-      Math.abs(fallback - entry) <= config.maxTargetDistance &&
-      (direction === "BUY" ? fallback > tp1 : fallback < tp1)
+      fallbackDistance <= config.maxTargetDistance &&
+      isCorrectTarget(direction, tp1, fallback)
     ) {
       tp2 = round(fallback);
     }
   }
 
-  const tp1Valid = tp1 !== null && (
-    direction === "BUY" ? tp1 > entry : tp1 < entry
-  );
+  const reward1 = tp1 === null
+    ? null
+    : round(Math.abs(tp1 - entry));
+
+  const reward2 = tp2 === null
+    ? null
+    : round(Math.abs(tp2 - entry));
+
+  const rr1 = reward1 === null ? null : round(reward1 / risk);
+  const rr2 = reward2 === null ? null : round(reward2 / risk);
+
+  const tp1Valid =
+    tp1 !== null &&
+    isCorrectTarget(direction, entry, tp1) &&
+    reward1 >= minDistance1 &&
+    rr1 >= config.minimumRR1;
+
+  const tp2Valid =
+    tp2 !== null &&
+    tp1Valid &&
+    isCorrectTarget(direction, tp1, tp2) &&
+    reward2 >= minDistance2 &&
+    rr2 >= config.minimumRR2 &&
+    reward2 <= config.maxTargetDistance;
 
   if (!tp1Valid) {
     return {
       valid: false,
       entry,
-      sl: stopResult.value,
+      sl,
       tp1: null,
       tp2: null,
       risk,
-      reason: "Tiada target TP1 yang munasabah ditemui.",
+      reason: "Tiada TP1 yang memenuhi syarat minimum risk/reward.",
     };
   }
 
   return {
     valid: true,
     entry,
-    sl: stopResult.value,
+    sl,
     tp1,
-    tp2,
+    tp2: tp2Valid ? tp2 : null,
     risk,
-    reward1: round(Math.abs(tp1 - entry)),
-    reward2: tp2 === null ? null : round(Math.abs(tp2 - entry)),
-    rr1: risk > 0 ? round(Math.abs(tp1 - entry) / risk) : null,
-    rr2: tp2 === null || risk <= 0
-      ? null
-      : round(Math.abs(tp2 - entry) / risk),
-    reason: null,
+    reward1,
+    reward2: tp2Valid ? reward2 : null,
+    rr1,
+    rr2: tp2Valid ? rr2 : null,
+    reason: tp2Valid ? null : "TP1 sah; TP2 belum memenuhi syarat.",
   };
 }
 
 /* =========================================================
-   SCORE: SECONDARY TO ZONE QUALITY
+   SCORE
 ========================================================= */
 
 function calculateScore(direction, trendH1, trendEntry, zone, structure) {
   let score = 50;
-
-  const wanted = direction === "BUY" ? "BULLISH" : "BEARISH";
+  const wanted = isBuy(direction) ? "BULLISH" : "BEARISH";
 
   if (trendH1 === wanted) score += 15;
   else if (trendH1 !== "NEUTRAL") score -= 12;
@@ -588,7 +655,10 @@ function calculateScore(direction, trendH1, trendEntry, zone, structure) {
   if (trendEntry === wanted) score += 10;
   else if (trendEntry !== "NEUTRAL") score -= 8;
 
-  if (zone.source === "SNR_SUPPORT" || zone.source === "SNR_RESISTANCE") {
+  if (
+    zone.source === "SNR_SUPPORT" ||
+    zone.source === "SNR_RESISTANCE"
+  ) {
     score += 10;
   } else if (zone.source.includes("RETEST")) {
     score += 12;
@@ -599,42 +669,49 @@ function calculateScore(direction, trendH1, trendEntry, zone, structure) {
   if (zone.status === "IN_ZONE") score += 8;
   else if (zone.status === "APPROACHING") score += 5;
 
-  if (structure.breakoutUp && direction === "BUY") score += 5;
-  if (structure.breakoutDown && direction === "SELL") score += 5;
+  if (structure.breakoutUp && isBuy(direction)) score += 5;
+  if (structure.breakoutDown && !isBuy(direction)) score += 5;
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 /* =========================================================
-   SUPABASE SIGNAL LOCK
+   SUPABASE
 ========================================================= */
 
 function supabaseConfig() {
   const url = getEnv("SUPABASE_URL").replace(/\/+$/, "");
   const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
-  if (!url || !key) return null;
-  return { url, key };
+  return url && key ? { url, key } : null;
 }
 
 async function supabaseRequest(path, options = {}) {
   const config = supabaseConfig();
-  if (!config) throw new Error("Supabase environment variables belum lengkap.");
+
+  if (!config) {
+    throw new Error("Supabase environment variables belum lengkap.");
+  }
+
+  const headers = {
+    apikey: config.key,
+    Authorization: `Bearer ${config.key}`,
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (!headers.Prefer && options.prefer) {
+    headers.Prefer = options.prefer;
+  }
 
   const response = await fetch(`${config.url}/rest/v1/${path}`, {
     ...options,
-    headers: {
-      apikey: config.key,
-      Authorization: `Bearer ${config.key}`,
-      "Content-Type": "application/json",
-      Prefer: options.prefer || "return=representation",
-      ...(options.headers || {}),
-    },
+    headers,
   });
 
   const raw = await response.text();
-
   let body = null;
+
   if (raw) {
     try {
       body = JSON.parse(raw);
@@ -673,16 +750,66 @@ async function getActiveLocks(mode) {
 }
 
 function lockStillFresh(lock, config) {
-  const updatedAt = new Date(lock.updated_at || lock.created_at).getTime();
+  const updatedAt = new Date(
+    lock.updated_at || lock.created_at
+  ).getTime();
+
   if (!Number.isFinite(updatedAt)) return false;
 
-  return Date.now() - updatedAt <= config.lockMinutes * 60 * 1000;
+  const age = Date.now() - updatedAt;
+
+  return age >= 0 && age <= config.lockMinutes * 60 * 1000;
 }
 
 function makeSetupId(mode, direction, zone) {
   const zoneKey = `${zone.low.toFixed(2)}_${zone.high.toFixed(2)}`;
+
   return `${SETTINGS.symbol.replace("/", "")}_${mode}_${direction}_${zoneKey}`
     .replace(/[^a-zA-Z0-9_.-]/g, "_");
+}
+
+function validateStoredPlan(lock, direction, config) {
+  const entry = Number(lock.entry);
+  const sl = Number(lock.stop_loss);
+  const tp1 = Number(lock.tp1);
+  const tp2 = lock.tp2 == null ? null : Number(lock.tp2);
+
+  if (![entry, sl, tp1].every(Number.isFinite)) return false;
+
+  const risk = Math.abs(entry - sl);
+  const reward1 = Math.abs(tp1 - entry);
+  const rr1 = risk > 0 ? reward1 / risk : 0;
+
+  const slCorrect = isBuy(direction) ? sl < entry : sl > entry;
+  const tp1Correct = isCorrectTarget(direction, entry, tp1);
+
+  if (
+    !slCorrect ||
+    !tp1Correct ||
+    risk <= 0 ||
+    risk > config.maxRiskDistance ||
+    reward1 < config.tp1Fallback ||
+    reward1 > config.maxTargetDistance ||
+    rr1 < config.minimumRR1
+  ) {
+    return false;
+  }
+
+  if (tp2 !== null) {
+    const reward2 = Math.abs(tp2 - entry);
+    const rr2 = risk > 0 ? reward2 / risk : 0;
+
+    if (
+      !isCorrectTarget(direction, tp1, tp2) ||
+      reward2 < config.tp2Fallback ||
+      reward2 > config.maxTargetDistance ||
+      rr2 < config.minimumRR2
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 async function saveLock(setup, mode) {
@@ -725,20 +852,20 @@ async function saveLock(setup, mode) {
   };
 
   try {
-    const query = new URLSearchParams({
-      on_conflict: "setup_id",
-    });
+    const query = new URLSearchParams({ on_conflict: "setup_id" });
 
     await supabaseRequest(`${TABLE}?${query.toString()}`, {
       method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-      prefer: "resolution=merge-duplicates,return=representation",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=representation",
+      },
       body: JSON.stringify(row),
     });
 
     return {
       enabled: true,
       persisted: true,
+      reused: false,
       setupId,
       reason: null,
     };
@@ -746,6 +873,7 @@ async function saveLock(setup, mode) {
     return {
       enabled: true,
       persisted: false,
+      reused: false,
       reason: error.message,
     };
   }
@@ -756,18 +884,39 @@ async function applyExistingLock(setup, mode, config) {
 
   try {
     const locks = await getActiveLocks(mode);
-    const matching = locks.find((lock) => {
-      if (!lockStillFresh(lock, config)) return false;
-      if (lock.direction !== setup.direction) return false;
 
-      // Match the same zone approximately to avoid locking unrelated setups.
-      return (
-        Math.abs(Number(lock.zone_low) - setup.zone.low) <= 0.25 &&
-        Math.abs(Number(lock.zone_high) - setup.zone.high) <= 0.25
-      );
-    });
+    const matching = locks.find((lock) =>
+      lockStillFresh(lock, config) &&
+      lock.direction === setup.direction &&
+      Math.abs(Number(lock.zone_low) - setup.zone.low) <= 0.25 &&
+      Math.abs(Number(lock.zone_high) - setup.zone.high) <= 0.25
+    );
 
     if (!matching) return setup;
+
+    const validStoredPlan = validateStoredPlan(
+      matching,
+      setup.direction,
+      config
+    );
+
+    if (!validStoredPlan) {
+      // Do not reuse invalid stored TP/SL. Deactivate the old record.
+      const query = new URLSearchParams({
+        setup_id: `eq.${matching.setup_id}`,
+      });
+
+      await supabaseRequest(`${TABLE}?${query.toString()}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({
+          status: "INACTIVE",
+          updated_at: new Date().toISOString(),
+        }),
+      });
+
+      return setup;
+    }
 
     const lockedZone = {
       ...setup.zone,
@@ -780,19 +929,40 @@ async function applyExistingLock(setup, mode, config) {
       setupId: matching.setup_id,
     };
 
+    const entry = Number(matching.entry);
+    const sl = Number(matching.stop_loss);
+    const tp1 = Number(matching.tp1);
+    const tp2 = matching.tp2 == null ? null : Number(matching.tp2);
+    const risk = round(Math.abs(entry - sl));
+    const reward1 = round(Math.abs(tp1 - entry));
+    const reward2 = tp2 === null ? null : round(Math.abs(tp2 - entry));
+
     const lockedPlan = {
-      ...setup.plan,
-      entry: Number(matching.entry),
-      sl: Number(matching.stop_loss),
-      tp1: matching.tp1 == null ? null : Number(matching.tp1),
-      tp2: matching.tp2 == null ? null : Number(matching.tp2),
-      risk: round(Math.abs(Number(matching.entry) - Number(matching.stop_loss))),
+      valid: true,
+      entry,
+      sl,
+      tp1,
+      tp2,
+      risk,
+      reward1,
+      reward2,
+      rr1: round(reward1 / risk),
+      rr2: reward2 === null ? null : round(reward2 / risk),
+      reason: null,
     };
+
+    const lockedStatus = lockedZone.status;
 
     return {
       ...setup,
       zone: lockedZone,
       plan: lockedPlan,
+      status: setup.score >= config.minimumScore ? "READY" : "WAIT",
+      reason: setup.score >= config.minimumScore
+        ? (lockedStatus === "WATCH"
+          ? "Zon dikunci; tunggu harga menghampiri zon."
+          : null)
+        : `Score ${setup.score} belum mencapai minimum ${config.minimumScore}.`,
       signalLock: {
         enabled: true,
         persisted: true,
@@ -867,15 +1037,15 @@ function buildSetup({
     config
   );
 
-  const entryTrend = entryStructure.direction;
   const score = calculateScore(
     direction,
     trendH1,
-    entryTrend,
+    entryStructure.direction,
     zone,
     entryStructure
   );
 
+  // WATCH zones can be mapped early, but the response makes this explicit.
   const status =
     zone.valid &&
     plan.valid &&
@@ -885,11 +1055,14 @@ function buildSetup({
 
   let reason = null;
 
-  if (!plan.valid) reason = plan.reason;
-  else if (score < config.minimumScore) {
+  if (!plan.valid) {
+    reason = plan.reason;
+  } else if (score < config.minimumScore) {
     reason = `Score ${score} belum mencapai minimum ${config.minimumScore}.`;
   } else if (zone.status === "WATCH") {
-    reason = "Zon dikenal pasti; tunggu harga menghampiri zon.";
+    reason = "Setup READY; zon masih WATCH. Tunggu harga menghampiri zon.";
+  } else if (zone.status === "APPROACHING") {
+    reason = "Setup READY; harga sedang menghampiri zon.";
   }
 
   return {
@@ -902,7 +1075,7 @@ function buildSetup({
     reason,
     trend: {
       h1: trendH1,
-      entry: entryTrend,
+      entry: entryStructure.direction,
     },
     signalLock: {
       enabled: Boolean(supabaseConfig()),
@@ -919,6 +1092,7 @@ function buildSetup({
 module.exports = async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
+
     return json(res, 405, {
       success: false,
       error: "Method tidak dibenarkan. Gunakan GET atau POST.",
@@ -934,6 +1108,7 @@ module.exports = async function handler(req, res) {
     ]);
 
     const cmp = round(m5[m5.length - 1].close);
+
     const d1Structure = buildStructure(d1);
     const h1Structure = buildStructure(h1);
     const m15Structure = buildStructure(m15);
@@ -942,11 +1117,9 @@ module.exports = async function handler(req, res) {
     const h1Trend = h1Structure.direction;
     const d1Trend = d1Structure.direction;
 
-    // H1 is the preferred direction filter. D1 is the fallback.
     const preferredTrend =
       h1Trend !== "NEUTRAL" ? h1Trend : d1Trend;
 
-    // If higher-timeframe direction is neutral, do not force a BUY or SELL.
     const direction =
       preferredTrend === "BULLISH"
         ? "BUY"
@@ -1017,7 +1190,6 @@ module.exports = async function handler(req, res) {
         config: SETTINGS.intraday,
       });
 
-      // Reuse a previously saved matching setup before attempting to save.
       scalping = await applyExistingLock(
         scalping,
         "scalping",
@@ -1039,7 +1211,6 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // Prefer READY intraday, then READY scalping, otherwise WAIT.
     const mainSetup =
       intraday.status === "READY"
         ? intraday
@@ -1047,9 +1218,7 @@ module.exports = async function handler(req, res) {
           ? scalping
           : null;
 
-    const mainSignal = mainSetup
-      ? mainSetup.direction
-      : "WAIT";
+    const mainSignal = mainSetup ? mainSetup.direction : "WAIT";
 
     const mainPlan = mainSetup?.plan || {
       entry: null,
@@ -1085,6 +1254,7 @@ module.exports = async function handler(req, res) {
       tp1: mainPlan.tp1,
       tp2: mainPlan.tp2,
       risk: mainPlan.risk,
+
       maxAllowedRisk: mainSetup
         ? SETTINGS[mainSetup.mode].maxRiskDistance
         : null,
@@ -1100,9 +1270,7 @@ module.exports = async function handler(req, res) {
           },
 
       zone: mainZone,
-      waitReason: mainSetup
-        ? null
-        : mainPlan.reason,
+      waitReason: mainSetup ? mainSetup.reason : mainPlan.reason,
 
       scores: {
         buy: direction === "BUY"
@@ -1134,6 +1302,16 @@ module.exports = async function handler(req, res) {
         minimumScore: {
           scalping: SETTINGS.scalping.minimumScore,
           intraday: SETTINGS.intraday.minimumScore,
+        },
+        minimumRR: {
+          scalping: {
+            tp1: SETTINGS.scalping.minimumRR1,
+            tp2: SETTINGS.scalping.minimumRR2,
+          },
+          intraday: {
+            tp1: SETTINGS.intraday.minimumRR1,
+            tp2: SETTINGS.intraday.minimumRR2,
+          },
         },
         maxRiskDistance: {
           scalping: SETTINGS.scalping.maxRiskDistance,

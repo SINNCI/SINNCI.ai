@@ -40,8 +40,22 @@ res,
 }
 
 try {
-const baseUrl = "https://${req.headers.host}";
-const analyzeUrl = "${baseUrl}/api/analyze";
+// FIX: bina URL sebenar, bukan teks literal.
+const host = req.headers.host;
+
+if (!host) {
+  return sendError(
+    res,
+    500,
+    "MISSING_HOST",
+    "Host request tidak tersedia."
+  );
+}
+
+const analyzeUrl = new URL(
+  "/api/analyze",
+  `https://${host}`
+).toString();
 
 const controller = new AbortController();
 const timeout = setTimeout(() => controller.abort(), 20000);
@@ -59,18 +73,36 @@ try {
     cache: "no-store"
   });
 
-  data = await response.json();
+  const responseText = await response.text();
+
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    return sendError(
+      res,
+      502,
+      "INVALID_ANALYZE_JSON",
+      "API Analyze tidak memulangkan JSON yang sah.",
+      {
+        httpStatus: response.status,
+        responsePreview: responseText.slice(0, 300)
+      }
+    );
+  }
 } finally {
   clearTimeout(timeout);
 }
 
-if (!response.ok || data.success !== true) {
+if (!response.ok || data?.success !== true) {
   return sendError(
     res,
     502,
     "ANALYZE_API_FAILED",
     "Monitor tidak dapat mendapatkan analisis sebenar.",
-    data
+    {
+      httpStatus: response.status,
+      analyzeResponse: data
+    }
   );
 }
 
@@ -113,15 +145,14 @@ if (
 
 const setups = Object.values(selectedSetups);
 
-// M5 sahaja diperlukan untuk confirmation.
-// M1 tidak lagi menjadi syarat READY.
+// M5 sahaja diperlukan. M1 tidak diwajibkan.
 const readySetups = setups.filter(
   (setup) =>
-    setup.entryStatus === "READY" &&
-    setup.confirmation?.m5?.confirmed === true &&
-    setup.zone?.valid === true &&
-    setup.zone?.status === "IN_ZONE" &&
-    setup.plan != null
+    setup?.entryStatus === "READY" &&
+    setup?.confirmation?.m5?.confirmed === true &&
+    setup?.zone?.valid === true &&
+    setup?.zone?.status === "IN_ZONE" &&
+    setup?.plan != null
 );
 
 const bestSetup = readySetups.length
@@ -137,7 +168,7 @@ return res.status(200).json({
   success: true,
   status: "success",
   engine: "SINNCI LIVE MONITOR",
-  version: "2.1.0",
+  version: "2.2.0",
   symbol: data.symbol || "XAUUSD",
   source: data.source || "SINNCI AI",
   analysisOnly: true,
@@ -156,7 +187,7 @@ return res.status(200).json({
       : "WAIT — belum ada setup yang memenuhi semua syarat.",
     note:
       "Monitor membaca keputusan analisis sebenar. " +
-      "Confirmation M1 tidak diwajibkan. " +
+      "Confirmation M5 diperlukan; M1 tidak diwajibkan. " +
       "Monitor tidak mengesahkan candle secara berasingan."
   },
 
@@ -165,16 +196,17 @@ return res.status(200).json({
 });
 
 } catch (error) {
-const message =
-error?.name === "AbortError"
-? "Permintaan analisis mengambil masa terlalu lama."
-: error?.message || "Monitor gagal diproses.";
+const isTimeout = error?.name === "AbortError";
 
 return sendError(
   res,
   502,
-  "MONITOR_INTERNAL_ERROR",
-  message
+  isTimeout
+    ? "ANALYZE_TIMEOUT"
+    : "MONITOR_INTERNAL_ERROR",
+  isTimeout
+    ? "Permintaan analisis mengambil masa terlalu lama."
+    : error?.message || "Monitor gagal diproses."
 );
 
 }

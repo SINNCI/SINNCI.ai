@@ -8,6 +8,13 @@
  * TP1 / TP2: STRUCTURAL SNR ONLY
  * No fixed-price TP fallback.
  * TP2 must be at least $5.00 beyond TP1.
+ *
+ * SL:
+ * - Scalping entry zone: M5
+ * - Scalping SL structure: M15
+ * - Intraday entry zone: M15
+ * - Intraday SL structure: M15
+ * - Maximum SL risk: $4.00 for both modes
  */
 
 const SETTINGS = {
@@ -20,7 +27,7 @@ const SETTINGS = {
   scalping: {
     minimumScore: 65,
     lockMinutes: 720,
-    maxRiskDistance: 8.00,
+    maxRiskDistance: 4.00,
     maxTargetDistance: 30.00,
     minimumRR1: 1.20,
     minimumRR2: 2.00,
@@ -30,7 +37,7 @@ const SETTINGS = {
   intraday: {
     minimumScore: 65,
     lockMinutes: 4320,
-    maxRiskDistance: 15.00,
+    maxRiskDistance: 4.00,
     maxTargetDistance: 80.00,
     minimumRR1: 1.20,
     minimumRR2: 1.80,
@@ -74,7 +81,7 @@ function ema(values, period) {
   let result = average(values.slice(0, period));
 
   for (let i = period; i < values.length; i++) {
-    result = (values[i] - result) * multiplier + values[i];
+    result = (values[i] - result) * multiplier + result;
   }
 
   return result;
@@ -86,9 +93,11 @@ function uniquePrices(values, tolerance = 0.15) {
   for (const value of values) {
     if (!Number.isFinite(value)) continue;
 
-    if (!result.some((existing) =>
-      Math.abs(existing - value) <= tolerance
-    )) {
+    if (
+      !result.some((existing) =>
+        Math.abs(existing - value) <= tolerance
+      )
+    ) {
       result.push(value);
     }
   }
@@ -410,16 +419,31 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
 /* =========================================================
    STRUCTURAL STOP LOSS
+   Uses structural swing levels only.
+   No synthetic fallback.
 ========================================================= */
 
 function buildStructuralStop(direction, zone, candles, maxRisk) {
+  if (!zone || !Number.isFinite(zone.entry)) {
+    return {
+      value: null,
+      risk: null,
+      valid: false,
+      reason: "Entry zone tidak sah untuk pengiraan SL.",
+    };
+  }
+
   const recent = candles.slice(-35);
   const swings = findSwings(recent, 2);
   const buy = isBuy(direction);
 
   const candidates = buy
-    ? swings.lows.map((s) => s.price).filter((p) => p < zone.low)
-    : swings.highs.map((s) => s.price).filter((p) => p > zone.high);
+    ? swings.lows
+        .map((s) => s.price)
+        .filter((p) => p < zone.low)
+    : swings.highs
+        .map((s) => s.price)
+        .filter((p) => p > zone.high);
 
   candidates.sort((a, b) => buy ? b - a : a - b);
 
@@ -427,39 +451,50 @@ function buildStructuralStop(direction, zone, candles, maxRisk) {
   let stop = null;
 
   for (const level of candidates) {
-    const candidate = buy ? level - 0.50 : level + 0.50;
-    const risk = Math.abs(entry - candidate);
+    const candidate = buy
+      ? round(level - 0.50)
+      : round(level + 0.50);
+
+    const risk = round(Math.abs(entry - candidate));
     const correctSide = buy
       ? candidate < zone.low
       : candidate > zone.high;
 
-    if (correctSide && risk > 0 && risk <= maxRisk) {
+    if (
+      correctSide &&
+      risk > 0 &&
+      risk <= maxRisk
+    ) {
       stop = candidate;
       break;
     }
   }
 
   if (stop === null) {
-    stop = buy
-      ? Math.min(zone.low - 0.50, entry - Math.min(maxRisk, 4.50))
-      : Math.max(zone.high + 0.50, entry + Math.min(maxRisk, 4.50));
+    return {
+      value: null,
+      risk: null,
+      valid: false,
+      reason:
+        `Tiada swing M15 yang sah dalam had risiko $${maxRisk.toFixed(2)}.`,
+    };
   }
 
-  stop = round(stop);
-
   const risk = round(Math.abs(entry - stop));
-  const correctSide = buy ? stop < zone.low : stop > zone.high;
+  const correctSide = buy
+    ? stop < zone.low
+    : stop > zone.high;
 
   return {
     value: stop,
     risk,
     valid: correctSide && risk > 0 && risk <= maxRisk,
+    reason: null,
   };
 }
 
 /* =========================================================
    STRUCTURAL TARGET CANDIDATES
-   Targets must come from swing levels or range boundaries.
 ========================================================= */
 
 function findTargets(direction, entry, targetCandles, secondaryCandles) {
@@ -498,10 +533,6 @@ function findTargets(direction, entry, targetCandles, secondaryCandles) {
 
 /* =========================================================
    TRADE PLAN
-   TP1: nearest valid structural target meeting minimum RR.
-   TP2: further structural target at least $5 beyond TP1,
-        also meeting minimum RR and distance rules.
-   No synthetic or fixed-price fallback targets.
 ========================================================= */
 
 function buildTradePlan(
@@ -512,23 +543,30 @@ function buildTradePlan(
   secondary,
   config
 ) {
-  const invalidPlan = (reason, entry = zone.entry, sl = stopResult.value,
-    risk = stopResult.risk) => ({
-      valid: false,
-      entry,
-      sl,
-      tp1: null,
-      tp2: null,
-      risk,
-      reward1: null,
-      reward2: null,
-      rr1: null,
-      rr2: null,
-      reason,
-    });
+  const invalidPlan = (
+    reason,
+    entry = zone.entry,
+    sl = stopResult.value,
+    risk = stopResult.risk
+  ) => ({
+    valid: false,
+    entry,
+    sl,
+    tp1: null,
+    tp2: null,
+    risk,
+    reward1: null,
+    reward2: null,
+    rr1: null,
+    rr2: null,
+    reason,
+  });
 
   if (!zone.valid || !stopResult.valid) {
-    return invalidPlan("SL tidak sah atau risiko melebihi had.");
+    return invalidPlan(
+      stopResult.reason ||
+      "SL tidak sah atau risiko melebihi had."
+    );
   }
 
   const entry = zone.entry;
@@ -572,7 +610,6 @@ function buildTradePlan(
     );
   });
 
-  // TP1 ialah aras struktur sah yang paling hampir.
   const tp1 = validTargets[0] ?? null;
 
   if (tp1 === null) {
@@ -584,7 +621,6 @@ function buildTradePlan(
   const reward1 = round(Math.abs(tp1 - entry));
   const rr1 = round(reward1 / risk);
 
-  // TP2 wajib sekurang-kurangnya $5.00 dari TP1.
   const tp2 = validTargets.find((price) => {
     const separation = Math.abs(price - tp1);
     const reward = Math.abs(price - entry);
@@ -611,7 +647,8 @@ function buildTradePlan(
       reward2: null,
       rr1,
       rr2: null,
-      reason: "TP1 sah; TP2 struktur seterusnya belum memenuhi syarat.",
+      reason:
+        "TP1 sah; TP2 struktur seterusnya belum memenuhi syarat.",
     };
   }
 
@@ -762,14 +799,14 @@ function makeSetupId(mode, direction, zone) {
 
 /* =========================================================
    STORED PLAN VALIDATION
-   Stored targets must still match current structural levels.
 ========================================================= */
 
 function validateStoredPlan(
   lock,
   direction,
   config,
-  structuralTargets
+  structuralTargets,
+  expectedStop
 ) {
   const entry = Number(lock.entry);
   const sl = Number(lock.stop_loss);
@@ -785,13 +822,19 @@ function validateStoredPlan(
   const slCorrect = isBuy(direction) ? sl < entry : sl > entry;
   const tp1Correct = isCorrectTarget(direction, entry, tp1);
 
-  // TP1 mesti sepadan dengan struktur semasa.
   const tp1IsStructural = structuralTargets.some(
     (price) => Math.abs(price - tp1) <= 0.25
   );
 
+  // Stored SL mesti sepadan dengan swing yang dikira semula.
+  const storedStopMatches =
+    expectedStop.valid &&
+    Number.isFinite(expectedStop.value) &&
+    Math.abs(sl - expectedStop.value) <= 0.25;
+
   if (
     !slCorrect ||
+    !storedStopMatches ||
     !tp1Correct ||
     !tp1IsStructural ||
     risk <= 0 ||
@@ -910,12 +953,18 @@ async function saveLock(setup, mode) {
   }
 }
 
+/* =========================================================
+   APPLY EXISTING SETUP LOCK
+   Uses M15 candles to revalidate the stored SL.
+========================================================= */
+
 async function applyExistingLock(
   setup,
   mode,
   config,
   targetCandles,
-  secondaryCandles
+  secondaryCandles,
+  stopCandles
 ) {
   if (!supabaseConfig() || !setup.zone?.valid) return setup;
 
@@ -932,6 +981,33 @@ async function applyExistingLock(
     if (!matching) return setup;
 
     const storedEntry = Number(matching.entry);
+    const storedZoneLow = Number(matching.zone_low);
+    const storedZoneHigh = Number(matching.zone_high);
+
+    if (
+      !Number.isFinite(storedEntry) ||
+      !Number.isFinite(storedZoneLow) ||
+      !Number.isFinite(storedZoneHigh)
+    ) {
+      await deactivateLock(matching);
+      return setup;
+    }
+
+    const lockedZoneForValidation = {
+      ...setup.zone,
+      low: storedZoneLow,
+      high: storedZoneHigh,
+      entry: storedEntry,
+      pivot: storedEntry,
+      valid: true,
+    };
+
+    const expectedStop = buildStructuralStop(
+      setup.direction,
+      lockedZoneForValidation,
+      stopCandles || targetCandles,
+      config.maxRiskDistance
+    );
 
     const structuralTargets = findTargets(
       setup.direction,
@@ -944,19 +1020,19 @@ async function applyExistingLock(
       matching,
       setup.direction,
       config,
-      structuralTargets
+      structuralTargets,
+      expectedStop
     );
 
     if (!validStoredPlan) {
-      // Target lama tidak sah: jangan gunakan semula.
       await deactivateLock(matching);
       return setup;
     }
 
     const lockedZone = {
       ...setup.zone,
-      low: Number(matching.zone_low),
-      high: Number(matching.zone_high),
+      low: storedZoneLow,
+      high: storedZoneHigh,
       entry: storedEntry,
       pivot: storedEntry,
       source: matching.source || setup.zone.source,
@@ -1034,6 +1110,7 @@ function buildSetup({
   entryCandles,
   targetCandles,
   secondaryCandles,
+  stopCandles,
   entryStructure,
   config,
 }) {
@@ -1064,10 +1141,12 @@ function buildSetup({
     };
   }
 
+  // Entry zone kekal pada timeframe entry.
+  // SL dikira menggunakan stopCandles, iaitu M15 untuk kedua-dua mode.
   const stop = buildStructuralStop(
     direction,
     zone,
-    entryCandles,
+    stopCandles || entryCandles,
     config.maxRiskDistance
   );
 
@@ -1219,6 +1298,7 @@ module.exports = async function handler(req, res) {
         entryCandles: m5,
         targetCandles: m5,
         secondaryCandles: m15,
+        stopCandles: m15,
         entryStructure: m5Structure,
         config: SETTINGS.scalping,
       });
@@ -1231,6 +1311,7 @@ module.exports = async function handler(req, res) {
         entryCandles: m15,
         targetCandles: m15,
         secondaryCandles: h1,
+        stopCandles: m15,
         entryStructure: m15Structure,
         config: SETTINGS.intraday,
       });
@@ -1240,6 +1321,7 @@ module.exports = async function handler(req, res) {
         "scalping",
         SETTINGS.scalping,
         m5,
+        m15,
         m15
       );
 
@@ -1248,7 +1330,8 @@ module.exports = async function handler(req, res) {
         "intraday",
         SETTINGS.intraday,
         m15,
-        h1
+        h1,
+        m15
       );
 
       if (!scalping.signalLock?.reused) {

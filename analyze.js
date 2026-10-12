@@ -133,6 +133,24 @@ function isCorrectTarget(direction, entry, target) {
   return isBuy(direction) ? target > entry : target < entry;
 }
 
+/**
+ * TP1 is considered reached when CMP reaches or passes TP1.
+ * BUY: CMP >= TP1.
+ * SELL: CMP <= TP1.
+ */
+function hasReachedTP1(direction, cmp, tp1) {
+  if (
+    !Number.isFinite(Number(cmp)) ||
+    !Number.isFinite(Number(tp1))
+  ) {
+    return false;
+  }
+
+  return isBuy(direction)
+    ? Number(cmp) >= Number(tp1)
+    : Number(cmp) <= Number(tp1);
+}
+
 function distanceToZone(cmp, zone) {
   if (!zone || !zone.valid) return Infinity;
   if (cmp < zone.low) return round(zone.low - cmp);
@@ -482,7 +500,33 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   let allowSignal = true;
   let reason = null;
 
-  if (sideway.isSideway && sideway.range) {
+  /*
+   * BREAKOUT RETEST:
+   * Selepas harga menembusi julat, gunakan sempadan julat
+   * yang ditembusi sebagai zon retest.
+   *
+   * BREAKOUT_DOWN + SELL = retest bekas support.
+   * BREAKOUT_UP + BUY = retest bekas resistance.
+   *
+   * Zon dibina pada paras struktur, bukan pada CMP semata-mata.
+   */
+  const breakoutRetestSell =
+    sideway.range &&
+    sideway.position === "BREAKOUT_DOWN" &&
+    !buy;
+
+  const breakoutRetestBuy =
+    sideway.range &&
+    sideway.position === "BREAKOUT_UP" &&
+    buy;
+
+  if (breakoutRetestSell) {
+    pivot = sideway.range.low;
+    source = "BREAKOUT_RETEST_SELL";
+  } else if (breakoutRetestBuy) {
+    pivot = sideway.range.high;
+    source = "BREAKOUT_RETEST_BUY";
+  } else if (sideway.isSideway && sideway.range) {
     const isAtCorrectEdge = buy
       ? sideway.position === "SIDEWAY_SUPPORT"
       : sideway.position === "SIDEWAY_RESISTANCE";
@@ -1450,16 +1494,24 @@ function buildSetup({
     entryStructure
   );
 
+  // Jangan keluarkan READY jika CMP sudah mencapai atau melepasi TP1.
+  const tp1AlreadyReached =
+    plan.valid &&
+    hasReachedTP1(direction, cmp, plan.tp1);
+
   const status =
     zone.valid &&
     zone.allowSignal !== false &&
     plan.valid &&
     Number.isFinite(plan.tp1) &&
+    !tp1AlreadyReached &&
     score >= config.minimumScore
       ? "READY"
       : "WAIT";
 
-  let reason = zone.reason || null;
+  let reason = tp1AlreadyReached
+    ? "CMP sudah mencapai atau melepasi TP1. Tunggu setup baharu."
+    : zone.reason || null;
 
   if (!reason && !plan.valid) {
     reason = plan.reason;
@@ -1580,16 +1632,24 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
     entryStructure
   );
 
+  // Semakan TP1 turut digunakan pada setup yang berkongsi zon.
+  const tp1AlreadyReached =
+    plan.valid &&
+    hasReachedTP1(setup.direction, context.cmp, plan.tp1);
+
   const status =
     modeZone.valid &&
     modeZone.allowSignal !== false &&
     plan.valid &&
     Number.isFinite(plan.tp1) &&
+    !tp1AlreadyReached &&
     score >= config.minimumScore
       ? "READY"
       : "WAIT";
 
-  let reason = modeZone.reason || null;
+  let reason = tp1AlreadyReached
+    ? "CMP sudah mencapai atau melepasi TP1. Tunggu setup baharu."
+    : modeZone.reason || null;
 
   if (!reason && !plan.valid) {
     reason = plan.reason;

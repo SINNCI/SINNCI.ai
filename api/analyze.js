@@ -13,6 +13,12 @@
  *
  * SL: M15 first, M5 fallback.
  * TP1/TP2: structural targets only.
+ *
+ * Added:
+ * - Shared-zone detection for equivalent scalping/intraday setups.
+ * - Recalculate SL/TP/RR/score when a zone is shared.
+ * - Never overwrite an already reused locked setup.
+ * - Keep the original dashboard response fields.
  */
 
 const SETTINGS = {
@@ -895,8 +901,10 @@ function planFromLock(lock, mode, cmp) {
 
   if (cmp >= low && cmp <= high) {
     zoneStatus = "IN_ZONE";
-  } else if (distanceToZone(cmp, { low, high, valid: true }) <=
-    SETTINGS.approachDistance) {
+  } else if (
+    distanceToZone(cmp, { low, high, valid: true }) <=
+    SETTINGS.approachDistance
+  ) {
     zoneStatus = "APPROACHING";
   }
 
@@ -1105,6 +1113,241 @@ function buildSetup({
 }
 
 /* =========================================================
+   SHARED SETUP ZONE
+========================================================= */
+
+/*
+ * A shared zone is allowed only if:
+ * - Both selected setups have the same direction.
+ * - Both zones are valid and come from the same structural source.
+ * - Their zones overlap (or touch).
+ * - Neither setup reuses a persisted lock.
+ * - Neither setup is blocked by an active opposing lock.
+ *
+ * This intentionally does not merge zones just because both
+ * signals say BUY or both signals say SELL.
+ */
+function sameUnderlyingSetup(scalping, intraday) {
+  if (!scalping || !intraday) return false;
+
+  if (scalping.direction !== intraday.direction) return false;
+
+  if (!scalping.zone?.valid || !intraday.zone?.valid) return false;
+
+  if (
+    scalping.signalLock?.reused ||
+    intraday.signalLock?.reused ||
+    scalping.blockedByActiveLock ||
+    intraday.blockedByActiveLock
+  ) {
+    return false;
+  }
+
+  const scalpZone = scalping.zone;
+  const intraZone = intraday.zone;
+
+  if (!scalpZone.source || scalpZone.source !== intraZone.source) {
+    return false;
+  }
+
+  const overlaps =
+    scalpZone.low <= intraZone.high &&
+    intraZone.low <= scalpZone.high;
+
+  if (!overlaps) return false;
+
+  /*
+   * Both zones are generated with the same thickness.
+   * A small pivot tolerance avoids merging separate nearby levels.
+   */
+  const pivotDifference = Math.abs(
+    Number(scalpZone.pivot) - Number(intraZone.pivot)
+  );
+
+  return Number.isFinite(pivotDifference) &&
+    pivotDifference <= SETTINGS.zoneThickness;
+}
+
+/*
+ * Recalculate an individual mode's trade plan using the shared
+ * zone, but retain that mode's own target timeframes and RR rules.
+ */
+function rebuildPlanForSharedZone(setup, sharedZone, context) {
+  const config = SETTINGS[setup.mode];
+
+  const modeZone = {
+    ...sharedZone,
+    timeframe: setup.mode === "scalping" ? "M5" : "M15",
+    locked: false,
+    setupId: undefined,
+    distance: distanceToZone(context.cmp, {
+      low: sharedZone.low,
+      high: sharedZone.high,
+      valid: true,
+    }),
+  };
+
+  if (
+    context.cmp >= modeZone.low &&
+    context.cmp <= modeZone.high
+  ) {
+    modeZone.status = "IN_ZONE";
+  } else if (modeZone.distance <= SETTINGS.approachDistance) {
+    modeZone.status = "APPROACHING";
+  } else {
+    modeZone.status = "WATCH";
+  }
+
+  const stop = buildStructuralStop(
+    setup.direction,
+    modeZone,
+    context.m15,
+    config.maxRiskDistance,
+    context.m5
+  );
+
+  const targetPrimary = setup.mode === "scalping"
+    ? context.m5
+    : context.m15;
+
+  const targetSecondary = setup.mode === "scalping"
+    ? context.m15
+    : context.h1;
+
+  const plan = buildTradePlan(
+    setup.direction,
+    modeZone,
+    stop,
+    targetPrimary,
+    targetSecondary,
+    config
+  );
+
+  const entryStructure = setup.mode === "scalping"
+    ? context.m5Structure
+    : context.m15Structure;
+
+  const score = calculateScore(
+    setup.direction,
+    context.h1Trend,
+    entryStructure.direction,
+    modeZone,
+    entryStructure
+  );
+
+  const status =
+    modeZone.valid &&
+    plan.valid &&
+    Number.isFinite(plan.tp1) &&
+    score >= config.minimumScore
+      ? "READY"
+      : "WAIT";
+
+  let reason = null;
+
+  if (!plan.valid) {
+    reason = plan.reason;
+  } else if (score < config.minimumScore) {
+    reason = `Score ${score} belum mencapai minimum ${config.minimumScore}.`;
+  } else if (modeZone.status === "WATCH") {
+    reason = "Setup READY; zon dikongsi tetapi masih WATCH.";
+  } else if (modeZone.status === "APPROACHING") {
+    reason = "Setup READY; harga menghampiri zon yang dikongsi.";
+  } else if (plan.tp2 === null) {
+    reason = plan.reason;
+  }
+
+  return {
+    ...setup,
+    status,
+    score,
+    zone: modeZone,
+    plan,
+    reason,
+    sharedSetup: true,
+  };
+}
+
+/*
+ * Intraday M15 is the canonical zone when the two modes match.
+ * Scalping and intraday still retain their own SL/TP calculations.
+ *
+ * No persisted lock is modified here. Saving happens after this
+ * function, so newly saved locks use the synchronized zone.
+ */
+function synchronizeSharedSetup(scalping, intraday, context) {
+  const unchanged = {
+    scalping,
+    intraday,
+    shared: false,
+    reason: null,
+    direction: null,
+    zone: null,
+  };
+
+  if (!sameUnderlyingSetup(scalping, intraday)) {
+    return {
+      ...unchanged,
+      reason: "Setup struktur berbeza, zone kekal berasingan.",
+    };
+  }
+
+  /*
+   * Prefer the intraday/M15 zone as the canonical structural zone.
+   * Do not change its actual price boundaries.
+   */
+  const canonicalZone = {
+    ...intraday.zone,
+    valid: true,
+    shared: true,
+  };
+
+  const nextScalping = rebuildPlanForSharedZone(
+    scalping,
+    canonicalZone,
+    context
+  );
+
+  const nextIntraday = rebuildPlanForSharedZone(
+    intraday,
+    canonicalZone,
+    context
+  );
+
+  /*
+   * Only share if both mode plans remain valid after recalculation.
+   * Otherwise preserve both original setups instead of creating
+   * a partially shared setup.
+   */
+  if (
+    !nextScalping.plan?.valid ||
+    !nextIntraday.plan?.valid
+  ) {
+    return {
+      ...unchanged,
+      reason:
+        "Zone struktur sepadan, tetapi pelan SL/TP tidak sah untuk kedua-dua mode. Zone tidak digabungkan.",
+    };
+  }
+
+  return {
+    scalping: nextScalping,
+    intraday: nextIntraday,
+    shared: true,
+    reason: "Kedua-dua mode menggunakan zone struktur yang sama.",
+    direction: intraday.direction,
+    zone: {
+      low: canonicalZone.low,
+      high: canonicalZone.high,
+      entry: canonicalZone.entry,
+      pivot: canonicalZone.pivot,
+      source: canonicalZone.source,
+      timeframe: "M15",
+    },
+  };
+}
+
+/* =========================================================
    SETUP PRIORITY
 ========================================================= */
 
@@ -1188,6 +1431,7 @@ function chooseTrendOrRetracement({
   }
 
   if (primary.signalLock?.reused) return primary;
+
   if (primary.status === "READY") {
     return {
       ...primary,
@@ -1428,8 +1672,50 @@ module.exports = async function handler(req, res) {
     });
 
     /*
+     * Synchronize only the selected setup from each mode.
+     * Locked or blocked setups are excluded by the sync function.
+     */
+    const sharedResult = synchronizeSharedSetup(
+      scalping,
+      intraday,
+      {
+        cmp,
+        m5,
+        m15,
+        h1,
+        h1Trend,
+        m5Structure,
+        m15Structure,
+      }
+    );
+
+    scalping = sharedResult.scalping;
+    intraday = sharedResult.intraday;
+
+    /*
+     * Keep candidate-level output consistent with the selected
+     * setup when its zone has been synchronized.
+     */
+    if (sharedResult.shared) {
+      if (scalping.direction === "BUY") {
+        scalpBuy = scalping;
+      } else {
+        scalpSell = scalping;
+      }
+
+      if (intraday.direction === "BUY") {
+        intraBuy = intraday;
+      } else {
+        intraSell = intraday;
+      }
+    }
+
+    /*
      * Do not save a new setup if an existing lock was reused.
      * Do not save a candidate blocked by the active lock.
+     *
+     * If zones were synchronized, each mode saves the same
+     * canonical zone but retains its own mode-specific SL/TP.
      */
     if (
       !scalping.signalLock?.reused &&
@@ -1551,6 +1837,17 @@ module.exports = async function handler(req, res) {
 
       scalping,
       intraday,
+
+      /*
+       * New diagnostic field. Existing fields above are retained.
+       */
+      sharedSetup: {
+        enabled: true,
+        shared: sharedResult.shared,
+        direction: sharedResult.direction,
+        zone: sharedResult.zone,
+        reason: sharedResult.reason,
+      },
 
       primarySetup: {
         h1Direction: primaryH1Direction,

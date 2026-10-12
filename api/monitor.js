@@ -1,17 +1,29 @@
 /**
  * SINNCI AI — LIVE SETUP MONITOR
  * File: api/monitor.js
+ * Version: 2.4.0
  *
- * Reads the real response from /api/analyze.
- * Does not invent prices, signals or confirmations.
- * Analysis only — no trade execution.
+ * Source of truth:
+ * - /api/analyze
  *
- * IMPORTANT:
- * - Does not require confirmation.m5.confirmed because
- *   that field has not been verified in analyze.js.
- * - Does not independently confirm candle patterns.
+ * Rules:
+ * - Mirror setup status from analyze.js.
+ * - Do not require zone.status === IN_ZONE.
+ * - Do not add independent M5 confirmation.
+ * - Preserve original Analyze setup objects.
+ * - Never reactivate a setup with a terminal status.
+ * - Analysis only; no trade execution.
  * - Does not update Supabase SL/TP statuses.
  */
+
+const TERMINAL_STATUSES = new Set([
+  "TP_HIT",
+  "FAILED_SL_HIT",
+  "SL_HIT",
+  "CANCELLED",
+  "EXPIRED",
+  "CLOSED"
+]);
 
 function sendError(
   res,
@@ -39,70 +51,171 @@ function isObject(value) {
   );
 }
 
-function getZoneStatus(setup) {
-  return String(
-    setup?.zone?.status ??
-    setup?.zoneStatus ??
-    ""
-  ).toUpperCase();
+function normalizeStatus(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase();
 }
 
-function getEntryStatus(setup) {
-  return String(
-    setup?.entryStatus ??
-    setup?.status ??
-    ""
-  ).toUpperCase();
+function getAnalysisStatus(setup) {
+  // Follow Analyze's own setup status.
+  return normalizeStatus(setup?.status);
+}
+
+function getSetupId(setup) {
+  return (
+    setup?.signalLock?.setupId ??
+    setup?.setupId ??
+    setup?.id ??
+    null
+  );
+}
+
+function getTerminalStatusFromSetup(setup) {
+  const status = normalizeStatus(
+    setup?.signalLock?.terminalStatus
+  );
+
+  return TERMINAL_STATUSES.has(status)
+    ? status
+    : null;
 }
 
 /**
- * Readiness is based on fields returned by analyze.js.
- * M5 confirmation is not independently assumed.
+ * Search Analyze's terminal records for the same setup ID.
+ *
+ * This prevents an old TP_HIT/SL_HIT setup from being
+ * treated as a new active setup when Analyze accidentally
+ * returns READY for the same ID.
  */
-function evaluateSetup(setup) {
+function findTerminalRecord(data, mode, setup) {
+  const setupId = getSetupId(setup);
+
+  if (!setupId) {
+    return null;
+  }
+
+  const sources = [
+    data?.terminalStatus?.[mode],
+    data?.terminalHistory?.[mode]
+  ];
+
+  for (const records of sources) {
+    if (!Array.isArray(records)) {
+      continue;
+    }
+
+    for (const record of records) {
+      if (!isObject(record)) {
+        continue;
+      }
+
+      if (
+        String(record.setupId ?? "") !==
+        String(setupId)
+      ) {
+        continue;
+      }
+
+      const terminalStatus = normalizeStatus(
+        record.status
+      );
+
+      if (
+        TERMINAL_STATUSES.has(terminalStatus)
+      ) {
+        return {
+          setupId,
+          status: terminalStatus,
+          timestamp:
+            record.timestamp ??
+            record.terminalAt ??
+            null,
+          source: "ANALYZE_TERMINAL_HISTORY"
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * A terminal signalLock takes precedence over a READY
+ * status for the same setup.
+ *
+ * Analyze's status is still returned unchanged in setups.
+ * This function only determines whether that setup can
+ * be considered active by Monitor.
+ */
+function evaluateSetup(data, mode, setup) {
   if (!isObject(setup)) {
     return {
-      ready: false,
-      reason: "INVALID_SETUP_DATA"
+      analysisStatus: "INVALID",
+      analysisReady: false,
+      active: false,
+      terminal: false,
+      terminalStatus: null,
+      reason: "INVALID_SETUP_DATA",
+      zoneStatus: null,
+      zoneDistance: null,
+      setupId: null
     };
   }
 
-  const entryStatus = getEntryStatus(setup);
-  const zoneStatus = getZoneStatus(setup);
-  const zoneValid = setup?.zone?.valid;
-  const hasPlan = isObject(setup?.plan);
+  const analysisStatus = getAnalysisStatus(setup);
+  const setupId = getSetupId(setup);
 
-  if (entryStatus !== "READY") {
-    return {
-      ready: false,
-      reason: "ENTRY_NOT_READY"
-    };
-  }
+  const lockTerminalStatus =
+    getTerminalStatusFromSetup(setup);
 
-  if (zoneValid !== true) {
-    return {
-      ready: false,
-      reason: "ZONE_NOT_VALID"
-    };
-  }
+  const historyTerminal =
+    findTerminalRecord(data, mode, setup);
 
-  if (zoneStatus !== "IN_ZONE") {
-    return {
-      ready: false,
-      reason: "PRICE_NOT_IN_ZONE"
-    };
-  }
+  const terminalStatus =
+    lockTerminalStatus ??
+    historyTerminal?.status ??
+    null;
 
-  if (!hasPlan) {
-    return {
-      ready: false,
-      reason: "PLAN_UNAVAILABLE"
-    };
+  const terminal = Boolean(terminalStatus);
+
+  const analysisReady =
+    analysisStatus === "READY";
+
+  const active =
+    analysisReady && !terminal;
+
+  let reason = null;
+
+  if (terminal) {
+    reason = `TERMINAL_${terminalStatus}`;
+  } else if (!analysisReady) {
+    reason =
+      setup?.reason ??
+      `ANALYZE_STATUS_${analysisStatus || "UNKNOWN"}`;
   }
 
   return {
-    ready: true,
-    reason: null
+    analysisStatus,
+    analysisReady,
+    active,
+    terminal,
+    terminalStatus,
+    reason,
+    zoneStatus:
+      setup?.zone?.status ??
+      setup?.zoneStatus ??
+      null,
+    zoneDistance:
+      setup?.zone?.distance ?? null,
+    setupId,
+    terminalAt:
+      setup?.signalLock?.terminalAt ??
+      historyTerminal?.timestamp ??
+      null,
+    terminalSource: lockTerminalStatus
+      ? "ANALYZE_SIGNAL_LOCK"
+      : historyTerminal?.source ?? null
   };
 }
 
@@ -112,7 +225,10 @@ export default async function handler(req, res) {
     "no-store, no-cache, max-age=0, must-revalidate"
   );
 
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "*"
+  );
 
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -169,7 +285,6 @@ export default async function handler(req, res) {
     );
   }
 
-  // Use the deployment protocol where available.
   const forwardedProto = String(
     req.headers["x-forwarded-proto"] || ""
   )
@@ -227,7 +342,10 @@ export default async function handler(req, res) {
       clearTimeout(timeout);
     }
 
-    if (!response.ok || data?.success !== true) {
+    if (
+      !response.ok ||
+      data?.success !== true
+    ) {
       return sendError(
         res,
         502,
@@ -241,8 +359,8 @@ export default async function handler(req, res) {
     }
 
     /*
-     * Keep the original analyze.js setup objects.
-     * Do not construct new trading setups here.
+     * Copy references to the actual Analyze setup objects.
+     * Do not generate new signals or change setup fields.
      */
     const selectedSetups = {};
 
@@ -264,69 +382,137 @@ export default async function handler(req, res) {
       }
     }
 
-    const setupEntries = Object.entries(
+    /*
+     * Readiness follows Analyze's status.
+     * The only additional exclusion is a terminal setup
+     * with the same setup ID.
+     *
+     * WATCH, zone distance and M5 confirmation are not
+     * independent rejection conditions here.
+     */
+    const evaluatedSetups = Object.entries(
       selectedSetups
-    );
+    ).map(([type, setup]) => ({
+      type,
+      setup,
+      evaluation: evaluateSetup(
+        data,
+        type,
+        setup
+      )
+    }));
 
-    const evaluatedSetups = setupEntries.map(
-      ([type, setup]) => {
-        const evaluation = evaluateSetup(setup);
+    const activeReadySetups =
+      evaluatedSetups.filter(
+        item => item.evaluation.active
+      );
 
-        return {
-          type,
-          setup,
-          ready: evaluation.ready,
-          reason: evaluation.reason
-        };
-      }
-    );
+    const analysisReadySetups =
+      evaluatedSetups.filter(
+        item => item.evaluation.analysisReady
+      );
 
-    const readySetups = evaluatedSetups.filter(
-      item => item.ready
-    );
+    const terminalConflicts =
+      evaluatedSetups.filter(
+        item =>
+          item.evaluation.analysisReady &&
+          item.evaluation.terminal
+      );
 
-    const bestSetup = readySetups.length
-      ? readySetups.reduce((best, current) => {
-          return Number(
-            current.setup.score ?? 0
-          ) > Number(
-            best.setup.score ?? 0
-          )
-            ? current
-            : best;
-        })
+    /*
+     * Select the highest-scoring active READY setup.
+     * A terminal setup cannot become bestSetup.
+     */
+    const bestSetup = activeReadySetups.length
+      ? activeReadySetups.reduce(
+          (best, current) => {
+            const currentScore = Number(
+              current.setup.score ?? 0
+            );
+
+            const bestScore = Number(
+              best.setup.score ?? 0
+            );
+
+            return currentScore > bestScore
+              ? current
+              : best;
+          }
+        )
       : null;
 
     /*
-     * Return the original setup data unchanged.
-     * Readiness metadata is provided separately.
+     * Readiness metadata is separate from the original
+     * Analyze setup objects.
      */
     const setupReadiness = {};
 
     for (const item of evaluatedSetups) {
+      const evaluation = item.evaluation;
+
       setupReadiness[item.type] = {
-        ready: item.ready,
-        reason: item.reason
+        // Literal status returned by Analyze.
+        analysisStatus: evaluation.analysisStatus,
+
+        // Mirrors Analyze's READY status.
+        ready: evaluation.analysisReady,
+
+        // READY and not terminal.
+        active: evaluation.active,
+
+        terminal: evaluation.terminal,
+        terminalStatus: evaluation.terminalStatus,
+
+        reason: evaluation.reason,
+
+        setupId: evaluation.setupId,
+        zoneStatus: evaluation.zoneStatus,
+        zoneDistance: evaluation.zoneDistance,
+
+        terminalAt: evaluation.terminalAt,
+        terminalSource: evaluation.terminalSource
       };
+    }
+
+    let summaryMessage;
+
+    if (activeReadySetups.length > 0) {
+      summaryMessage =
+        "Terdapat setup READY yang aktif mengikut Analyze.";
+    } else if (terminalConflicts.length > 0) {
+      summaryMessage =
+        "Analyze memulangkan READY untuk setup yang telah tamat. " +
+        "Setup dikekalkan dalam data analisis tetapi tidak dianggap aktif.";
+    } else if (analysisReadySetups.length > 0) {
+      summaryMessage =
+        "Analyze memulangkan READY, tetapi tiada setup aktif yang layak dipilih.";
+    } else {
+      summaryMessage =
+        "Tiada setup berstatus READY dalam Analyze.";
     }
 
     return res.status(200).json({
       success: true,
       status: "success",
       engine: "SINNCI LIVE MONITOR",
-      version: "2.3.0",
+      version: "2.4.0",
 
-      symbol: data.symbol || "XAUUSD",
+      symbol: data.symbol || "XAU/USD",
       source: data.source || "SINNCI AI",
+
       analysisOnly: true,
       automatedTrading: false,
 
       market: data.market ?? null,
       cmp: data.cmp ?? null,
 
+      // Original setup objects from Analyze.
       setups: selectedSetups,
+
+      // Monitor's separate status metadata.
       setupReadiness,
 
+      // Only a READY setup without terminal status.
       bestSetup: bestSetup
         ? {
             type: bestSetup.type,
@@ -335,23 +521,52 @@ export default async function handler(req, res) {
         : null,
 
       summary: {
-        ready: readySetups.length > 0,
-        readyCount: readySetups.length,
-        checkedCount: evaluatedSetups.length,
+        ready: activeReadySetups.length > 0,
 
-        message: readySetups.length
-          ? "Setup memenuhi syarat status analisis."
-          : "Belum ada setup yang memenuhi semua syarat readiness.",
+        // Active setups eligible for bestSetup.
+        readyCount: activeReadySetups.length,
+
+        // READY according to Analyze, including
+        // terminal conflicts.
+        analysisReadyCount:
+          analysisReadySetups.length,
+
+        terminalConflictCount:
+          terminalConflicts.length,
+
+        checkedCount:
+          evaluatedSetups.length,
+
+        message: summaryMessage,
 
         note:
-          "Monitor membaca respons sebenar daripada analyze.js. " +
-          "Confirmation M5 tidak diwajibkan oleh monitor ini. " +
-          "Monitor tidak mengesahkan candle secara berasingan " +
-          "dan tidak mengemas kini status SL/TP dalam Supabase."
+          "Status, arah, skor, zon dan pelan setup dibaca " +
+          "daripada analyze.js. Monitor tidak mewajibkan " +
+          "zone.status IN_ZONE atau confirmation M5. " +
+          "Setup terminal tidak dianggap aktif. " +
+          "Monitor tidak melaksanakan trade dan tidak " +
+          "mengemas kini status SL/TP dalam Supabase."
       },
 
       signalLock: data.signalLock ?? null,
-      dataQuality: data.dataQuality ?? null,
+
+      terminalStatus:
+        data.terminalStatus ?? null,
+
+      terminalHistory:
+        data.terminalHistory ?? null,
+
+      terminalHistoryError:
+        data.terminalHistoryError ?? null,
+
+      dataQuality:
+        data.dataQuality ?? null,
+
+      // Keep Analyze's timestamp for reference and
+      // a separate timestamp for this Monitor response.
+      analyzeTimestamp:
+        data.timestamp ?? null,
+
       timestamp: new Date().toISOString()
     });
   } catch (error) {

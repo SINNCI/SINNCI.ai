@@ -133,24 +133,6 @@ function isCorrectTarget(direction, entry, target) {
   return isBuy(direction) ? target > entry : target < entry;
 }
 
-/**
- * TP1 is considered reached when CMP reaches or passes TP1.
- * BUY: CMP >= TP1.
- * SELL: CMP <= TP1.
- */
-function hasReachedTP1(direction, cmp, tp1) {
-  if (
-    !Number.isFinite(Number(cmp)) ||
-    !Number.isFinite(Number(tp1))
-  ) {
-    return false;
-  }
-
-  return isBuy(direction)
-    ? Number(cmp) >= Number(tp1)
-    : Number(cmp) <= Number(tp1);
-}
-
 function distanceToZone(cmp, zone) {
   if (!zone || !zone.valid) return Infinity;
   if (cmp < zone.low) return round(zone.low - cmp);
@@ -502,13 +484,8 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
   /*
    * BREAKOUT RETEST:
-   * Selepas harga menembusi julat, gunakan sempadan julat
-   * yang ditembusi sebagai zon retest.
-   *
-   * BREAKOUT_DOWN + SELL = retest bekas support.
-   * BREAKOUT_UP + BUY = retest bekas resistance.
-   *
-   * Zon dibina pada paras struktur, bukan pada CMP semata-mata.
+   * Gunakan sempadan julat yang ditembusi sebagai zon retest.
+   * Harga tidak perlu kembali ke CMP untuk menghasilkan zon.
    */
   const breakoutRetestSell =
     sideway.range &&
@@ -712,17 +689,6 @@ function buildStructuralStop(
 STRUCTURAL TARGET CANDIDATES
 ========================================================= */
 
-/**
- * TP candidates are separated by timeframe.
- *
- * Scalping:
- *   primary   = M5,  used for TP1
- *   secondary = M15, used for TP2
- *
- * Intraday:
- *   primary   = M15, used for TP1
- *   secondary = H1,  used for TP2
- */
 function findTargets(direction, entry, targetCandles, secondaryCandles) {
   const primary = buildStructure(targetCandles.slice(-40));
   const secondary = buildStructure(secondaryCandles.slice(-40));
@@ -820,7 +786,6 @@ function buildTradePlan(
     secondary
   );
 
-  // TP1 mesti datang daripada timeframe utama sahaja.
   const validTP1Targets = targets.primary.filter((price) => {
     const reward = Math.abs(price - entry);
 
@@ -843,8 +808,6 @@ function buildTradePlan(
   const reward1 = round(Math.abs(tp1 - entry));
   const rr1 = round(reward1 / risk);
 
-  // TP2 mesti datang daripada timeframe kedua sahaja,
-  // dan berada melepasi TP1 mengikut arah trade.
   const validTP2Targets = targets.secondary.filter((price) => {
     const separation = Math.abs(price - tp1);
     const reward = Math.abs(price - entry);
@@ -1050,12 +1013,6 @@ function makeSetupId(mode, direction, zone) {
     .replace(/[^a-zA-Z0-9_.-]/g, "_");
 }
 
-/**
- * ACTIVE          = setup masih aktif
- * INACTIVE        = luput, tidak sah atau pendua
- * FAILED_SL_HIT   = harga diperhatikan mencapai/melepasi SL
- * TP_HIT          = harga diperhatikan mencapai/melepasi TP1
- */
 async function deactivateLock(lock, status = "INACTIVE") {
   const allowedStatuses = [
     "INACTIVE",
@@ -1124,12 +1081,6 @@ function lockInvalidationReason(lock, cmp) {
   return null;
 }
 
-/**
- * Pembaikan:
- * 1. Periksa SL/TP sebelum lock luput.
- * 2. Pulangkan status terminal yang berlaku dalam permintaan ini.
- * 3. Jangan anggap lock terminal sebagai lock aktif.
- */
 async function getCanonicalActiveLock(mode, config, cmp) {
   const locks = await getActiveLocks(mode);
   const terminalStatuses = [];
@@ -1494,24 +1445,22 @@ function buildSetup({
     entryStructure
   );
 
-  // Jangan keluarkan READY jika CMP sudah mencapai atau melepasi TP1.
-  const tp1AlreadyReached =
-    plan.valid &&
-    hasReachedTP1(direction, cmp, plan.tp1);
-
+  /*
+   * REENTRY CHANGE:
+   * Setup baharu tidak ditolak semata-mata kerana CMP sudah
+   * bergerak melepasi TP1 yang dikira daripada struktur semasa.
+   * Lock lama tetap disemak berasingan oleh Supabase.
+   */
   const status =
     zone.valid &&
     zone.allowSignal !== false &&
     plan.valid &&
     Number.isFinite(plan.tp1) &&
-    !tp1AlreadyReached &&
     score >= config.minimumScore
       ? "READY"
       : "WAIT";
 
-  let reason = tp1AlreadyReached
-    ? "CMP sudah mencapai atau melepasi TP1. Tunggu setup baharu."
-    : zone.reason || null;
+  let reason = zone.reason || null;
 
   if (!reason && !plan.valid) {
     reason = plan.reason;
@@ -1551,10 +1500,11 @@ function sameUnderlyingSetup(scalping, intraday) {
   const scalpZone = scalping.zone;
   const intraZone = intraday.zone;
 
-  if (!scalpZone.source || scalpZone.source !== intraZone.source) {
-    return false;
-  }
-
+  /*
+   * Jangan mensyaratkan source sama.
+   * M5 dan M15 boleh mengenal pasti zon yang sama dengan label
+   * struktur berlainan, asalkan zon bertindih dan pivot dekat.
+   */
   const overlaps =
     scalpZone.low <= intraZone.high &&
     intraZone.low <= scalpZone.high;
@@ -1632,24 +1582,16 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
     entryStructure
   );
 
-  // Semakan TP1 turut digunakan pada setup yang berkongsi zon.
-  const tp1AlreadyReached =
-    plan.valid &&
-    hasReachedTP1(setup.direction, context.cmp, plan.tp1);
-
   const status =
     modeZone.valid &&
     modeZone.allowSignal !== false &&
     plan.valid &&
     Number.isFinite(plan.tp1) &&
-    !tp1AlreadyReached &&
     score >= config.minimumScore
       ? "READY"
       : "WAIT";
 
-  let reason = tp1AlreadyReached
-    ? "CMP sudah mencapai atau melepasi TP1. Tunggu setup baharu."
-    : modeZone.reason || null;
+  let reason = modeZone.reason || null;
 
   if (!reason && !plan.valid) {
     reason = plan.reason;
@@ -1711,22 +1653,19 @@ function synchronizeSharedSetup(scalping, intraday, context) {
     context
   );
 
-  if (
-    !nextScalping.plan?.valid ||
-    !nextIntraday.plan?.valid
-  ) {
-    return {
-      ...unchanged,
-      reason:
-        "Zone struktur sepadan, tetapi pelan SL/TP tidak sah untuk kedua-dua mode. Zone tidak digabungkan.",
-    };
-  }
-
+  /*
+   * Zone boleh dikongsi walaupun salah satu mode belum mempunyai
+   * pelan TP yang sah. Status READY setiap mode tetap bergantung
+   * pada pelan SL/TP masing-masing.
+   */
   return {
     scalping: nextScalping,
     intraday: nextIntraday,
     shared: true,
-    reason: "Kedua-dua mode menggunakan zone struktur yang sama.",
+    reason:
+      nextScalping.plan?.valid && nextIntraday.plan?.valid
+        ? "Kedua-dua mode menggunakan zone struktur yang sama."
+        : "Zone dikongsi; pelan SL/TP dinilai berasingan mengikut mode.",
     direction: intraday.direction,
     zone: {
       low: canonicalZone.low,
@@ -1905,11 +1844,6 @@ async function saveLock(setup, mode) {
   const setupId = makeSetupId(mode, setup.direction, setup.zone);
 
   try {
-    /*
-     * Critical fix:
-     * Check the exact ID before upsert.
-     * A terminal setup ID must never be overwritten back to ACTIVE.
-     */
     const existingRows = await getLockBySetupId(setupId);
     const existing = existingRows?.[0];
 
@@ -2143,11 +2077,6 @@ module.exports = async function handler(req, res) {
       intraday.signalLock = await saveLock(intraday, "intraday");
     }
 
-    /*
-     * Terminal history is fetched separately from ACTIVE locks.
-     * This allows the API to expose recent terminal records after
-     * the request that originally detected the SL/TP event.
-     */
     let recentTerminalStatuses = {
       scalping: [],
       intraday: [],
@@ -2346,11 +2275,6 @@ module.exports = async function handler(req, res) {
         },
       },
 
-      /*
-       * Terminal statuses detected during this request.
-       * Recent terminal history remains available even after
-       * the original ACTIVE lock has been deactivated.
-       */
       terminalStatus: {
         scalping: scalpLockResult.terminalStatuses || [],
         intraday: intraLockResult.terminalStatuses || [],

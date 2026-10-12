@@ -8,17 +8,18 @@
  * H1 = primary trend/setup context.
  * M5 = scalping entry structure.
  * M15 = intraday entry structure.
- * Retracement candidate may be selected when primary H1 zone
- * is more than $3 away, provided its own setup is valid.
+ * Retracement may be selected when the H1 zone is far away.
  *
  * SL: M15 first, M5 fallback.
  * TP1/TP2: structural targets only.
  *
- * Added:
- * - Shared-zone detection for equivalent scalping/intraday setups.
- * - Recalculate SL/TP/RR/score when a zone is shared.
- * - Never overwrite an already reused locked setup.
- * - Keep the original dashboard response fields.
+ * Additions:
+ * - Sideway/range detection.
+ * - Sideway support/resistance zone mapping.
+ * - Previous-candle breakout detection.
+ * - Mid-range entries blocked for new sideway setups.
+ * - Supabase locks cannot override invalid sideway locations.
+ * - Existing dashboard fields, SL/TP/RR and scoring retained.
  */
 
 const SETTINGS = {
@@ -29,6 +30,15 @@ const SETTINGS = {
   approachDistance: 3.00,
   candleCount: 50,
   timeout: 15000,
+
+  sideway: {
+    lookback: 20,
+    minRangeWidth: 3.00,
+    maxRangeWidth: 18.00,
+    maxEmaSpread: 4.00,
+    edgePercent: 0.25,
+    breakoutBuffer: 0.05,
+  },
 
   scalping: {
     minimumScore: 65,
@@ -61,7 +71,7 @@ const TIMEFRAMES = {
 const TABLE = "sinnci_setup_locks";
 
 /* =========================================================
-   GENERAL HELPERS
+GENERAL HELPERS
 ========================================================= */
 
 function json(res, status, payload) {
@@ -99,9 +109,11 @@ function uniquePrices(values, tolerance = 0.15) {
   for (const value of values) {
     if (!Number.isFinite(value)) continue;
 
-    if (!result.some((existing) =>
-      Math.abs(existing - value) <= tolerance
-    )) {
+    if (
+      !result.some(
+        (existing) => Math.abs(existing - value) <= tolerance
+      )
+    ) {
       result.push(value);
     }
   }
@@ -141,7 +153,7 @@ function distanceToZone(cmp, zone) {
 }
 
 /* =========================================================
-   TWELVE DATA
+TWELVE DATA
 ========================================================= */
 
 async function fetchCandles(interval) {
@@ -235,7 +247,7 @@ async function fetchCandles(interval) {
 }
 
 /* =========================================================
-   MARKET STRUCTURE
+SWING STRUCTURE
 ========================================================= */
 
 function findSwings(candles, wing = 2) {
@@ -273,6 +285,164 @@ function findSwings(candles, wing = 2) {
   return { highs, lows };
 }
 
+/* =========================================================
+SIDEWAY DETECTION
+========================================================= */
+
+function detectSideway(candles) {
+  if (!Array.isArray(candles) || candles.length < 25) {
+    return {
+      isSideway: false,
+      position: "UNKNOWN",
+      range: null,
+      rangeWidth: null,
+      emaSpread: null,
+      breakoutUp: false,
+      breakoutDown: false,
+      reason: "Data tidak mencukupi untuk mengesan sideway.",
+    };
+  }
+
+  const settings = SETTINGS.sideway;
+  const last = candles[candles.length - 1];
+  const previous = candles[candles.length - 2];
+
+  const prior = candles.slice(
+    -(settings.lookback + 1),
+    -1
+  );
+
+  if (prior.length < settings.lookback) {
+    return {
+      isSideway: false,
+      position: "UNKNOWN",
+      range: null,
+      rangeWidth: null,
+      emaSpread: null,
+      breakoutUp: false,
+      breakoutDown: false,
+      reason: "Julat candle sebelumnya tidak mencukupi.",
+    };
+  }
+
+  const rangeHigh = Math.max(...prior.map((c) => c.high));
+  const rangeLow = Math.min(...prior.map((c) => c.low));
+  const rangeWidth = round(rangeHigh - rangeLow);
+
+  const closes = candles.map((c) => c.close);
+  const ema20 = ema(closes, 20);
+  const ema50 = ema(closes, 50);
+
+  const emaSpread =
+    ema20 !== null && ema50 !== null
+      ? round(Math.abs(ema20 - ema50))
+      : null;
+
+  const breakoutUp =
+    last.close > rangeHigh + settings.breakoutBuffer &&
+    last.close > previous.high;
+
+  const breakoutDown =
+    last.close < rangeLow - settings.breakoutBuffer &&
+    last.close < previous.low;
+
+  if (breakoutUp) {
+    return {
+      isSideway: false,
+      position: "BREAKOUT_UP",
+      range: {
+        high: round(rangeHigh),
+        low: round(rangeLow),
+      },
+      rangeWidth,
+      emaSpread,
+      breakoutUp: true,
+      breakoutDown: false,
+      reason: "Harga menembusi bahagian atas julat sebelumnya.",
+    };
+  }
+
+  if (breakoutDown) {
+    return {
+      isSideway: false,
+      position: "BREAKOUT_DOWN",
+      range: {
+        high: round(rangeHigh),
+        low: round(rangeLow),
+      },
+      rangeWidth,
+      emaSpread,
+      breakoutUp: false,
+      breakoutDown: true,
+      reason: "Harga menembusi bahagian bawah julat sebelumnya.",
+    };
+  }
+
+  const widthValid =
+    rangeWidth >= settings.minRangeWidth &&
+    rangeWidth <= settings.maxRangeWidth;
+
+  const emaValid =
+    emaSpread === null ||
+    emaSpread <= settings.maxEmaSpread;
+
+  const isSideway = widthValid && emaValid;
+
+  if (!isSideway) {
+    return {
+      isSideway: false,
+      position: "TRENDING",
+      range: {
+        high: round(rangeHigh),
+        low: round(rangeLow),
+      },
+      rangeWidth,
+      emaSpread,
+      breakoutUp: false,
+      breakoutDown: false,
+      reason: !widthValid
+        ? "Lebar julat tidak memenuhi kriteria sideway."
+        : "Jarak EMA menunjukkan struktur mungkin sedang bergerak.",
+    };
+  }
+
+  const lowerBoundary =
+    rangeLow + rangeWidth * settings.edgePercent;
+
+  const upperBoundary =
+    rangeHigh - rangeWidth * settings.edgePercent;
+
+  let position = "SIDEWAY_MID";
+
+  if (last.close <= lowerBoundary) {
+    position = "SIDEWAY_SUPPORT";
+  } else if (last.close >= upperBoundary) {
+    position = "SIDEWAY_RESISTANCE";
+  }
+
+  return {
+    isSideway: true,
+    position,
+    range: {
+      high: round(rangeHigh),
+      low: round(rangeLow),
+    },
+    rangeWidth,
+    emaSpread,
+    breakoutUp: false,
+    breakoutDown: false,
+    reason: position === "SIDEWAY_SUPPORT"
+      ? "Harga berhampiran bahagian bawah julat."
+      : position === "SIDEWAY_RESISTANCE"
+        ? "Harga berhampiran bahagian atas julat."
+        : "Harga berada di tengah julat sideway.",
+  };
+}
+
+/* =========================================================
+MARKET STRUCTURE
+========================================================= */
+
 function buildStructure(candles) {
   const recent = candles.slice(-20);
   const closes = candles.map((c) => c.close);
@@ -301,7 +471,6 @@ function buildStructure(candles) {
   }
 
   const last = candles[candles.length - 1];
-  const previous = candles[candles.length - 2];
   const ema20 = ema(closes, 20);
   const ema50 = ema(closes, 50);
 
@@ -310,16 +479,29 @@ function buildStructure(candles) {
     else if (last.close < ema20 && ema20 < ema50) direction = "BEARISH";
   }
 
+  const sideway = detectSideway(candles);
+
+  const previousRangeCandles = candles.slice(
+    -(SETTINGS.sideway.lookback + 1),
+    -1
+  );
+
+  const previousRangeHigh = previousRangeCandles.length
+    ? Math.max(...previousRangeCandles.map((c) => c.high))
+    : null;
+
+  const previousRangeLow = previousRangeCandles.length
+    ? Math.min(...previousRangeCandles.map((c) => c.low))
+    : null;
+
   const breakoutUp = Boolean(
-    range &&
-    last.close > previous.high &&
-    last.close >= range.high - 0.05
+    previousRangeHigh !== null &&
+    last.close > previousRangeHigh + SETTINGS.sideway.breakoutBuffer
   );
 
   const breakoutDown = Boolean(
-    range &&
-    last.close < previous.low &&
-    last.close <= range.low + 0.05
+    previousRangeLow !== null &&
+    last.close < previousRangeLow - SETTINGS.sideway.breakoutBuffer
   );
 
   return {
@@ -333,57 +515,93 @@ function buildStructure(candles) {
     breakoutDown,
     lastClose: last.close,
     lastTime: last.time,
+    sideway,
   };
 }
 
 /* =========================================================
-   EARLY ENTRY ZONE
+EARLY ENTRY ZONE
 ========================================================= */
 
 function buildEarlyZone(candles, direction, cmp, mode) {
   const recent = candles.slice(-35);
   const structure = buildStructure(recent);
   const swings = findSwings(recent, 2);
+  const sideway = detectSideway(recent);
   const buy = isBuy(direction);
-
-  const relevantSwings = buy ? swings.lows : swings.highs;
-
-  const candidates = relevantSwings
-    .filter((s) => buy ? s.price < cmp : s.price > cmp)
-    .map((s) => ({
-      price: s.price,
-      time: s.time,
-      source: buy ? "SNR_SUPPORT" : "SNR_RESISTANCE",
-    }));
 
   let pivot = null;
   let source = "SNR_RANGE_EDGE";
-  let bestDistance = Infinity;
+  let allowSignal = true;
+  let reason = null;
 
-  for (const candidate of candidates) {
-    const distance = Math.abs(cmp - candidate.price);
+  /*
+   * Confirmed sideway:
+   * BUY maps to lower range support.
+   * SELL maps to upper range resistance.
+   * A new setup cannot become READY in the middle or at the
+   * opposite edge of the range.
+   */
+  if (sideway.isSideway && sideway.range) {
+    const isAtCorrectEdge = buy
+      ? sideway.position === "SIDEWAY_SUPPORT"
+      : sideway.position === "SIDEWAY_RESISTANCE";
 
-    if (distance < bestDistance) {
-      pivot = candidate.price;
-      source = candidate.source;
-      bestDistance = distance;
+    pivot = buy
+      ? sideway.range.low
+      : sideway.range.high;
+
+    source = buy
+      ? "SIDEWAY_SUPPORT"
+      : "SIDEWAY_RESISTANCE";
+
+    if (!isAtCorrectEdge) {
+      allowSignal = false;
+
+      reason = sideway.position === "SIDEWAY_MID"
+        ? "Sideway: harga masih di tengah julat. Tunggu support atau resistance."
+        : buy
+          ? "Sideway: tunggu harga menghampiri support untuk BUY."
+          : "Sideway: tunggu harga menghampiri resistance untuk SELL.";
     }
-  }
+  } else {
+    const relevantSwings = buy ? swings.lows : swings.highs;
 
-  const ema20 = ema(recent.map((c) => c.close), 20);
+    const candidates = relevantSwings
+      .filter((s) => buy ? s.price < cmp : s.price > cmp)
+      .map((s) => ({
+        price: s.price,
+        time: s.time,
+        source: buy ? "SNR_SUPPORT" : "SNR_RESISTANCE",
+      }));
 
-  if (pivot === null && ema20 !== null) {
-    const correctSide = buy ? ema20 < cmp : ema20 > cmp;
+    let bestDistance = Infinity;
 
-    if (correctSide) {
-      pivot = ema20;
-      source = "EMA20_REENTRY";
+    for (const candidate of candidates) {
+      const distance = Math.abs(cmp - candidate.price);
+
+      if (distance < bestDistance) {
+        pivot = candidate.price;
+        source = candidate.source;
+        bestDistance = distance;
+      }
     }
-  }
 
-  if (pivot === null && structure.range) {
-    pivot = buy ? structure.range.low : structure.range.high;
-    source = "SNR_RANGE_EDGE";
+    const ema20 = ema(recent.map((c) => c.close), 20);
+
+    if (pivot === null && ema20 !== null) {
+      const correctSide = buy ? ema20 < cmp : ema20 > cmp;
+
+      if (correctSide) {
+        pivot = ema20;
+        source = "EMA20_REENTRY";
+      }
+    }
+
+    if (pivot === null && structure.range) {
+      pivot = buy ? structure.range.low : structure.range.high;
+      source = "SNR_RANGE_EDGE";
+    }
   }
 
   if (!Number.isFinite(pivot)) {
@@ -398,6 +616,8 @@ function buildEarlyZone(candles, direction, cmp, mode) {
       status: "WATCH",
       distance: null,
       timeframe: mode === "scalping" ? "M5" : "M15",
+      allowSignal: false,
+      sideway,
     };
   }
 
@@ -409,12 +629,25 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
   if (cmp >= low && cmp <= high) {
     status = "IN_ZONE";
-  } else if (buy && cmp > high &&
-    cmp - high <= SETTINGS.approachDistance) {
+  } else if (
+    buy &&
+    cmp > high &&
+    cmp - high <= SETTINGS.approachDistance
+  ) {
     status = "APPROACHING";
-  } else if (!buy && cmp < low &&
-    low - cmp <= SETTINGS.approachDistance) {
+  } else if (
+    !buy &&
+    cmp < low &&
+    low - cmp <= SETTINGS.approachDistance
+  ) {
     status = "APPROACHING";
+  }
+
+  if (
+    sideway.isSideway &&
+    sideway.position === "SIDEWAY_MID"
+  ) {
+    allowSignal = false;
   }
 
   return {
@@ -427,15 +660,21 @@ function buildEarlyZone(candles, direction, cmp, mode) {
     pivot: round(pivot),
     source,
     status,
-    distance: distanceToZone(cmp, { low, high, valid: true }),
+    distance: distanceToZone(cmp, {
+      low,
+      high,
+      valid: true,
+    }),
     timeframe: mode === "scalping" ? "M5" : "M15",
-    reason: null,
+    reason,
+    allowSignal,
+    sideway,
   };
 }
 
 /* =========================================================
-   STRUCTURAL STOP LOSS
-   Priority: M15 first, then M5 fallback.
+STRUCTURAL STOP LOSS
+Priority: M15 first, then M5 fallback.
 ========================================================= */
 
 function buildStructuralStop(
@@ -501,13 +740,12 @@ function buildStructuralStop(
     risk: null,
     valid: false,
     source: null,
-    reason:
-      `Tiada swing M15 atau M5 yang sah dalam had risiko $${maxRisk.toFixed(2)}.`,
+    reason: `Tiada swing M15 atau M5 yang sah dalam had risiko $${maxRisk.toFixed(2)}.`,
   };
 }
 
 /* =========================================================
-   STRUCTURAL TARGET CANDIDATES
+STRUCTURAL TARGET CANDIDATES
 ========================================================= */
 
 function findTargets(direction, entry, targetCandles, secondaryCandles) {
@@ -542,7 +780,7 @@ function findTargets(direction, entry, targetCandles, secondaryCandles) {
 }
 
 /* =========================================================
-   TRADE PLAN
+TRADE PLAN
 ========================================================= */
 
 function buildTradePlan(
@@ -588,11 +826,15 @@ function buildTradePlan(
   }
 
   const structuralTargets = findTargets(
-    direction, entry, primary, secondary
+    direction,
+    entry,
+    primary,
+    secondary
   );
 
   const validTargets = structuralTargets.filter((price) => {
     const reward = Math.abs(price - entry);
+
     return (
       isCorrectTarget(direction, entry, price) &&
       reward >= risk * config.minimumRR1 &&
@@ -659,7 +901,7 @@ function buildTradePlan(
 }
 
 /* =========================================================
-   SCORE
+SCORE
 ========================================================= */
 
 function calculateScore(direction, trendH1, trendEntry, zone, structure) {
@@ -675,6 +917,11 @@ function calculateScore(direction, trendH1, trendEntry, zone, structure) {
   if (
     zone.source === "SNR_SUPPORT" ||
     zone.source === "SNR_RESISTANCE"
+  ) {
+    score += 10;
+  } else if (
+    zone.source === "SIDEWAY_SUPPORT" ||
+    zone.source === "SIDEWAY_RESISTANCE"
   ) {
     score += 10;
   } else if (zone.source.includes("RETEST")) {
@@ -693,12 +940,13 @@ function calculateScore(direction, trendH1, trendEntry, zone, structure) {
 }
 
 /* =========================================================
-   SUPABASE
+SUPABASE
 ========================================================= */
 
 function supabaseConfig() {
   const url = getEnv("SUPABASE_URL").replace(/\/+$/, "");
   const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+
   return url && key ? { url, key } : null;
 }
 
@@ -720,10 +968,13 @@ async function supabaseRequest(path, options = {}) {
     headers.Prefer = options.prefer;
   }
 
-  const response = await fetch(`${config.url}/rest/v1/${path}`, {
-    ...options,
-    headers,
-  });
+  const response = await fetch(
+    `${config.url}/rest/v1/${path}`,
+    {
+      ...options,
+      headers,
+    }
+  );
 
   const raw = await response.text();
   let body = null;
@@ -821,11 +1072,6 @@ function lockInvalidationReason(lock, cmp) {
   return null;
 }
 
-/*
- * Resolve the existing lock once per mode.
- * If old duplicate ACTIVE rows exist, keep the newest valid one
- * and deactivate the other rows to reduce conflicting locks.
- */
 async function getCanonicalActiveLock(mode, config, cmp) {
   const locks = await getActiveLocks(mode);
   const valid = [];
@@ -875,7 +1121,9 @@ function planFromLock(lock, mode, cmp) {
   const direction = lock.direction;
   const risk = round(Math.abs(entry - sl));
   const reward1 = round(Math.abs(tp1 - entry));
-  const reward2 = tp2 === null ? null : round(Math.abs(tp2 - entry));
+  const reward2 = tp2 === null
+    ? null
+    : round(Math.abs(tp2 - entry));
 
   const correctSL = isBuy(direction) ? sl < low : sl > high;
 
@@ -917,12 +1165,17 @@ function planFromLock(lock, mode, cmp) {
       pivot: entry,
       source: lock.source || "SNR_STRUCTURE",
       status: zoneStatus,
-      distance: distanceToZone(cmp, { low, high, valid: true }),
+      distance: distanceToZone(cmp, {
+        low,
+        high,
+        valid: true,
+      }),
       timeframe: mode === "scalping" ? "M5" : "M15",
       locked: true,
       setupId: lock.setup_id,
       reason: null,
     },
+
     plan: {
       valid: true,
       entry,
@@ -934,28 +1187,107 @@ function planFromLock(lock, mode, cmp) {
       reward2,
       rr1: round(reward1 / risk),
       rr2: reward2 === null ? null : round(reward2 / risk),
-      reason: tp2 === null ? "TP1 sah; TP2 belum tersedia." : null,
+      reason: tp2 === null
+        ? "TP1 sah; TP2 belum tersedia."
+        : null,
     },
   };
 }
 
-async function applyModeLock(setups, mode, config, cmp) {
+/* =========================================================
+APPLY MODE LOCK
+Sideway guard prevents a persisted lock from forcing READY
+when the current range location does not support its direction.
+========================================================= */
+
+async function applyModeLock(
+  setups,
+  mode,
+  config,
+  cmp,
+  sideway
+) {
   if (!supabaseConfig()) {
-    return { setups, activeLock: null, error: null };
+    return {
+      setups,
+      activeLock: null,
+      error: null,
+    };
   }
 
   try {
-    const active = await getCanonicalActiveLock(mode, config, cmp);
+    const active = await getCanonicalActiveLock(
+      mode,
+      config,
+      cmp
+    );
 
     if (!active) {
-      return { setups, activeLock: null, error: null };
+      return {
+        setups,
+        activeLock: null,
+        error: null,
+      };
+    }
+
+    /*
+     * IMPORTANT:
+     * A stored lock must not override the current sideway location.
+     *
+     * SIDEWAY_SUPPORT permits BUY only.
+     * SIDEWAY_RESISTANCE permits SELL only.
+     * SIDEWAY_MID permits neither direction.
+     *
+     * The old database lock is not deactivated here merely because
+     * it is temporarily unsuitable for the current range location.
+     */
+    if (sideway?.isSideway) {
+      const correctEdge =
+        (sideway.position === "SIDEWAY_SUPPORT" &&
+          active.direction === "BUY") ||
+        (sideway.position === "SIDEWAY_RESISTANCE" &&
+          active.direction === "SELL");
+
+      if (!correctEdge) {
+        const blockedReason =
+          sideway.position === "SIDEWAY_MID"
+            ? "Sideway: setup lock tidak boleh mengaktifkan signal di tengah range."
+            : sideway.position === "SIDEWAY_SUPPORT"
+              ? "Sideway: BUY sahaja dibenarkan di kawasan support."
+              : "Sideway: SELL sahaja dibenarkan di kawasan resistance.";
+
+        const updated = setups.map((setup) => ({
+          ...setup,
+          status: "WAIT",
+          sidewayBlocked: true,
+          reason: blockedReason,
+          signalLock: {
+            ...setup.signalLock,
+            enabled: true,
+            persisted: false,
+            reused: false,
+            reason: blockedReason,
+          },
+        }));
+
+        return {
+          setups: updated,
+          activeLock: null,
+          error: null,
+        };
+      }
     }
 
     const locked = planFromLock(active, mode, cmp);
 
     if (!locked) {
       await deactivateLock(active);
-      return { setups, activeLock: null, error: null };
+
+      return {
+        setups,
+        activeLock: null,
+        error: null,
+      };
     }
 
     const updated = setups.map((setup) => {
@@ -965,6 +1297,25 @@ async function applyModeLock(setups, mode, config, cmp) {
           blockedByActiveLock: true,
           activeLockDirection: active.direction,
           activeLockSetupId: active.setup_id,
+        };
+      }
+
+      /*
+       * Additional guard:
+       * Even if a lock is valid in Supabase, do not restore READY
+       * if the newly calculated setup is explicitly blocked by its
+       * current sideway structure.
+       */
+      if (
+        setup.zone?.allowSignal === false ||
+        setup.sidewayBlocked === true
+      ) {
+        return {
+          ...setup,
+          status: "WAIT",
+          sidewayBlocked: true,
+          reason: setup.zone?.reason ||
+            "Setup lock tidak boleh mengatasi sekatan struktur semasa.",
         };
       }
 
@@ -1003,7 +1354,7 @@ async function applyModeLock(setups, mode, config, cmp) {
 }
 
 /* =========================================================
-   SETUP BUILDER
+SETUP BUILDER
 ========================================================= */
 
 function buildSetup({
@@ -1019,7 +1370,12 @@ function buildSetup({
   entryStructure,
   config,
 }) {
-  const zone = buildEarlyZone(entryCandles, direction, cmp, mode);
+  const zone = buildEarlyZone(
+    entryCandles,
+    direction,
+    cmp,
+    mode
+  );
 
   const base = {
     mode,
@@ -1080,25 +1436,33 @@ function buildSetup({
     entryStructure
   );
 
+  /*
+   * A new setup cannot become READY from the middle of a sideway.
+   * The zone remains visible so the dashboard can show the relevant
+   * range boundary.
+   */
   const status =
     zone.valid &&
+    zone.allowSignal !== false &&
     plan.valid &&
     Number.isFinite(plan.tp1) &&
     score >= config.minimumScore
       ? "READY"
       : "WAIT";
 
-  let reason = null;
+  let reason = zone.reason || null;
 
-  if (!plan.valid) {
+  if (!reason && !plan.valid) {
     reason = plan.reason;
-  } else if (score < config.minimumScore) {
+  } else if (!reason && zone.allowSignal === false) {
+    reason = "Tunggu harga sampai ke zon struktur yang sesuai.";
+  } else if (!reason && score < config.minimumScore) {
     reason = `Score ${score} belum mencapai minimum ${config.minimumScore}.`;
-  } else if (zone.status === "WATCH") {
+  } else if (!reason && zone.status === "WATCH") {
     reason = "Setup READY; zon masih WATCH. Tunggu harga menghampiri zon.";
-  } else if (zone.status === "APPROACHING") {
+  } else if (!reason && zone.status === "APPROACHING") {
     reason = "Setup READY; harga sedang menghampiri zon.";
-  } else if (plan.tp2 === null) {
+  } else if (!reason && plan.tp2 === null) {
     reason = plan.reason;
   }
 
@@ -1113,25 +1477,12 @@ function buildSetup({
 }
 
 /* =========================================================
-   SHARED SETUP ZONE
+SHARED SETUP ZONE
 ========================================================= */
 
-/*
- * A shared zone is allowed only if:
- * - Both selected setups have the same direction.
- * - Both zones are valid and come from the same structural source.
- * - Their zones overlap (or touch).
- * - Neither setup reuses a persisted lock.
- * - Neither setup is blocked by an active opposing lock.
- *
- * This intentionally does not merge zones just because both
- * signals say BUY or both signals say SELL.
- */
 function sameUnderlyingSetup(scalping, intraday) {
   if (!scalping || !intraday) return false;
-
   if (scalping.direction !== intraday.direction) return false;
-
   if (!scalping.zone?.valid || !intraday.zone?.valid) return false;
 
   if (
@@ -1156,10 +1507,6 @@ function sameUnderlyingSetup(scalping, intraday) {
 
   if (!overlaps) return false;
 
-  /*
-   * Both zones are generated with the same thickness.
-   * A small pivot tolerance avoids merging separate nearby levels.
-   */
   const pivotDifference = Math.abs(
     Number(scalpZone.pivot) - Number(intraZone.pivot)
   );
@@ -1168,10 +1515,6 @@ function sameUnderlyingSetup(scalping, intraday) {
     pivotDifference <= SETTINGS.zoneThickness;
 }
 
-/*
- * Recalculate an individual mode's trade plan using the shared
- * zone, but retain that mode's own target timeframes and RR rules.
- */
 function rebuildPlanForSharedZone(setup, sharedZone, context) {
   const config = SETTINGS[setup.mode];
 
@@ -1237,23 +1580,26 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
 
   const status =
     modeZone.valid &&
+    modeZone.allowSignal !== false &&
     plan.valid &&
     Number.isFinite(plan.tp1) &&
     score >= config.minimumScore
       ? "READY"
       : "WAIT";
 
-  let reason = null;
+  let reason = modeZone.reason || null;
 
-  if (!plan.valid) {
+  if (!reason && !plan.valid) {
     reason = plan.reason;
-  } else if (score < config.minimumScore) {
+  } else if (!reason && modeZone.allowSignal === false) {
+    reason = "Tunggu harga sampai ke zon struktur yang sesuai.";
+  } else if (!reason && score < config.minimumScore) {
     reason = `Score ${score} belum mencapai minimum ${config.minimumScore}.`;
-  } else if (modeZone.status === "WATCH") {
+  } else if (!reason && modeZone.status === "WATCH") {
     reason = "Setup READY; zon dikongsi tetapi masih WATCH.";
-  } else if (modeZone.status === "APPROACHING") {
+  } else if (!reason && modeZone.status === "APPROACHING") {
     reason = "Setup READY; harga menghampiri zon yang dikongsi.";
-  } else if (plan.tp2 === null) {
+  } else if (!reason && plan.tp2 === null) {
     reason = plan.reason;
   }
 
@@ -1268,13 +1614,6 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
   };
 }
 
-/*
- * Intraday M15 is the canonical zone when the two modes match.
- * Scalping and intraday still retain their own SL/TP calculations.
- *
- * No persisted lock is modified here. Saving happens after this
- * function, so newly saved locks use the synchronized zone.
- */
 function synchronizeSharedSetup(scalping, intraday, context) {
   const unchanged = {
     scalping,
@@ -1292,10 +1631,6 @@ function synchronizeSharedSetup(scalping, intraday, context) {
     };
   }
 
-  /*
-   * Prefer the intraday/M15 zone as the canonical structural zone.
-   * Do not change its actual price boundaries.
-   */
   const canonicalZone = {
     ...intraday.zone,
     valid: true,
@@ -1314,11 +1649,6 @@ function synchronizeSharedSetup(scalping, intraday, context) {
     context
   );
 
-  /*
-   * Only share if both mode plans remain valid after recalculation.
-   * Otherwise preserve both original setups instead of creating
-   * a partially shared setup.
-   */
   if (
     !nextScalping.plan?.valid ||
     !nextIntraday.plan?.valid
@@ -1348,7 +1678,7 @@ function synchronizeSharedSetup(scalping, intraday, context) {
 }
 
 /* =========================================================
-   SETUP PRIORITY
+SETUP PRIORITY
 ========================================================= */
 
 function chooseBestCandidate(buySetup, sellSetup) {
@@ -1388,12 +1718,6 @@ function chooseBestCandidate(buySetup, sellSetup) {
   })[0];
 }
 
-/*
- * The setup matching H1 is primary.
- * A counter-trend retracement candidate may be selected only when
- * the primary H1 zone is more than $3 away and retracement is READY.
- * This rule chooses priority; it does not guarantee profitability.
- */
 function chooseTrendOrRetracement({
   buySetup,
   sellSetup,
@@ -1407,7 +1731,11 @@ function chooseTrendOrRetracement({
     return chooseBestCandidate(buySetup, sellSetup);
   }
 
-  const setups = { BUY: buySetup, SELL: sellSetup };
+  const setups = {
+    BUY: buySetup,
+    SELL: sellSetup,
+  };
+
   const primary = setups[primaryDirection];
   const retracement = setups[oppositeDirection(primaryDirection)];
 
@@ -1447,7 +1775,7 @@ function chooseTrendOrRetracement({
 }
 
 /* =========================================================
-   SAVE LOCK
+SAVE LOCK
 ========================================================= */
 
 async function saveLock(setup, mode) {
@@ -1493,11 +1821,6 @@ async function saveLock(setup, mode) {
   };
 
   try {
-    /*
-     * Deactivate other active rows for this mode before saving.
-     * This reduces stale opposing locks. For strict concurrency
-     * guarantees, enforce uniqueness/locking at database level too.
-     */
     const oldLocks = await getActiveLocks(mode);
 
     for (const lock of oldLocks) {
@@ -1506,7 +1829,9 @@ async function saveLock(setup, mode) {
       }
     }
 
-    const query = new URLSearchParams({ on_conflict: "setup_id" });
+    const query = new URLSearchParams({
+      on_conflict: "setup_id",
+    });
 
     await supabaseRequest(`${TABLE}?${query.toString()}`, {
       method: "POST",
@@ -1534,7 +1859,7 @@ async function saveLock(setup, mode) {
 }
 
 /* =========================================================
-   API HANDLER
+API HANDLER
 ========================================================= */
 
 module.exports = async function handler(req, res) {
@@ -1565,11 +1890,6 @@ module.exports = async function handler(req, res) {
     const h1Trend = h1Structure.direction;
     const d1Trend = d1Structure.direction;
 
-    /*
-     * Build a separate H1 primary zone. This zone is used to
-     * calculate distance/priority only; the actual trade plan
-     * still uses the entry timeframe's own zone and risk checks.
-     */
     const primaryH1Direction = directionFromTrend(h1Trend);
 
     const primaryH1Zone = primaryH1Direction
@@ -1633,15 +1953,15 @@ module.exports = async function handler(req, res) {
     });
 
     /*
-     * Apply one canonical active lock per mode, instead of
-     * independently querying/deactivating the same lock for BUY
-     * and SELL evaluations.
+     * Pass the current entry timeframe's sideway state to the lock
+     * guard. Scalping uses M5; intraday uses M15.
      */
     const scalpLockResult = await applyModeLock(
       [scalpBuy, scalpSell],
       "scalping",
       SETTINGS.scalping,
-      cmp
+      cmp,
+      m5Structure.sideway
     );
 
     [scalpBuy, scalpSell] = scalpLockResult.setups;
@@ -1650,7 +1970,8 @@ module.exports = async function handler(req, res) {
       [intraBuy, intraSell],
       "intraday",
       SETTINGS.intraday,
-      cmp
+      cmp,
+      m15Structure.sideway
     );
 
     [intraBuy, intraSell] = intraLockResult.setups;
@@ -1671,10 +1992,6 @@ module.exports = async function handler(req, res) {
       primaryH1Zone,
     });
 
-    /*
-     * Synchronize only the selected setup from each mode.
-     * Locked or blocked setups are excluded by the sync function.
-     */
     const sharedResult = synchronizeSharedSetup(
       scalping,
       intraday,
@@ -1692,10 +2009,6 @@ module.exports = async function handler(req, res) {
     scalping = sharedResult.scalping;
     intraday = sharedResult.intraday;
 
-    /*
-     * Keep candidate-level output consistent with the selected
-     * setup when its zone has been synchronized.
-     */
     if (sharedResult.shared) {
       if (scalping.direction === "BUY") {
         scalpBuy = scalping;
@@ -1710,25 +2023,24 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    /*
-     * Do not save a new setup if an existing lock was reused.
-     * Do not save a candidate blocked by the active lock.
-     *
-     * If zones were synchronized, each mode saves the same
-     * canonical zone but retains its own mode-specific SL/TP.
-     */
     if (
       !scalping.signalLock?.reused &&
       !scalping.blockedByActiveLock
     ) {
-      scalping.signalLock = await saveLock(scalping, "scalping");
+      scalping.signalLock = await saveLock(
+        scalping,
+        "scalping"
+      );
     }
 
     if (
       !intraday.signalLock?.reused &&
       !intraday.blockedByActiveLock
     ) {
-      intraday.signalLock = await saveLock(intraday, "intraday");
+      intraday.signalLock = await saveLock(
+        intraday,
+        "intraday"
+      );
     }
 
     const mainSetup =
@@ -1787,7 +2099,10 @@ module.exports = async function handler(req, res) {
             price: mainZone.pivot,
             source: mainZone.source,
           }
-        : { price: null, source: null },
+        : {
+            price: null,
+            source: null,
+          },
 
       zone: mainZone,
 
@@ -1796,8 +2111,14 @@ module.exports = async function handler(req, res) {
         : mainPlan.reason,
 
       scores: {
-        buy: Math.max(scalpBuy.score || 0, intraBuy.score || 0),
-        sell: Math.max(scalpSell.score || 0, intraSell.score || 0),
+        buy: Math.max(
+          scalpBuy.score || 0,
+          intraBuy.score || 0
+        ),
+        sell: Math.max(
+          scalpSell.score || 0,
+          intraSell.score || 0
+        ),
       },
 
       candidates: {
@@ -1817,6 +2138,7 @@ module.exports = async function handler(req, res) {
             reason: scalpSell.reason,
           },
         },
+
         intraday: {
           buy: {
             status: intraBuy.status,
@@ -1838,9 +2160,6 @@ module.exports = async function handler(req, res) {
       scalping,
       intraday,
 
-      /*
-       * New diagnostic field. Existing fields above are retained.
-       */
       sharedSetup: {
         enabled: true,
         shared: sharedResult.shared,
@@ -1865,6 +2184,11 @@ module.exports = async function handler(req, res) {
         M5: m5Structure,
       },
 
+      sideway: {
+        M15: m15Structure.sideway,
+        M5: m5Structure.sideway,
+      },
+
       signalLock: {
         enabled: Boolean(supabaseConfig()),
         scalping: scalping.signalLock,
@@ -1879,6 +2203,8 @@ module.exports = async function handler(req, res) {
         zoneThickness: SETTINGS.zoneThickness,
         priorityDistance: SETTINGS.priorityDistance,
         approachDistance: SETTINGS.approachDistance,
+
+        sideway: SETTINGS.sideway,
 
         minimumScore: {
           scalping: SETTINGS.scalping.minimumScore,

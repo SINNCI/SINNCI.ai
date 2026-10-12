@@ -5,6 +5,8 @@
  * Analysis only. No automated trading or order execution.
  * Zone accuracy > signal timing > score.
  *
+ * BUY and SELL are evaluated independently.
+ *
  * TP1 / TP2: STRUCTURAL SNR ONLY
  * No fixed-price TP fallback.
  * TP2 must be at least $5.00 beyond TP1.
@@ -419,8 +421,6 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
 /* =========================================================
    STRUCTURAL STOP LOSS
-   Uses structural swing levels only.
-   No synthetic fallback.
 ========================================================= */
 
 function buildStructuralStop(direction, zone, candles, maxRisk) {
@@ -460,11 +460,7 @@ function buildStructuralStop(direction, zone, candles, maxRisk) {
       ? candidate < zone.low
       : candidate > zone.high;
 
-    if (
-      correctSide &&
-      risk > 0 &&
-      risk <= maxRisk
-    ) {
+    if (correctSide && risk > 0 && risk <= maxRisk) {
       stop = candidate;
       break;
     }
@@ -826,7 +822,6 @@ function validateStoredPlan(
     (price) => Math.abs(price - tp1) <= 0.25
   );
 
-  // Stored SL mesti sepadan dengan swing yang dikira semula.
   const storedStopMatches =
     expectedStop.valid &&
     Number.isFinite(expectedStop.value) &&
@@ -955,7 +950,6 @@ async function saveLock(setup, mode) {
 
 /* =========================================================
    APPLY EXISTING SETUP LOCK
-   Uses M15 candles to revalidate the stored SL.
 ========================================================= */
 
 async function applyExistingLock(
@@ -1138,11 +1132,18 @@ function buildSetup({
         reason: zone.reason,
       },
       reason: zone.reason,
+      trend: {
+        h1: trendH1,
+        entry: entryStructure.direction,
+      },
+      signalLock: {
+        enabled: Boolean(supabaseConfig()),
+        persisted: false,
+        reason: "Zon tidak sah.",
+      },
     };
   }
 
-  // Entry zone kekal pada timeframe entry.
-  // SL dikira menggunakan stopCandles, iaitu M15 untuk kedua-dua mode.
   const stop = buildStructuralStop(
     direction,
     zone,
@@ -1210,6 +1211,90 @@ function buildSetup({
 }
 
 /* =========================================================
+   SELECT SETUP
+   Prefer READY setups.
+   If neither is READY, retain the higher-scoring candidate
+   for diagnostics. Main signal remains WAIT.
+========================================================= */
+
+function chooseSetup(buySetup, sellSetup) {
+  const candidates = [buySetup, sellSetup];
+
+  const ready = candidates
+    .filter((setup) => setup.status === "READY")
+    .sort((a, b) => b.score - a.score);
+
+  if (ready.length) return ready[0];
+
+  return candidates.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+
+    // Tie-break only: prefer the setup aligned with H1.
+    const h1 = a.trend?.h1;
+
+    if (h1 === "BULLISH") {
+      if (a.direction === "BUY") return -1;
+      if (b.direction === "BUY") return 1;
+    }
+
+    if (h1 === "BEARISH") {
+      if (a.direction === "SELL") return -1;
+      if (b.direction === "SELL") return 1;
+    }
+
+    return 0;
+  })[0];
+}
+
+function getBestScore(buySetup, sellSetup) {
+  return {
+    buy: buySetup?.score ?? 0,
+    sell: sellSetup?.score ?? 0,
+  };
+}
+
+/* =========================================================
+   BUILD AND VALIDATE BOTH DIRECTIONS
+========================================================= */
+
+async function evaluateDirection({
+  mode,
+  direction,
+  cmp,
+  h1Trend,
+  entryCandles,
+  targetCandles,
+  secondaryCandles,
+  stopCandles,
+  entryStructure,
+  config,
+}) {
+  let setup = buildSetup({
+    mode,
+    cmp,
+    direction,
+    trendH1: h1Trend,
+    entryCandles,
+    targetCandles,
+    secondaryCandles,
+    stopCandles,
+    entryStructure,
+    config,
+  });
+
+  setup = await applyExistingLock(
+    setup,
+    mode,
+    config,
+    targetCandles,
+    secondaryCandles,
+    stopCandles
+  );
+
+  return setup;
+}
+
+/* =========================================================
    API HANDLER
 ========================================================= */
 
@@ -1241,106 +1326,80 @@ module.exports = async function handler(req, res) {
     const h1Trend = h1Structure.direction;
     const d1Trend = d1Structure.direction;
 
-    const preferredTrend =
-      h1Trend !== "NEUTRAL" ? h1Trend : d1Trend;
+    /*
+     * PENTING:
+     * Jangan gunakan H1 untuk mematikan arah yang bertentangan.
+     * Nilai BUY dan SELL secara bebas bagi setiap mode.
+     */
+    let scalpBuy = await evaluateDirection({
+      mode: "scalping",
+      direction: "BUY",
+      cmp,
+      h1Trend,
+      entryCandles: m5,
+      targetCandles: m5,
+      secondaryCandles: m15,
+      stopCandles: m15,
+      entryStructure: m5Structure,
+      config: SETTINGS.scalping,
+    });
 
-    const direction =
-      preferredTrend === "BULLISH"
-        ? "BUY"
-        : preferredTrend === "BEARISH"
-          ? "SELL"
-          : null;
+    let scalpSell = await evaluateDirection({
+      mode: "scalping",
+      direction: "SELL",
+      cmp,
+      h1Trend,
+      entryCandles: m5,
+      targetCandles: m5,
+      secondaryCandles: m15,
+      stopCandles: m15,
+      entryStructure: m5Structure,
+      config: SETTINGS.scalping,
+    });
 
-    let scalping;
-    let intraday;
+    let intraBuy = await evaluateDirection({
+      mode: "intraday",
+      direction: "BUY",
+      cmp,
+      h1Trend,
+      entryCandles: m15,
+      targetCandles: m15,
+      secondaryCandles: h1,
+      stopCandles: m15,
+      entryStructure: m15Structure,
+      config: SETTINGS.intraday,
+    });
 
-    if (!direction) {
-      const neutralSetup = (mode) => ({
-        mode,
-        direction: "WAIT",
-        status: "WAIT",
-        score: 0,
-        zone: {
-          valid: false,
-          low: null,
-          high: null,
-          entry: null,
-          pivot: null,
-          source: null,
-          status: "WATCH",
-          distance: null,
-        },
-        plan: {
-          valid: false,
-          entry: null,
-          sl: null,
-          tp1: null,
-          tp2: null,
-          risk: null,
-          reason: "Arah D1 dan H1 belum jelas.",
-        },
-        reason: "Arah D1 dan H1 belum jelas; elakkan memaksa signal.",
-        signalLock: {
-          enabled: Boolean(supabaseConfig()),
-          persisted: false,
-          reason: "Tiada setup arah yang layak.",
-        },
-      });
+    let intraSell = await evaluateDirection({
+      mode: "intraday",
+      direction: "SELL",
+      cmp,
+      h1Trend,
+      entryCandles: m15,
+      targetCandles: m15,
+      secondaryCandles: h1,
+      stopCandles: m15,
+      entryStructure: m15Structure,
+      config: SETTINGS.intraday,
+    });
 
-      scalping = neutralSetup("scalping");
-      intraday = neutralSetup("intraday");
-    } else {
-      scalping = buildSetup({
-        mode: "scalping",
-        cmp,
-        direction,
-        trendH1: h1Trend,
-        entryCandles: m5,
-        targetCandles: m5,
-        secondaryCandles: m15,
-        stopCandles: m15,
-        entryStructure: m5Structure,
-        config: SETTINGS.scalping,
-      });
+    /*
+     * Pilih satu setup yang paling sesuai untuk paparan setiap mode.
+     * Kedua-dua calon tetap dinilai sebelum pemilihan.
+     */
+    let scalping = chooseSetup(scalpBuy, scalpSell);
+    let intraday = chooseSetup(intraBuy, intraSell);
 
-      intraday = buildSetup({
-        mode: "intraday",
-        cmp,
-        direction,
-        trendH1: h1Trend,
-        entryCandles: m15,
-        targetCandles: m15,
-        secondaryCandles: h1,
-        stopCandles: m15,
-        entryStructure: m15Structure,
-        config: SETTINGS.intraday,
-      });
+    /*
+     * Simpan lock untuk setup yang dipilih sahaja.
+     * Setup WAIT tidak disimpan sebagai setup aktif baharu.
+     */
+    if (!scalping.signalLock?.reused) {
+      scalping.signalLock = await saveLock(scalping, "scalping");
+    }
 
-      scalping = await applyExistingLock(
-        scalping,
-        "scalping",
-        SETTINGS.scalping,
-        m5,
-        m15,
-        m15
-      );
-
-      intraday = await applyExistingLock(
-        intraday,
-        "intraday",
-        SETTINGS.intraday,
-        m15,
-        h1,
-        m15
-      );
-
-      if (!scalping.signalLock?.reused) {
-        scalping.signalLock = await saveLock(scalping, "scalping");
-      }
-
-      if (!intraday.signalLock?.reused) {
-        intraday.signalLock = await saveLock(intraday, "intraday");
-      }
+    if (!intraday.signalLock?.reused) {
+      intraday.signalLock = await saveLock(intraday, "intraday");
     }
 
     const mainSetup =
@@ -1376,6 +1435,7 @@ module.exports = async function handler(req, res) {
       cmp,
 
       signal: mainSignal,
+
       direction: {
         D1: d1Trend,
         H1: h1Trend,
@@ -1404,17 +1464,57 @@ module.exports = async function handler(req, res) {
           },
 
       zone: mainZone,
+
       waitReason: mainSetup
         ? mainSetup.reason
         : mainPlan.reason,
 
+      /*
+       * Paparkan skor kedua-dua arah, walaupun arah itu
+       * bukan setup yang dipilih untuk kad utama.
+       */
       scores: {
-        buy: direction === "BUY"
-          ? Math.max(scalping.score || 0, intraday.score || 0)
-          : 0,
-        sell: direction === "SELL"
-          ? Math.max(scalping.score || 0, intraday.score || 0)
-          : 0,
+        buy: Math.max(scalpBuy.score || 0, intraBuy.score || 0),
+        sell: Math.max(scalpSell.score || 0, intraSell.score || 0),
+      },
+
+      /*
+       * Diagnostik kedua-dua arah membolehkan kita semak
+       * mengapa BUY atau SELL tidak terpilih.
+       */
+      candidates: {
+        scalping: {
+          buy: {
+            status: scalpBuy.status,
+            score: scalpBuy.score,
+            zone: scalpBuy.zone,
+            plan: scalpBuy.plan,
+            reason: scalpBuy.reason,
+          },
+          sell: {
+            status: scalpSell.status,
+            score: scalpSell.score,
+            zone: scalpSell.zone,
+            plan: scalpSell.plan,
+            reason: scalpSell.reason,
+          },
+        },
+        intraday: {
+          buy: {
+            status: intraBuy.status,
+            score: intraBuy.score,
+            zone: intraBuy.zone,
+            plan: intraBuy.plan,
+            reason: intraBuy.reason,
+          },
+          sell: {
+            status: intraSell.status,
+            score: intraSell.score,
+            zone: intraSell.zone,
+            plan: intraSell.plan,
+            reason: intraSell.reason,
+          },
+        },
       },
 
       scalping,
@@ -1435,10 +1535,12 @@ module.exports = async function handler(req, res) {
 
       settings: {
         zoneThickness: SETTINGS.zoneThickness,
+
         minimumScore: {
           scalping: SETTINGS.scalping.minimumScore,
           intraday: SETTINGS.intraday.minimumScore,
         },
+
         minimumRR: {
           scalping: {
             tp1: SETTINGS.scalping.minimumRR1,
@@ -1449,18 +1551,22 @@ module.exports = async function handler(req, res) {
             tp2: SETTINGS.intraday.minimumRR2,
           },
         },
+
         minimumTPSeparation: {
           scalping: SETTINGS.scalping.minimumTPSeparation,
           intraday: SETTINGS.intraday.minimumTPSeparation,
         },
+
         maxRiskDistance: {
           scalping: SETTINGS.scalping.maxRiskDistance,
           intraday: SETTINGS.intraday.maxRiskDistance,
         },
+
         maxTargetDistance: {
           scalping: SETTINGS.scalping.maxTargetDistance,
           intraday: SETTINGS.intraday.maxTargetDistance,
         },
+
         timeframes: TIMEFRAMES,
       },
 
@@ -1471,6 +1577,7 @@ module.exports = async function handler(req, res) {
           M15: m15.length,
           M5: m5.length,
         },
+
         latestCandle: {
           D1: d1[d1.length - 1].time,
           H1: h1[h1.length - 1].time,

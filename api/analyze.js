@@ -6,17 +6,13 @@
  * Zone accuracy > signal timing > score.
  *
  * BUY and SELL are evaluated independently.
+ * Active valid setup lock has priority over new candidates.
  *
  * TP1 / TP2: STRUCTURAL SNR ONLY
  * No fixed-price TP fallback.
- * TP2 must be at least $5.00 beyond TP1.
  *
- * SL:
- * - Scalping entry zone: M5
- * - Scalping SL structure: M15
- * - Intraday entry zone: M15
- * - Intraday SL structure: M15
- * - Maximum SL risk: $4.00 for both modes
+ * SL: M15 first, M5 fallback.
+ * Maximum SL risk: $4.00 for both modes.
  */
 
 const SETTINGS = {
@@ -421,71 +417,76 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
 /* =========================================================
    STRUCTURAL STOP LOSS
+   Priority: M15 first, then M5 fallback.
+   Both must satisfy maximum risk.
 ========================================================= */
 
-function buildStructuralStop(direction, zone, candles, maxRisk) {
+function buildStructuralStop(
+  direction,
+  zone,
+  candles,
+  maxRisk,
+  fallbackCandles = null
+) {
   if (!zone || !Number.isFinite(zone.entry)) {
     return {
       value: null,
       risk: null,
       valid: false,
+      source: null,
       reason: "Entry zone tidak sah untuk pengiraan SL.",
     };
   }
 
-  const recent = candles.slice(-35);
-  const swings = findSwings(recent, 2);
   const buy = isBuy(direction);
-
-  const candidates = buy
-    ? swings.lows
-        .map((s) => s.price)
-        .filter((p) => p < zone.low)
-    : swings.highs
-        .map((s) => s.price)
-        .filter((p) => p > zone.high);
-
-  candidates.sort((a, b) => buy ? b - a : a - b);
-
   const entry = zone.entry;
-  let stop = null;
 
-  for (const level of candidates) {
-    const candidate = buy
-      ? round(level - 0.50)
-      : round(level + 0.50);
+  const sources = [
+    { candles, timeframe: "M15" },
+    ...(Array.isArray(fallbackCandles) && fallbackCandles.length
+      ? [{ candles: fallbackCandles, timeframe: "M5" }]
+      : []),
+  ];
 
-    const risk = round(Math.abs(entry - candidate));
-    const correctSide = buy
-      ? candidate < zone.low
-      : candidate > zone.high;
+  for (const source of sources) {
+    const recent = source.candles.slice(-35);
+    const swings = findSwings(recent, 2);
 
-    if (correctSide && risk > 0 && risk <= maxRisk) {
-      stop = candidate;
-      break;
+    const candidates = buy
+      ? swings.lows.map((s) => s.price).filter((p) => p < zone.low)
+      : swings.highs.map((s) => s.price).filter((p) => p > zone.high);
+
+    candidates.sort((a, b) => buy ? b - a : a - b);
+
+    for (const level of candidates) {
+      const candidate = buy
+        ? round(level - 0.50)
+        : round(level + 0.50);
+
+      const risk = round(Math.abs(entry - candidate));
+      const correctSide = buy
+        ? candidate < zone.low
+        : candidate > zone.high;
+
+      if (correctSide && risk > 0 && risk <= maxRisk) {
+        return {
+          value: candidate,
+          risk,
+          valid: true,
+          source: source.timeframe,
+          reason: null,
+        };
+      }
     }
   }
 
-  if (stop === null) {
-    return {
-      value: null,
-      risk: null,
-      valid: false,
-      reason:
-        `Tiada swing M15 yang sah dalam had risiko $${maxRisk.toFixed(2)}.`,
-    };
-  }
-
-  const risk = round(Math.abs(entry - stop));
-  const correctSide = buy
-    ? stop < zone.low
-    : stop > zone.high;
-
   return {
-    value: stop,
-    risk,
-    valid: correctSide && risk > 0 && risk <= maxRisk,
-    reason: null,
+    value: null,
+    risk: null,
+    valid: false,
+    source: null,
+    reason:
+      `Tiada swing M15 atau M5 yang sah dalam had risiko $${maxRisk.toFixed(2)}.`,
   };
 }
 
@@ -793,78 +794,6 @@ function makeSetupId(mode, direction, zone) {
     .replace(/[^a-zA-Z0-9_.-]/g, "_");
 }
 
-/* =========================================================
-   STORED PLAN VALIDATION
-========================================================= */
-
-function validateStoredPlan(
-  lock,
-  direction,
-  config,
-  structuralTargets,
-  expectedStop
-) {
-  const entry = Number(lock.entry);
-  const sl = Number(lock.stop_loss);
-  const tp1 = Number(lock.tp1);
-  const tp2 = lock.tp2 == null ? null : Number(lock.tp2);
-
-  if (![entry, sl, tp1].every(Number.isFinite)) return false;
-
-  const risk = Math.abs(entry - sl);
-  const reward1 = Math.abs(tp1 - entry);
-  const rr1 = risk > 0 ? reward1 / risk : 0;
-
-  const slCorrect = isBuy(direction) ? sl < entry : sl > entry;
-  const tp1Correct = isCorrectTarget(direction, entry, tp1);
-
-  const tp1IsStructural = structuralTargets.some(
-    (price) => Math.abs(price - tp1) <= 0.25
-  );
-
-  const storedStopMatches =
-    expectedStop.valid &&
-    Number.isFinite(expectedStop.value) &&
-    Math.abs(sl - expectedStop.value) <= 0.25;
-
-  if (
-    !slCorrect ||
-    !storedStopMatches ||
-    !tp1Correct ||
-    !tp1IsStructural ||
-    risk <= 0 ||
-    risk > config.maxRiskDistance ||
-    reward1 < risk * config.minimumRR1 ||
-    reward1 > config.maxTargetDistance ||
-    rr1 < config.minimumRR1
-  ) {
-    return false;
-  }
-
-  if (tp2 !== null) {
-    const reward2 = Math.abs(tp2 - entry);
-    const rr2 = risk > 0 ? reward2 / risk : 0;
-    const separation = Math.abs(tp2 - tp1);
-
-    const tp2IsStructural = structuralTargets.some(
-      (price) => Math.abs(price - tp2) <= 0.25
-    );
-
-    if (
-      !isCorrectTarget(direction, tp1, tp2) ||
-      !tp2IsStructural ||
-      separation < config.minimumTPSeparation ||
-      reward2 < risk * config.minimumRR2 ||
-      reward2 > config.maxTargetDistance ||
-      rr2 < config.minimumRR2
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 async function deactivateLock(lock) {
   const query = new URLSearchParams({
     setup_id: `eq.${lock.setup_id}`,
@@ -879,6 +808,446 @@ async function deactivateLock(lock) {
     }),
   });
 }
+
+/* =========================================================
+   LOCK INVALIDATION
+   A lock is released when its SL/TP1 is reached or expired.
+========================================================= */
+
+function lockInvalidationReason(lock, cmp) {
+  const direction = lock.direction;
+  const sl = Number(lock.stop_loss);
+  const tp1 = Number(lock.tp1);
+
+  if (![sl, tp1].every(Number.isFinite)) {
+    return "Pelan lock tidak lengkap.";
+  }
+
+  if (direction === "BUY") {
+    if (cmp <= sl) return "Harga telah mencapai SL BUY.";
+    if (cmp >= tp1) return "Harga telah mencapai TP1 BUY.";
+  } else if (direction === "SELL") {
+    if (cmp >= sl) return "Harga telah mencapai SL SELL.";
+    if (cmp <= tp1) return "Harga telah mencapai TP1 SELL.";
+  } else {
+    return "Arah setup lock tidak sah.";
+  }
+
+  return null;
+}
+
+/* =========================================================
+   APPLY EXISTING STRUCTURE LOCK
+========================================================= */
+
+async function applyExistingLock(
+  setup,
+  mode,
+  config,
+  targetCandles,
+  secondaryCandles,
+  stopCandles,
+  fallbackStopCandles,
+  cmp
+) {
+  if (!supabaseConfig()) return setup;
+
+  try {
+    const locks = await getActiveLocks(mode);
+
+    // Jangan gunakan lock yang tamat tempoh.
+    for (const lock of locks) {
+      if (!lockStillFresh(lock, config)) {
+        await deactivateLock(lock);
+      }
+    }
+
+    const active = locks.find((lock) =>
+      lockStillFresh(lock, config)
+    );
+
+    if (!active) return setup;
+
+    const invalidReason = lockInvalidationReason(active, cmp);
+
+    if (invalidReason) {
+      await deactivateLock(active);
+
+      return {
+        ...setup,
+        lockReleased: {
+          setupId: active.setup_id,
+          reason: invalidReason,
+        },
+      };
+    }
+
+    // Jika setup aktif ialah arah bertentangan, kekalkan setup aktif.
+    if (active.direction !== setup.direction) {
+      return {
+        ...setup,
+        blockedByActiveLock: true,
+        activeLockDirection: active.direction,
+        activeLockSetupId: active.setup_id,
+      };
+    }
+
+    const entry = Number(active.entry);
+    const low = Number(active.zone_low);
+    const high = Number(active.zone_high);
+    const sl = Number(active.stop_loss);
+    const tp1 = Number(active.tp1);
+    const tp2 = active.tp2 == null ? null : Number(active.tp2);
+
+    if (
+      ![entry, low, high, sl, tp1].every(Number.isFinite) ||
+      high <= low
+    ) {
+      await deactivateLock(active);
+      return setup;
+    }
+
+    const risk = round(Math.abs(entry - sl));
+    const reward1 = round(Math.abs(tp1 - entry));
+    const reward2 = tp2 === null
+      ? null
+      : round(Math.abs(tp2 - entry));
+
+    const correctSL = isBuy(active.direction)
+      ? sl < entry
+      : sl > entry;
+
+    const correctTP = isCorrectTarget(active.direction, entry, tp1);
+
+    if (
+      !correctSL ||
+      !correctTP ||
+      risk <= 0 ||
+      risk > config.maxRiskDistance ||
+      reward1 < risk * config.minimumRR1 ||
+      reward1 > config.maxTargetDistance
+    ) {
+      await deactivateLock(active);
+      return setup;
+    }
+
+    if (tp2 !== null) {
+      const correctTP2 = isCorrectTarget(active.direction, tp1, tp2);
+
+      if (
+        !correctTP2 ||
+        Math.abs(tp2 - tp1) < config.minimumTPSeparation ||
+        reward2 < risk * config.minimumRR2 ||
+        reward2 > config.maxTargetDistance
+      ) {
+        await deactivateLock(active);
+        return setup;
+      }
+    }
+
+    let zoneStatus = "WATCH";
+
+    if (cmp >= low && cmp <= high) {
+      zoneStatus = "IN_ZONE";
+    } else if (
+      active.direction === "BUY" &&
+      cmp > high &&
+      cmp - high <= 5
+    ) {
+      zoneStatus = "APPROACHING";
+    } else if (
+      active.direction === "SELL" &&
+      cmp < low &&
+      low - cmp <= 5
+    ) {
+      zoneStatus = "APPROACHING";
+    }
+
+    const lockedZone = {
+      valid: true,
+      low,
+      high,
+      entry,
+      pivot: entry,
+      source: active.source || "SNR_STRUCTURE",
+      status: zoneStatus,
+      distance: round(Math.abs(cmp - entry)),
+      timeframe: mode === "scalping" ? "M5" : "M15",
+      locked: true,
+      setupId: active.setup_id,
+      reason: null,
+    };
+
+    const lockedPlan = {
+      valid: true,
+      entry,
+      sl,
+      tp1,
+      tp2,
+      risk,
+      reward1,
+      reward2,
+      rr1: round(reward1 / risk),
+      rr2: reward2 === null ? null : round(reward2 / risk),
+      reason: tp2 === null
+        ? "TP1 sah; TP2 belum tersedia."
+        : null,
+    };
+
+    // Setup pernah disimpan sebagai READY.
+    // Perubahan kecil score tidak menurunkan atau menukar arah.
+    return {
+      ...setup,
+      direction: active.direction,
+      status: "READY",
+      zone: lockedZone,
+      plan: lockedPlan,
+      reason: zoneStatus === "WATCH"
+        ? "Setup dikunci; tunggu harga menghampiri zon."
+        : zoneStatus === "APPROACHING"
+          ? "Setup dikunci; harga menghampiri zon."
+          : "Setup dikunci; harga berada dalam zon.",
+      signalLock: {
+        enabled: true,
+        persisted: true,
+        reused: true,
+        setupId: active.setup_id,
+        reason: null,
+      },
+    };
+  } catch (error) {
+    return {
+      ...setup,
+      signalLock: {
+        enabled: true,
+        persisted: false,
+        reused: false,
+        reason: error.message,
+      },
+    };
+  }
+}
+
+/* =========================================================
+   SETUP BUILDER
+========================================================= */
+
+function buildSetup({
+  mode,
+  cmp,
+  direction,
+  trendH1,
+  entryCandles,
+  targetCandles,
+  secondaryCandles,
+  stopCandles,
+  fallbackStopCandles,
+  entryStructure,
+  config,
+}) {
+  const zone = buildEarlyZone(
+    entryCandles,
+    direction,
+    cmp,
+    mode
+  );
+
+  if (!zone.valid) {
+    return {
+      mode,
+      direction,
+      status: "WAIT",
+      score: 0,
+      zone,
+      plan: {
+        valid: false,
+        entry: null,
+        sl: null,
+        tp1: null,
+        tp2: null,
+        risk: null,
+        reason: zone.reason,
+      },
+      reason: zone.reason,
+      trend: {
+        h1: trendH1,
+        entry: entryStructure.direction,
+      },
+      signalLock: {
+        enabled: Boolean(supabaseConfig()),
+        persisted: false,
+        reason: "Zon tidak sah.",
+      },
+    };
+  }
+
+  const stop = buildStructuralStop(
+    direction,
+    zone,
+    stopCandles || entryCandles,
+    config.maxRiskDistance,
+    fallbackStopCandles
+  );
+
+  const plan = buildTradePlan(
+    direction,
+    zone,
+    stop,
+    targetCandles,
+    secondaryCandles,
+    config
+  );
+
+  const score = calculateScore(
+    direction,
+    trendH1,
+    entryStructure.direction,
+    zone,
+    entryStructure
+  );
+
+  const status =
+    zone.valid &&
+    plan.valid &&
+    Number.isFinite(plan.tp1) &&
+    score >= config.minimumScore
+      ? "READY"
+      : "WAIT";
+
+  let reason = null;
+
+  if (!plan.valid) {
+    reason = plan.reason;
+  } else if (score < config.minimumScore) {
+    reason = `Score ${score} belum mencapai minimum ${config.minimumScore}.`;
+  } else if (zone.status === "WATCH") {
+    reason = "Setup READY; zon masih WATCH. Tunggu harga menghampiri zon.";
+  } else if (zone.status === "APPROACHING") {
+    reason = "Setup READY; harga sedang menghampiri zon.";
+  } else if (plan.tp2 === null) {
+    reason = plan.reason;
+  }
+
+  return {
+    mode,
+    direction,
+    status,
+    score,
+    zone,
+    plan,
+    reason,
+    trend: {
+      h1: trendH1,
+      entry: entryStructure.direction,
+    },
+    signalLock: {
+      enabled: Boolean(supabaseConfig()),
+      persisted: false,
+      reason: null,
+    },
+  };
+}
+
+/* =========================================================
+   SELECT SETUP
+========================================================= */
+
+function chooseSetup(buySetup, sellSetup) {
+  const candidates = [buySetup, sellSetup];
+
+  // Setup lock yang masih aktif sentiasa diutamakan.
+  const locked = candidates.find(
+    (setup) => setup.signalLock?.reused === true
+  );
+
+  if (locked) return locked;
+
+  // Jangan pilih arah bertentangan ketika ada lock aktif.
+  const blocked = candidates.find(
+    (setup) => setup.blockedByActiveLock === true
+  );
+
+  if (blocked) {
+    const lockedDirection = blocked.activeLockDirection;
+
+    return candidates.find(
+      (setup) => setup.direction === lockedDirection
+    ) || blocked;
+  }
+
+  const ready = candidates
+    .filter((setup) => setup.status === "READY")
+    .sort((a, b) => b.score - a.score);
+
+  if (ready.length) return ready[0];
+
+  return candidates.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+
+    const h1 = a.trend?.h1;
+
+    if (h1 === "BULLISH") {
+      if (a.direction === "BUY") return -1;
+      if (b.direction === "BUY") return 1;
+    }
+
+    if (h1 === "BEARISH") {
+      if (a.direction === "SELL") return -1;
+      if (b.direction === "SELL") return 1;
+    }
+
+    return 0;
+  })[0];
+}
+
+/* =========================================================
+   BUILD AND VALIDATE BOTH DIRECTIONS
+========================================================= */
+
+async function evaluateDirection({
+  mode,
+  direction,
+  cmp,
+  h1Trend,
+  entryCandles,
+  targetCandles,
+  secondaryCandles,
+  stopCandles,
+  fallbackStopCandles,
+  entryStructure,
+  config,
+}) {
+  let setup = buildSetup({
+    mode,
+    cmp,
+    direction,
+    trendH1: h1Trend,
+    entryCandles,
+    targetCandles,
+    secondaryCandles,
+    stopCandles,
+    fallbackStopCandles,
+    entryStructure,
+    config,
+  });
+
+  setup = await applyExistingLock(
+    setup,
+    mode,
+    config,
+    targetCandles,
+    secondaryCandles,
+    stopCandles,
+    fallbackStopCandles,
+    cmp
+  );
+
+  return setup;
+}
+
+/* =========================================================
+   SAVE SETUP LOCK
+========================================================= */
 
 async function saveLock(setup, mode) {
   if (!supabaseConfig()) {
@@ -949,352 +1318,6 @@ async function saveLock(setup, mode) {
 }
 
 /* =========================================================
-   APPLY EXISTING SETUP LOCK
-========================================================= */
-
-async function applyExistingLock(
-  setup,
-  mode,
-  config,
-  targetCandles,
-  secondaryCandles,
-  stopCandles
-) {
-  if (!supabaseConfig() || !setup.zone?.valid) return setup;
-
-  try {
-    const locks = await getActiveLocks(mode);
-
-    const matching = locks.find((lock) =>
-      lockStillFresh(lock, config) &&
-      lock.direction === setup.direction &&
-      Math.abs(Number(lock.zone_low) - setup.zone.low) <= 0.25 &&
-      Math.abs(Number(lock.zone_high) - setup.zone.high) <= 0.25
-    );
-
-    if (!matching) return setup;
-
-    const storedEntry = Number(matching.entry);
-    const storedZoneLow = Number(matching.zone_low);
-    const storedZoneHigh = Number(matching.zone_high);
-
-    if (
-      !Number.isFinite(storedEntry) ||
-      !Number.isFinite(storedZoneLow) ||
-      !Number.isFinite(storedZoneHigh)
-    ) {
-      await deactivateLock(matching);
-      return setup;
-    }
-
-    const lockedZoneForValidation = {
-      ...setup.zone,
-      low: storedZoneLow,
-      high: storedZoneHigh,
-      entry: storedEntry,
-      pivot: storedEntry,
-      valid: true,
-    };
-
-    const expectedStop = buildStructuralStop(
-      setup.direction,
-      lockedZoneForValidation,
-      stopCandles || targetCandles,
-      config.maxRiskDistance
-    );
-
-    const structuralTargets = findTargets(
-      setup.direction,
-      storedEntry,
-      targetCandles,
-      secondaryCandles
-    );
-
-    const validStoredPlan = validateStoredPlan(
-      matching,
-      setup.direction,
-      config,
-      structuralTargets,
-      expectedStop
-    );
-
-    if (!validStoredPlan) {
-      await deactivateLock(matching);
-      return setup;
-    }
-
-    const lockedZone = {
-      ...setup.zone,
-      low: storedZoneLow,
-      high: storedZoneHigh,
-      entry: storedEntry,
-      pivot: storedEntry,
-      source: matching.source || setup.zone.source,
-      locked: true,
-      setupId: matching.setup_id,
-    };
-
-    const entry = storedEntry;
-    const sl = Number(matching.stop_loss);
-    const tp1 = Number(matching.tp1);
-    const tp2 = matching.tp2 == null ? null : Number(matching.tp2);
-
-    const risk = round(Math.abs(entry - sl));
-    const reward1 = round(Math.abs(tp1 - entry));
-    const reward2 = tp2 === null ? null : round(Math.abs(tp2 - entry));
-
-    const lockedPlan = {
-      valid: true,
-      entry,
-      sl,
-      tp1,
-      tp2,
-      risk,
-      reward1,
-      reward2,
-      rr1: round(reward1 / risk),
-      rr2: reward2 === null ? null : round(reward2 / risk),
-      reason: tp2 === null
-        ? "TP1 sah; TP2 struktur seterusnya belum memenuhi syarat."
-        : null,
-    };
-
-    const ready = setup.score >= config.minimumScore;
-
-    return {
-      ...setup,
-      zone: lockedZone,
-      plan: lockedPlan,
-      status: ready ? "READY" : "WAIT",
-      reason: ready
-        ? (lockedZone.status === "WATCH"
-          ? "Zon dikunci; tunggu harga menghampiri zon."
-          : lockedPlan.reason)
-        : `Score ${setup.score} belum mencapai minimum ${config.minimumScore}.`,
-      signalLock: {
-        enabled: true,
-        persisted: true,
-        reused: true,
-        setupId: matching.setup_id,
-        reason: null,
-      },
-    };
-  } catch (error) {
-    return {
-      ...setup,
-      signalLock: {
-        enabled: true,
-        persisted: false,
-        reused: false,
-        reason: error.message,
-      },
-    };
-  }
-}
-
-/* =========================================================
-   SETUP BUILDER
-========================================================= */
-
-function buildSetup({
-  mode,
-  cmp,
-  direction,
-  trendH1,
-  entryCandles,
-  targetCandles,
-  secondaryCandles,
-  stopCandles,
-  entryStructure,
-  config,
-}) {
-  const zone = buildEarlyZone(
-    entryCandles,
-    direction,
-    cmp,
-    mode
-  );
-
-  if (!zone.valid) {
-    return {
-      mode,
-      direction,
-      status: "WAIT",
-      score: 0,
-      zone,
-      plan: {
-        valid: false,
-        entry: null,
-        sl: null,
-        tp1: null,
-        tp2: null,
-        risk: null,
-        reason: zone.reason,
-      },
-      reason: zone.reason,
-      trend: {
-        h1: trendH1,
-        entry: entryStructure.direction,
-      },
-      signalLock: {
-        enabled: Boolean(supabaseConfig()),
-        persisted: false,
-        reason: "Zon tidak sah.",
-      },
-    };
-  }
-
-  const stop = buildStructuralStop(
-    direction,
-    zone,
-    stopCandles || entryCandles,
-    config.maxRiskDistance
-  );
-
-  const plan = buildTradePlan(
-    direction,
-    zone,
-    stop,
-    targetCandles,
-    secondaryCandles,
-    config
-  );
-
-  const score = calculateScore(
-    direction,
-    trendH1,
-    entryStructure.direction,
-    zone,
-    entryStructure
-  );
-
-  const status =
-    zone.valid &&
-    plan.valid &&
-    Number.isFinite(plan.tp1) &&
-    score >= config.minimumScore
-      ? "READY"
-      : "WAIT";
-
-  let reason = null;
-
-  if (!plan.valid) {
-    reason = plan.reason;
-  } else if (score < config.minimumScore) {
-    reason = `Score ${score} belum mencapai minimum ${config.minimumScore}.`;
-  } else if (zone.status === "WATCH") {
-    reason = "Setup READY; zon masih WATCH. Tunggu harga menghampiri zon.";
-  } else if (zone.status === "APPROACHING") {
-    reason = "Setup READY; harga sedang menghampiri zon.";
-  } else if (plan.tp2 === null) {
-    reason = plan.reason;
-  }
-
-  return {
-    mode,
-    direction,
-    status,
-    score,
-    zone,
-    plan,
-    reason,
-    trend: {
-      h1: trendH1,
-      entry: entryStructure.direction,
-    },
-    signalLock: {
-      enabled: Boolean(supabaseConfig()),
-      persisted: false,
-      reason: null,
-    },
-  };
-}
-
-/* =========================================================
-   SELECT SETUP
-   Prefer READY setups.
-   If neither is READY, retain the higher-scoring candidate
-   for diagnostics. Main signal remains WAIT.
-========================================================= */
-
-function chooseSetup(buySetup, sellSetup) {
-  const candidates = [buySetup, sellSetup];
-
-  const ready = candidates
-    .filter((setup) => setup.status === "READY")
-    .sort((a, b) => b.score - a.score);
-
-  if (ready.length) return ready[0];
-
-  return candidates.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-
-    // Tie-break only: prefer the setup aligned with H1.
-    const h1 = a.trend?.h1;
-
-    if (h1 === "BULLISH") {
-      if (a.direction === "BUY") return -1;
-      if (b.direction === "BUY") return 1;
-    }
-
-    if (h1 === "BEARISH") {
-      if (a.direction === "SELL") return -1;
-      if (b.direction === "SELL") return 1;
-    }
-
-    return 0;
-  })[0];
-}
-
-function getBestScore(buySetup, sellSetup) {
-  return {
-    buy: buySetup?.score ?? 0,
-    sell: sellSetup?.score ?? 0,
-  };
-}
-
-/* =========================================================
-   BUILD AND VALIDATE BOTH DIRECTIONS
-========================================================= */
-
-async function evaluateDirection({
-  mode,
-  direction,
-  cmp,
-  h1Trend,
-  entryCandles,
-  targetCandles,
-  secondaryCandles,
-  stopCandles,
-  entryStructure,
-  config,
-}) {
-  let setup = buildSetup({
-    mode,
-    cmp,
-    direction,
-    trendH1: h1Trend,
-    entryCandles,
-    targetCandles,
-    secondaryCandles,
-    stopCandles,
-    entryStructure,
-    config,
-  });
-
-  setup = await applyExistingLock(
-    setup,
-    mode,
-    config,
-    targetCandles,
-    secondaryCandles,
-    stopCandles
-  );
-
-  return setup;
-}
-
-/* =========================================================
    API HANDLER
 ========================================================= */
 
@@ -1326,11 +1349,6 @@ module.exports = async function handler(req, res) {
     const h1Trend = h1Structure.direction;
     const d1Trend = d1Structure.direction;
 
-    /*
-     * PENTING:
-     * Jangan gunakan H1 untuk mematikan arah yang bertentangan.
-     * Nilai BUY dan SELL secara bebas bagi setiap mode.
-     */
     let scalpBuy = await evaluateDirection({
       mode: "scalping",
       direction: "BUY",
@@ -1340,6 +1358,7 @@ module.exports = async function handler(req, res) {
       targetCandles: m5,
       secondaryCandles: m15,
       stopCandles: m15,
+      fallbackStopCandles: m5,
       entryStructure: m5Structure,
       config: SETTINGS.scalping,
     });
@@ -1353,6 +1372,7 @@ module.exports = async function handler(req, res) {
       targetCandles: m5,
       secondaryCandles: m15,
       stopCandles: m15,
+      fallbackStopCandles: m5,
       entryStructure: m5Structure,
       config: SETTINGS.scalping,
     });
@@ -1366,6 +1386,7 @@ module.exports = async function handler(req, res) {
       targetCandles: m15,
       secondaryCandles: h1,
       stopCandles: m15,
+      fallbackStopCandles: m5,
       entryStructure: m15Structure,
       config: SETTINGS.intraday,
     });
@@ -1379,21 +1400,15 @@ module.exports = async function handler(req, res) {
       targetCandles: m15,
       secondaryCandles: h1,
       stopCandles: m15,
+      fallbackStopCandles: m5,
       entryStructure: m15Structure,
       config: SETTINGS.intraday,
     });
 
-    /*
-     * Pilih satu setup yang paling sesuai untuk paparan setiap mode.
-     * Kedua-dua calon tetap dinilai sebelum pemilihan.
-     */
     let scalping = chooseSetup(scalpBuy, scalpSell);
     let intraday = chooseSetup(intraBuy, intraSell);
 
-    /*
-     * Simpan lock untuk setup yang dipilih sahaja.
-     * Setup WAIT tidak disimpan sebagai setup aktif baharu.
-     */
+    // Simpan setup baharu hanya jika belum menggunakan lock aktif.
     if (!scalping.signalLock?.reused) {
       scalping.signalLock = await saveLock(scalping, "scalping");
     }
@@ -1469,19 +1484,11 @@ module.exports = async function handler(req, res) {
         ? mainSetup.reason
         : mainPlan.reason,
 
-      /*
-       * Paparkan skor kedua-dua arah, walaupun arah itu
-       * bukan setup yang dipilih untuk kad utama.
-       */
       scores: {
         buy: Math.max(scalpBuy.score || 0, intraBuy.score || 0),
         sell: Math.max(scalpSell.score || 0, intraSell.score || 0),
       },
 
-      /*
-       * Diagnostik kedua-dua arah membolehkan kita semak
-       * mengapa BUY atau SELL tidak terpilih.
-       */
       candidates: {
         scalping: {
           buy: {

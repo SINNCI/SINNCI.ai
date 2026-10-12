@@ -8,15 +8,10 @@
  * H1 = primary trend/context.
  * M5 = scalping entry structure.
  * M15 = intraday entry structure.
- * BUY/SELL selection considers SNR, zone location and entry structure.
  *
  * Zone width: $3.50 total.
  * SL: $3.00 outside the relevant zone edge.
- * Risk from zone midpoint to SL: $4.75.
- * Risk cap: $5.00.
  * TP1/TP2: structural targets only.
- *
- * Sideway/range detection and Supabase setup locks retained.
  */
 
 const SETTINGS = {
@@ -107,11 +102,9 @@ function uniquePrices(values, tolerance = 0.15) {
   for (const value of values) {
     if (!Number.isFinite(value)) continue;
 
-    if (
-      !result.some(
-        (existing) => Math.abs(existing - value) <= tolerance
-      )
-    ) {
+    if (!result.some(
+      (existing) => Math.abs(existing - value) <= tolerance
+    )) {
       result.push(value);
     }
   }
@@ -538,13 +531,8 @@ function buildEarlyZone(candles, direction, cmp, mode) {
       ? sideway.position === "SIDEWAY_SUPPORT"
       : sideway.position === "SIDEWAY_RESISTANCE";
 
-    pivot = buy
-      ? sideway.range.low
-      : sideway.range.high;
-
-    source = buy
-      ? "SIDEWAY_SUPPORT"
-      : "SIDEWAY_RESISTANCE";
+    pivot = buy ? sideway.range.low : sideway.range.high;
+    source = buy ? "SIDEWAY_SUPPORT" : "SIDEWAY_RESISTANCE";
 
     if (!isAtCorrectEdge) {
       allowSignal = false;
@@ -634,10 +622,7 @@ function buildEarlyZone(candles, direction, cmp, mode) {
     status = "APPROACHING";
   }
 
-  if (
-    sideway.isSideway &&
-    sideway.position === "SIDEWAY_MID"
-  ) {
+  if (sideway.isSideway && sideway.position === "SIDEWAY_MID") {
     allowSignal = false;
   }
 
@@ -665,8 +650,6 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
 /* =========================================================
 FIXED STOP LOSS
-BUY: zone.low - $3.00
-SELL: zone.high + $3.00
 ========================================================= */
 
 function buildStructuralStop(
@@ -893,11 +876,13 @@ function calculateScore(direction, trendH1, trendEntry, zone, structure) {
   let score = 50;
   const wanted = isBuy(direction) ? "BULLISH" : "BEARISH";
 
+  // H1 memberi konteks; ia bukan penghalang mutlak retracement.
   if (trendH1 === wanted) score += 15;
-  else if (trendH1 !== "NEUTRAL") score -= 12;
+  else if (trendH1 !== "NEUTRAL") score -= 5;
 
+  // Struktur timeframe entry masih diberi berat, tetapi lebih seimbang.
   if (trendEntry === wanted) score += 10;
-  else if (trendEntry !== "NEUTRAL") score -= 8;
+  else if (trendEntry !== "NEUTRAL") score -= 4;
 
   if (
     zone.source === "SNR_SUPPORT" ||
@@ -1019,7 +1004,24 @@ function makeSetupId(mode, direction, zone) {
     .replace(/[^a-zA-Z0-9_.-]/g, "_");
 }
 
-async function deactivateLock(lock) {
+/**
+ * Status yang dibenarkan:
+ * ACTIVE          = setup masih aktif
+ * INACTIVE        = luput, tidak sah atau pendua
+ * FAILED_SL_HIT   = CMP mencapai/melepasi SL
+ * TP_HIT          = CMP mencapai/melepasi TP1
+ */
+async function deactivateLock(lock, status = "INACTIVE") {
+  const allowedStatuses = [
+    "INACTIVE",
+    "FAILED_SL_HIT",
+    "TP_HIT",
+  ];
+
+  const finalStatus = allowedStatuses.includes(status)
+    ? status
+    : "INACTIVE";
+
   const query = new URLSearchParams({
     setup_id: `eq.${lock.setup_id}`,
     status: "eq.ACTIVE",
@@ -1029,7 +1031,7 @@ async function deactivateLock(lock) {
     method: "PATCH",
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({
-      status: "INACTIVE",
+      status: finalStatus,
       updated_at: new Date().toISOString(),
     }),
   });
@@ -1040,8 +1042,12 @@ function lockInvalidationReason(lock, cmp) {
   const sl = Number(lock.stop_loss);
   const tp1 = Number(lock.tp1);
 
-  if (![sl, tp1].every(Number.isFinite)) {
-    return "Pelan lock tidak lengkap.";
+  if (
+    !Number.isFinite(cmp) ||
+    !Number.isFinite(sl) ||
+    !Number.isFinite(tp1)
+  ) {
+    return "Pelan lock tidak lengkap atau CMP tidak sah.";
   }
 
   if (direction === "BUY") {
@@ -1057,20 +1063,46 @@ function lockInvalidationReason(lock, cmp) {
   return null;
 }
 
+function getLockTerminalStatus(lock, cmp) {
+  const direction = lock.direction;
+  const sl = Number(lock.stop_loss);
+  const tp1 = Number(lock.tp1);
+
+  if (
+    !Number.isFinite(cmp) ||
+    !Number.isFinite(sl) ||
+    !Number.isFinite(tp1)
+  ) {
+    return "INACTIVE";
+  }
+
+  if (direction === "BUY") {
+    if (cmp <= sl) return "FAILED_SL_HIT";
+    if (cmp >= tp1) return "TP_HIT";
+  } else if (direction === "SELL") {
+    if (cmp >= sl) return "FAILED_SL_HIT";
+    if (cmp <= tp1) return "TP_HIT";
+  }
+
+  return "INACTIVE";
+}
+
 async function getCanonicalActiveLock(mode, config, cmp) {
   const locks = await getActiveLocks(mode);
   const valid = [];
 
   for (const lock of locks) {
     if (!lockStillFresh(lock, config)) {
-      await deactivateLock(lock);
+      await deactivateLock(lock, "INACTIVE");
       continue;
     }
 
     const invalidReason = lockInvalidationReason(lock, cmp);
 
     if (invalidReason) {
-      await deactivateLock(lock);
+      const terminalStatus = getLockTerminalStatus(lock, cmp);
+
+      await deactivateLock(lock, terminalStatus);
       continue;
     }
 
@@ -1082,7 +1114,7 @@ async function getCanonicalActiveLock(mode, config, cmp) {
   const canonical = valid[0];
 
   for (const duplicate of valid.slice(1)) {
-    await deactivateLock(duplicate);
+    await deactivateLock(duplicate, "INACTIVE");
   }
 
   return canonical;
@@ -1253,7 +1285,7 @@ async function applyModeLock(
     const locked = planFromLock(active, mode, cmp);
 
     if (!locked) {
-      await deactivateLock(active);
+      await deactivateLock(active, "INACTIVE");
 
       return {
         setups,
@@ -1640,9 +1672,6 @@ function synchronizeSharedSetup(scalping, intraday, context) {
 
 /* =========================================================
 SETUP PRIORITY
-Select based on valid setup quality, zone proximity and
-entry-timeframe structure. H1 remains context, not an
-absolute BUY/SELL gate.
 ========================================================= */
 
 function chooseBestCandidate(buySetup, sellSetup) {
@@ -1730,7 +1759,6 @@ function chooseTrendOrRetracement({
   primaryH1Zone,
 }) {
   const primaryDirection = directionFromTrend(h1Trend);
-
   const selected = chooseBestCandidate(buySetup, sellSetup);
 
   if (!selected) return selected;
@@ -1746,11 +1774,6 @@ function chooseTrendOrRetracement({
   const isCountertrend = primaryDirection !== null &&
     selected.direction !== primaryDirection;
 
-  /*
-   * Do not force a countertrend setup merely because H1's zone
-   * is far away. The opposite setup must independently pass
-   * the existing zone, SL, TP and score rules to become READY.
-   */
   if (
     selected.status === "READY" &&
     isCountertrend &&
@@ -1841,7 +1864,7 @@ async function saveLock(setup, mode) {
 
     for (const lock of oldLocks) {
       if (lock.setup_id !== setupId) {
-        await deactivateLock(lock);
+        await deactivateLock(lock, "INACTIVE");
       }
     }
 
@@ -2039,20 +2062,14 @@ module.exports = async function handler(req, res) {
       !scalping.signalLock?.reused &&
       !scalping.blockedByActiveLock
     ) {
-      scalping.signalLock = await saveLock(
-        scalping,
-        "scalping"
-      );
+      scalping.signalLock = await saveLock(scalping, "scalping");
     }
 
     if (
       !intraday.signalLock?.reused &&
       !intraday.blockedByActiveLock
     ) {
-      intraday.signalLock = await saveLock(
-        intraday,
-        "intraday"
-      );
+      intraday.signalLock = await saveLock(intraday, "intraday");
     }
 
     const mainSetup =

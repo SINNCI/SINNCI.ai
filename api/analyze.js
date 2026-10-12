@@ -102,8 +102,8 @@ function uniquePrices(values, tolerance = 0.15) {
   for (const value of values) {
     if (!Number.isFinite(value)) continue;
 
-    if (!result.some(
-      (existing) => Math.abs(existing - value) <= tolerance
+    if (!result.some((existing) =>
+      Math.abs(existing - value) <= tolerance
     )) {
       result.push(value);
     }
@@ -119,10 +119,6 @@ function getEnv(name) {
 
 function isBuy(direction) {
   return direction === "BUY";
-}
-
-function oppositeDirection(direction) {
-  return direction === "BUY" ? "SELL" : "BUY";
 }
 
 function directionFromTrend(trend) {
@@ -281,40 +277,27 @@ SIDEWAY DETECTION
 ========================================================= */
 
 function detectSideway(candles) {
+  const unknown = {
+    isSideway: false,
+    position: "UNKNOWN",
+    range: null,
+    rangeWidth: null,
+    emaSpread: null,
+    breakoutUp: false,
+    breakoutDown: false,
+    reason: "Data tidak mencukupi untuk mengesan sideway.",
+  };
+
   if (!Array.isArray(candles) || candles.length < 25) {
-    return {
-      isSideway: false,
-      position: "UNKNOWN",
-      range: null,
-      rangeWidth: null,
-      emaSpread: null,
-      breakoutUp: false,
-      breakoutDown: false,
-      reason: "Data tidak mencukupi untuk mengesan sideway.",
-    };
+    return unknown;
   }
 
   const settings = SETTINGS.sideway;
   const last = candles[candles.length - 1];
   const previous = candles[candles.length - 2];
+  const prior = candles.slice(-(settings.lookback + 1), -1);
 
-  const prior = candles.slice(
-    -(settings.lookback + 1),
-    -1
-  );
-
-  if (prior.length < settings.lookback) {
-    return {
-      isSideway: false,
-      position: "UNKNOWN",
-      range: null,
-      rangeWidth: null,
-      emaSpread: null,
-      breakoutUp: false,
-      breakoutDown: false,
-      reason: "Julat candle sebelumnya tidak mencukupi.",
-    };
-  }
+  if (prior.length < settings.lookback) return unknown;
 
   const rangeHigh = Math.max(...prior.map((c) => c.high));
   const rangeLow = Math.min(...prior.map((c) => c.low));
@@ -324,10 +307,9 @@ function detectSideway(candles) {
   const ema20 = ema(closes, 20);
   const ema50 = ema(closes, 50);
 
-  const emaSpread =
-    ema20 !== null && ema50 !== null
-      ? round(Math.abs(ema20 - ema50))
-      : null;
+  const emaSpread = ema20 !== null && ema50 !== null
+    ? round(Math.abs(ema20 - ema50))
+    : null;
 
   const breakoutUp =
     last.close > rangeHigh + settings.breakoutBuffer &&
@@ -337,35 +319,23 @@ function detectSideway(candles) {
     last.close < rangeLow - settings.breakoutBuffer &&
     last.close < previous.low;
 
-  if (breakoutUp) {
-    return {
-      isSideway: false,
-      position: "BREAKOUT_UP",
-      range: {
-        high: round(rangeHigh),
-        low: round(rangeLow),
-      },
-      rangeWidth,
-      emaSpread,
-      breakoutUp: true,
-      breakoutDown: false,
-      reason: "Harga menembusi bahagian atas julat sebelumnya.",
-    };
-  }
+  const range = {
+    high: round(rangeHigh),
+    low: round(rangeLow),
+  };
 
-  if (breakoutDown) {
+  if (breakoutUp || breakoutDown) {
     return {
       isSideway: false,
-      position: "BREAKOUT_DOWN",
-      range: {
-        high: round(rangeHigh),
-        low: round(rangeLow),
-      },
+      position: breakoutUp ? "BREAKOUT_UP" : "BREAKOUT_DOWN",
+      range,
       rangeWidth,
       emaSpread,
-      breakoutUp: false,
-      breakoutDown: true,
-      reason: "Harga menembusi bahagian bawah julat sebelumnya.",
+      breakoutUp,
+      breakoutDown,
+      reason: breakoutUp
+        ? "Harga menembusi bahagian atas julat sebelumnya."
+        : "Harga menembusi bahagian bawah julat sebelumnya.",
     };
   }
 
@@ -374,19 +344,13 @@ function detectSideway(candles) {
     rangeWidth <= settings.maxRangeWidth;
 
   const emaValid =
-    emaSpread === null ||
-    emaSpread <= settings.maxEmaSpread;
+    emaSpread === null || emaSpread <= settings.maxEmaSpread;
 
-  const isSideway = widthValid && emaValid;
-
-  if (!isSideway) {
+  if (!widthValid || !emaValid) {
     return {
       isSideway: false,
       position: "TRENDING",
-      range: {
-        high: round(rangeHigh),
-        low: round(rangeLow),
-      },
+      range,
       rangeWidth,
       emaSpread,
       breakoutUp: false,
@@ -414,10 +378,7 @@ function detectSideway(candles) {
   return {
     isSideway: true,
     position,
-    range: {
-      high: round(rangeHigh),
-      low: round(rangeLow),
-    },
+    range,
     rangeWidth,
     emaSpread,
     breakoutUp: false,
@@ -448,7 +409,6 @@ function buildStructure(candles) {
 
   const lastHighs = swings.highs.slice(-2);
   const lastLows = swings.lows.slice(-2);
-
   let direction = "NEUTRAL";
 
   if (lastHighs.length === 2 && lastLows.length === 2) {
@@ -471,7 +431,6 @@ function buildStructure(candles) {
   }
 
   const sideway = detectSideway(candles);
-
   const previousRangeCandles = candles.slice(
     -(SETTINGS.sideway.lookback + 1),
     -1
@@ -485,16 +444,6 @@ function buildStructure(candles) {
     ? Math.min(...previousRangeCandles.map((c) => c.low))
     : null;
 
-  const breakoutUp = Boolean(
-    previousRangeHigh !== null &&
-    last.close > previousRangeHigh + SETTINGS.sideway.breakoutBuffer
-  );
-
-  const breakoutDown = Boolean(
-    previousRangeLow !== null &&
-    last.close < previousRangeLow - SETTINGS.sideway.breakoutBuffer
-  );
-
   return {
     direction,
     range,
@@ -502,8 +451,14 @@ function buildStructure(candles) {
     swingLows: swings.lows,
     ema20,
     ema50,
-    breakoutUp,
-    breakoutDown,
+    breakoutUp: Boolean(
+      previousRangeHigh !== null &&
+      last.close > previousRangeHigh + SETTINGS.sideway.breakoutBuffer
+    ),
+    breakoutDown: Boolean(
+      previousRangeLow !== null &&
+      last.close < previousRangeLow - SETTINGS.sideway.breakoutBuffer
+    ),
     lastClose: last.close,
     lastTime: last.time,
     sideway,
@@ -536,7 +491,6 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
     if (!isAtCorrectEdge) {
       allowSignal = false;
-
       reason = sideway.position === "SIDEWAY_MID"
         ? "Sideway: harga masih di tengah julat. Tunggu support atau resistance."
         : buy
@@ -603,20 +557,17 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   const half = SETTINGS.zoneThickness / 2;
   const low = round(pivot - half);
   const high = round(pivot + half);
-
   let status = "WATCH";
 
   if (cmp >= low && cmp <= high) {
     status = "IN_ZONE";
   } else if (
-    buy &&
-    cmp > high &&
+    buy && cmp > high &&
     cmp - high <= SETTINGS.approachDistance
   ) {
     status = "APPROACHING";
   } else if (
-    !buy &&
-    cmp < low &&
+    !buy && cmp < low &&
     low - cmp <= SETTINGS.approachDistance
   ) {
     status = "APPROACHING";
@@ -676,13 +627,11 @@ function buildStructuralStop(
   }
 
   const buy = isBuy(direction);
-
   const candidate = buy
     ? round(zone.low - SETTINGS.stopBuffer)
     : round(zone.high + SETTINGS.stopBuffer);
 
   const risk = round(Math.abs(zone.entry - candidate));
-
   const correctSide = buy
     ? candidate < zone.low
     : candidate > zone.high;
@@ -698,8 +647,7 @@ function buildStructuralStop(
       risk,
       valid: false,
       source: "FIXED_ZONE_EDGE",
-      reason:
-        `SL tetap tidak memenuhi had risiko $${maxRisk.toFixed(2)}.`,
+      reason: `SL tetap tidak memenuhi had risiko $${maxRisk.toFixed(2)}.`,
     };
   }
 
@@ -876,20 +824,15 @@ function calculateScore(direction, trendH1, trendEntry, zone, structure) {
   let score = 50;
   const wanted = isBuy(direction) ? "BULLISH" : "BEARISH";
 
-  // H1 memberi konteks; ia bukan penghalang mutlak retracement.
   if (trendH1 === wanted) score += 15;
   else if (trendH1 !== "NEUTRAL") score -= 5;
 
-  // Struktur timeframe entry masih diberi berat, tetapi lebih seimbang.
   if (trendEntry === wanted) score += 10;
   else if (trendEntry !== "NEUTRAL") score -= 4;
 
   if (
     zone.source === "SNR_SUPPORT" ||
-    zone.source === "SNR_RESISTANCE"
-  ) {
-    score += 10;
-  } else if (
+    zone.source === "SNR_RESISTANCE" ||
     zone.source === "SIDEWAY_SUPPORT" ||
     zone.source === "SIDEWAY_RESISTANCE"
   ) {
@@ -916,7 +859,6 @@ SUPABASE
 function supabaseConfig() {
   const url = getEnv("SUPABASE_URL").replace(/\/+$/, "");
   const key = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-
   return url && key ? { url, key } : null;
 }
 
@@ -940,10 +882,7 @@ async function supabaseRequest(path, options = {}) {
 
   const response = await fetch(
     `${config.url}/rest/v1/${path}`,
-    {
-      ...options,
-      headers,
-    }
+    { ...options, headers }
   );
 
   const raw = await response.text();
@@ -985,6 +924,37 @@ async function getActiveLocks(mode) {
   });
 }
 
+async function getLockBySetupId(setupId) {
+  if (!supabaseConfig()) return [];
+
+  const query = new URLSearchParams({
+    select: "*",
+    setup_id: `eq.${setupId}`,
+    limit: "1",
+  });
+
+  return await supabaseRequest(`${TABLE}?${query.toString()}`, {
+    method: "GET",
+  });
+}
+
+async function getRecentTerminalLocks(mode) {
+  if (!supabaseConfig()) return [];
+
+  const query = new URLSearchParams({
+    select: "setup_id,symbol,mode,direction,zone_low,zone_high,entry,stop_loss,tp1,tp2,source,status,updated_at",
+    symbol: `eq.${SETTINGS.symbol}`,
+    mode: `eq.${mode}`,
+    status: "in.(FAILED_SL_HIT,TP_HIT)",
+    order: "updated_at.desc",
+    limit: "10",
+  });
+
+  return await supabaseRequest(`${TABLE}?${query.toString()}`, {
+    method: "GET",
+  });
+}
+
 function lockStillFresh(lock, config) {
   const updatedAt = new Date(
     lock.updated_at || lock.created_at
@@ -993,7 +963,6 @@ function lockStillFresh(lock, config) {
   if (!Number.isFinite(updatedAt)) return false;
 
   const age = Date.now() - updatedAt;
-
   return age >= 0 && age <= config.lockMinutes * 60 * 1000;
 }
 
@@ -1005,11 +974,10 @@ function makeSetupId(mode, direction, zone) {
 }
 
 /**
- * Status yang dibenarkan:
  * ACTIVE          = setup masih aktif
  * INACTIVE        = luput, tidak sah atau pendua
- * FAILED_SL_HIT   = CMP mencapai/melepasi SL
- * TP_HIT          = CMP mencapai/melepasi TP1
+ * FAILED_SL_HIT   = harga diperhatikan mencapai/melepasi SL
+ * TP_HIT          = harga diperhatikan mencapai/melepasi TP1
  */
 async function deactivateLock(lock, status = "INACTIVE") {
   const allowedStatuses = [
@@ -1037,32 +1005,6 @@ async function deactivateLock(lock, status = "INACTIVE") {
   });
 }
 
-function lockInvalidationReason(lock, cmp) {
-  const direction = lock.direction;
-  const sl = Number(lock.stop_loss);
-  const tp1 = Number(lock.tp1);
-
-  if (
-    !Number.isFinite(cmp) ||
-    !Number.isFinite(sl) ||
-    !Number.isFinite(tp1)
-  ) {
-    return "Pelan lock tidak lengkap atau CMP tidak sah.";
-  }
-
-  if (direction === "BUY") {
-    if (cmp <= sl) return "Harga telah mencapai SL BUY.";
-    if (cmp >= tp1) return "Harga telah mencapai TP1 BUY.";
-  } else if (direction === "SELL") {
-    if (cmp >= sl) return "Harga telah mencapai SL SELL.";
-    if (cmp <= tp1) return "Harga telah mencapai TP1 SELL.";
-  } else {
-    return "Arah setup lock tidak sah.";
-  }
-
-  return null;
-}
-
 function getLockTerminalStatus(lock, cmp) {
   const direction = lock.direction;
   const sl = Number(lock.stop_loss);
@@ -1073,7 +1015,7 @@ function getLockTerminalStatus(lock, cmp) {
     !Number.isFinite(sl) ||
     !Number.isFinite(tp1)
   ) {
-    return "INACTIVE";
+    return null;
   }
 
   if (direction === "BUY") {
@@ -1084,32 +1026,74 @@ function getLockTerminalStatus(lock, cmp) {
     if (cmp <= tp1) return "TP_HIT";
   }
 
-  return "INACTIVE";
+  return null;
 }
 
+function lockInvalidationReason(lock, cmp) {
+  const status = getLockTerminalStatus(lock, cmp);
+
+  if (status === "FAILED_SL_HIT") {
+    return `Harga telah mencapai SL ${lock.direction}.`;
+  }
+
+  if (status === "TP_HIT") {
+    return `Harga telah mencapai TP1 ${lock.direction}.`;
+  }
+
+  if (!Number.isFinite(Number(cmp))) {
+    return "CMP tidak sah.";
+  }
+
+  return null;
+}
+
+/**
+ * Pembaikan:
+ * 1. Periksa SL/TP sebelum lock luput.
+ * 2. Pulangkan status terminal yang berlaku dalam permintaan ini.
+ * 3. Jangan anggap lock terminal sebagai lock aktif.
+ */
 async function getCanonicalActiveLock(mode, config, cmp) {
   const locks = await getActiveLocks(mode);
+  const terminalStatuses = [];
   const valid = [];
 
   for (const lock of locks) {
-    if (!lockStillFresh(lock, config)) {
-      await deactivateLock(lock, "INACTIVE");
+    const terminalStatus = getLockTerminalStatus(lock, cmp);
+
+    if (terminalStatus) {
+      await deactivateLock(lock, terminalStatus);
+
+      terminalStatuses.push({
+        setupId: lock.setup_id,
+        mode: lock.mode,
+        direction: lock.direction,
+        status: terminalStatus,
+        entry: Number(lock.entry),
+        sl: Number(lock.stop_loss),
+        tp1: Number(lock.tp1),
+        tp2: lock.tp2 == null ? null : Number(lock.tp2),
+        zone: {
+          low: Number(lock.zone_low),
+          high: Number(lock.zone_high),
+        },
+        timestamp: new Date().toISOString(),
+      });
+
       continue;
     }
 
-    const invalidReason = lockInvalidationReason(lock, cmp);
-
-    if (invalidReason) {
-      const terminalStatus = getLockTerminalStatus(lock, cmp);
-
-      await deactivateLock(lock, terminalStatus);
+    if (!lockStillFresh(lock, config)) {
+      await deactivateLock(lock, "INACTIVE");
       continue;
     }
 
     valid.push(lock);
   }
 
-  if (!valid.length) return null;
+  if (!valid.length) {
+    return { activeLock: null, terminalStatuses };
+  }
 
   const canonical = valid[0];
 
@@ -1117,7 +1101,7 @@ async function getCanonicalActiveLock(mode, config, cmp) {
     await deactivateLock(duplicate, "INACTIVE");
   }
 
-  return canonical;
+  return { activeLock: canonical, terminalStatuses };
 }
 
 function planFromLock(lock, mode, cmp) {
@@ -1148,18 +1132,16 @@ function planFromLock(lock, mode, cmp) {
     !correctSL ||
     !isCorrectTarget(direction, entry, tp1) ||
     risk <= 0 ||
-    risk > 5.00
+    risk > SETTINGS[mode].maxRiskDistance
   ) {
     return null;
   }
 
-  if (tp2 !== null) {
-    if (
-      !isCorrectTarget(direction, tp1, tp2) ||
-      Math.abs(tp2 - tp1) < 5
-    ) {
-      return null;
-    }
+  if (tp2 !== null && (
+    !isCorrectTarget(direction, tp1, tp2) ||
+    Math.abs(tp2 - tp1) < SETTINGS[mode].minimumTPSeparation
+  )) {
+    return null;
   }
 
   let zoneStatus = "WATCH";
@@ -1215,32 +1197,31 @@ function planFromLock(lock, mode, cmp) {
 APPLY MODE LOCK
 ========================================================= */
 
-async function applyModeLock(
-  setups,
-  mode,
-  config,
-  cmp,
-  sideway
-) {
+async function applyModeLock(setups, mode, config, cmp, sideway) {
   if (!supabaseConfig()) {
     return {
       setups,
       activeLock: null,
+      terminalStatuses: [],
       error: null,
     };
   }
 
   try {
-    const active = await getCanonicalActiveLock(
+    const lockResult = await getCanonicalActiveLock(
       mode,
       config,
       cmp
     );
 
+    const active = lockResult.activeLock;
+    const terminalStatuses = lockResult.terminalStatuses;
+
     if (!active) {
       return {
         setups,
         activeLock: null,
+        terminalStatuses,
         error: null,
       };
     }
@@ -1260,23 +1241,22 @@ async function applyModeLock(
               ? "Sideway: BUY sahaja dibenarkan di kawasan support."
               : "Sideway: SELL sahaja dibenarkan di kawasan resistance.";
 
-        const updated = setups.map((setup) => ({
-          ...setup,
-          status: "WAIT",
-          sidewayBlocked: true,
-          reason: blockedReason,
-          signalLock: {
-            ...setup.signalLock,
-            enabled: true,
-            persisted: false,
-            reused: false,
-            reason: blockedReason,
-          },
-        }));
-
         return {
-          setups: updated,
+          setups: setups.map((setup) => ({
+            ...setup,
+            status: "WAIT",
+            sidewayBlocked: true,
+            reason: blockedReason,
+            signalLock: {
+              ...setup.signalLock,
+              enabled: true,
+              persisted: false,
+              reused: false,
+              reason: blockedReason,
+            },
+          })),
           activeLock: null,
+          terminalStatuses,
           error: null,
         };
       }
@@ -1290,6 +1270,7 @@ async function applyModeLock(
       return {
         setups,
         activeLock: null,
+        terminalStatuses,
         error: null,
       };
     }
@@ -1340,12 +1321,14 @@ async function applyModeLock(
     return {
       setups: updated,
       activeLock: active,
+      terminalStatuses,
       error: null,
     };
   } catch (error) {
     return {
       setups,
       activeLock: null,
+      terminalStatuses: [],
       error: error.message,
     };
   }
@@ -1459,14 +1442,7 @@ function buildSetup({
     reason = plan.reason;
   }
 
-  return {
-    ...base,
-    status,
-    score,
-    zone,
-    plan,
-    reason,
-  };
+  return { ...base, status, score, zone, plan, reason };
 }
 
 /* =========================================================
@@ -1705,22 +1681,20 @@ function chooseBestCandidate(buySetup, sellSetup) {
       if (rankDifference !== 0) return rankDifference;
 
       const distanceA = Number.isFinite(a.zone?.distance)
-        ? a.zone.distance
-        : Infinity;
+        ? a.zone.distance : Infinity;
 
       const distanceB = Number.isFinite(b.zone?.distance)
-        ? b.zone.distance
-        : Infinity;
+        ? b.zone.distance : Infinity;
 
       if (Math.abs(distanceA - distanceB) > 0.25) {
         return distanceA - distanceB;
       }
 
-      const wantedA = directionFromTrend(a.trend?.entry);
-      const wantedB = directionFromTrend(b.trend?.entry);
+      const structureMatchA =
+        directionFromTrend(a.trend?.entry) === a.direction ? 1 : 0;
 
-      const structureMatchA = wantedA === a.direction ? 1 : 0;
-      const structureMatchB = wantedB === b.direction ? 1 : 0;
+      const structureMatchB =
+        directionFromTrend(b.trend?.entry) === b.direction ? 1 : 0;
 
       if (structureMatchA !== structureMatchB) {
         return structureMatchB - structureMatchA;
@@ -1728,8 +1702,11 @@ function chooseBestCandidate(buySetup, sellSetup) {
 
       if (b.score !== a.score) return b.score - a.score;
 
-      const h1A = directionFromTrend(a.trend?.h1) === a.direction ? 1 : 0;
-      const h1B = directionFromTrend(b.trend?.h1) === b.direction ? 1 : 0;
+      const h1A =
+        directionFromTrend(a.trend?.h1) === a.direction ? 1 : 0;
+
+      const h1B =
+        directionFromTrend(b.trend?.h1) === b.direction ? 1 : 0;
 
       return h1B - h1A;
     });
@@ -1740,12 +1717,10 @@ function chooseBestCandidate(buySetup, sellSetup) {
     if (b.score !== a.score) return b.score - a.score;
 
     const distanceA = Number.isFinite(a.zone?.distance)
-      ? a.zone.distance
-      : Infinity;
+      ? a.zone.distance : Infinity;
 
     const distanceB = Number.isFinite(b.zone?.distance)
-      ? b.zone.distance
-      : Infinity;
+      ? b.zone.distance : Infinity;
 
     return distanceA - distanceB;
   })[0];
@@ -1763,9 +1738,7 @@ function chooseTrendOrRetracement({
 
   if (!selected) return selected;
 
-  const other = selected.direction === "BUY"
-    ? sellSetup
-    : buySetup;
+  const other = selected.direction === "BUY" ? sellSetup : buySetup;
 
   const primaryDistance = primaryH1Zone
     ? distanceToZone(cmp, primaryH1Zone)
@@ -1803,10 +1776,7 @@ function chooseTrendOrRetracement({
     };
   }
 
-  if (
-    other?.signalLock?.reused &&
-    other.status === "READY"
-  ) {
+  if (other?.signalLock?.reused && other.status === "READY") {
     return other;
   }
 
@@ -1814,17 +1784,20 @@ function chooseTrendOrRetracement({
 }
 
 /* =========================================================
-SAVE LOCK
+SAVE LOCK — DO NOT REACTIVATE TERMINAL SETUP IDS
 ========================================================= */
 
 async function saveLock(setup, mode) {
+  const notSaved = (reason, extra = {}) => ({
+    enabled: Boolean(supabaseConfig()),
+    persisted: false,
+    reused: false,
+    reason,
+    ...extra,
+  });
+
   if (!supabaseConfig()) {
-    return {
-      enabled: false,
-      persisted: false,
-      reused: false,
-      reason: "Supabase belum dikonfigurasi.",
-    };
+    return notSaved("Supabase belum dikonfigurasi.");
   }
 
   if (
@@ -1833,33 +1806,50 @@ async function saveLock(setup, mode) {
     !Number.isFinite(setup.plan.tp1) ||
     !setup.zone?.valid
   ) {
-    return {
-      enabled: true,
-      persisted: false,
-      reused: false,
-      reason: "Setup belum layak untuk disimpan.",
-    };
+    return notSaved("Setup belum layak untuk disimpan.");
   }
 
   const setupId = makeSetupId(mode, setup.direction, setup.zone);
 
-  const row = {
-    setup_id: setupId,
-    symbol: SETTINGS.symbol,
-    mode,
-    direction: setup.direction,
-    zone_low: setup.zone.low,
-    zone_high: setup.zone.high,
-    entry: setup.plan.entry,
-    stop_loss: setup.plan.sl,
-    tp1: setup.plan.tp1,
-    tp2: setup.plan.tp2,
-    source: setup.zone.source,
-    status: "ACTIVE",
-    updated_at: new Date().toISOString(),
-  };
-
   try {
+    /*
+     * Critical fix:
+     * Check the exact ID before upsert.
+     * A terminal setup ID must never be overwritten back to ACTIVE.
+     */
+    const existingRows = await getLockBySetupId(setupId);
+    const existing = existingRows?.[0];
+
+    if (
+      existing &&
+      ["FAILED_SL_HIT", "TP_HIT"].includes(existing.status)
+    ) {
+      return notSaved(
+        `Setup ini telah tamat dengan status ${existing.status}; ID sama tidak diaktifkan semula.`,
+        {
+          setupId,
+          terminalStatus: existing.status,
+          terminalAt: existing.updated_at || null,
+        }
+      );
+    }
+
+    const row = {
+      setup_id: setupId,
+      symbol: SETTINGS.symbol,
+      mode,
+      direction: setup.direction,
+      zone_low: setup.zone.low,
+      zone_high: setup.zone.high,
+      entry: setup.plan.entry,
+      stop_loss: setup.plan.sl,
+      tp1: setup.plan.tp1,
+      tp2: setup.plan.tp2,
+      source: setup.zone.source,
+      status: "ACTIVE",
+      updated_at: new Date().toISOString(),
+    };
+
     const oldLocks = await getActiveLocks(mode);
 
     for (const lock of oldLocks) {
@@ -1888,12 +1878,7 @@ async function saveLock(setup, mode) {
       reason: null,
     };
   } catch (error) {
-    return {
-      enabled: true,
-      persisted: false,
-      reused: false,
-      reason: error.message,
-    };
+    return notSaved(error.message, { setupId });
   }
 }
 
@@ -1928,7 +1913,6 @@ module.exports = async function handler(req, res) {
 
     const h1Trend = h1Structure.direction;
     const d1Trend = d1Structure.direction;
-
     const primaryH1Direction = directionFromTrend(h1Trend);
 
     const primaryH1Zone = primaryH1Direction
@@ -2045,17 +2029,11 @@ module.exports = async function handler(req, res) {
     intraday = sharedResult.intraday;
 
     if (sharedResult.shared) {
-      if (scalping.direction === "BUY") {
-        scalpBuy = scalping;
-      } else {
-        scalpSell = scalping;
-      }
+      if (scalping.direction === "BUY") scalpBuy = scalping;
+      else scalpSell = scalping;
 
-      if (intraday.direction === "BUY") {
-        intraBuy = intraday;
-      } else {
-        intraSell = intraday;
-      }
+      if (intraday.direction === "BUY") intraBuy = intraday;
+      else intraSell = intraday;
     }
 
     if (
@@ -2072,6 +2050,62 @@ module.exports = async function handler(req, res) {
       intraday.signalLock = await saveLock(intraday, "intraday");
     }
 
+    /*
+     * Terminal history is fetched separately from ACTIVE locks.
+     * This allows the API to expose recent terminal records after
+     * the request that originally detected the SL/TP event.
+     */
+    let recentTerminalStatuses = {
+      scalping: [],
+      intraday: [],
+    };
+
+    let terminalHistoryError = null;
+
+    if (supabaseConfig()) {
+      try {
+        const [scalpHistory, intraHistory] = await Promise.all([
+          getRecentTerminalLocks("scalping"),
+          getRecentTerminalLocks("intraday"),
+        ]);
+
+        recentTerminalStatuses = {
+          scalping: scalpHistory.map((lock) => ({
+            setupId: lock.setup_id,
+            mode: lock.mode,
+            direction: lock.direction,
+            status: lock.status,
+            entry: Number(lock.entry),
+            sl: Number(lock.stop_loss),
+            tp1: Number(lock.tp1),
+            tp2: lock.tp2 == null ? null : Number(lock.tp2),
+            zone: {
+              low: Number(lock.zone_low),
+              high: Number(lock.zone_high),
+            },
+            timestamp: lock.updated_at,
+          })),
+          intraday: intraHistory.map((lock) => ({
+            setupId: lock.setup_id,
+            mode: lock.mode,
+            direction: lock.direction,
+            status: lock.status,
+            entry: Number(lock.entry),
+            sl: Number(lock.stop_loss),
+            tp1: Number(lock.tp1),
+            tp2: lock.tp2 == null ? null : Number(lock.tp2),
+            zone: {
+              low: Number(lock.zone_low),
+              high: Number(lock.zone_high),
+            },
+            timestamp: lock.updated_at,
+          })),
+        };
+      } catch (error) {
+        terminalHistoryError = error.message;
+      }
+    }
+
     const mainSetup =
       intraday.status === "READY"
         ? intraday
@@ -2079,9 +2113,7 @@ module.exports = async function handler(req, res) {
           ? scalping
           : null;
 
-    const mainSignal = mainSetup
-      ? mainSetup.direction
-      : "WAIT";
+    const mainSignal = mainSetup ? mainSetup.direction : "WAIT";
 
     const mainPlan = mainSetup?.plan || {
       entry: null,
@@ -2103,7 +2135,6 @@ module.exports = async function handler(req, res) {
       symbol: SETTINGS.symbol,
       timestamp: new Date().toISOString(),
       cmp,
-
       signal: mainSignal,
 
       direction: {
@@ -2140,14 +2171,8 @@ module.exports = async function handler(req, res) {
         : mainPlan.reason,
 
       scores: {
-        buy: Math.max(
-          scalpBuy.score || 0,
-          intraBuy.score || 0
-        ),
-        sell: Math.max(
-          scalpSell.score || 0,
-          intraSell.score || 0
-        ),
+        buy: Math.max(scalpBuy.score || 0, intraBuy.score || 0),
+        sell: Math.max(scalpSell.score || 0, intraSell.score || 0),
       },
 
       candidates: {
@@ -2228,12 +2253,24 @@ module.exports = async function handler(req, res) {
         },
       },
 
+      /*
+       * Terminal statuses detected during this request.
+       * Recent terminal history remains available even after
+       * the original ACTIVE lock has been deactivated.
+       */
+      terminalStatus: {
+        scalping: scalpLockResult.terminalStatuses || [],
+        intraday: intraLockResult.terminalStatuses || [],
+      },
+
+      terminalHistory: recentTerminalStatuses,
+      terminalHistoryError,
+
       settings: {
         zoneThickness: SETTINGS.zoneThickness,
         stopBuffer: SETTINGS.stopBuffer,
         priorityDistance: SETTINGS.priorityDistance,
         approachDistance: SETTINGS.approachDistance,
-
         sideway: SETTINGS.sideway,
 
         minimumScore: {

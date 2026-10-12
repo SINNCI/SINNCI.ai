@@ -10,15 +10,16 @@
  * M15 = intraday entry structure.
  *
  * Zone width: $3.50 total.
- * SL: $3.00 outside the relevant zone edge.
- * TP1/TP2: structural targets only.
+ * SL: $2.00 outside the relevant zone edge.
+ * Scalping TP1: M5 structure; TP2: M15 structure.
+ * Intraday TP1: M15 structure; TP2: H1 structure.
  */
 
 const SETTINGS = {
   symbol: "XAU/USD",
   point: 0.01,
   zoneThickness: 3.50,
-  stopBuffer: 3.00,
+  stopBuffer: 2.00,
   priorityDistance: 3.00,
   approachDistance: 3.00,
   candleCount: 50,
@@ -627,6 +628,9 @@ function buildStructuralStop(
   }
 
   const buy = isBuy(direction);
+
+  // BUY: $2.00 below the lower edge of the zone.
+  // SELL: $2.00 above the upper edge of the zone.
   const candidate = buy
     ? round(zone.low - SETTINGS.stopBuffer)
     : round(zone.high + SETTINGS.stopBuffer);
@@ -664,35 +668,59 @@ function buildStructuralStop(
 STRUCTURAL TARGET CANDIDATES
 ========================================================= */
 
+/**
+ * TP candidates are separated by timeframe.
+ *
+ * Scalping:
+ *   primary   = M5,  used for TP1
+ *   secondary = M15, used for TP2
+ *
+ * Intraday:
+ *   primary   = M15, used for TP1
+ *   secondary = H1,  used for TP2
+ */
 function findTargets(direction, entry, targetCandles, secondaryCandles) {
   const primary = buildStructure(targetCandles.slice(-40));
   const secondary = buildStructure(secondaryCandles.slice(-40));
 
-  let candidates;
+  let primaryCandidates;
+  let secondaryCandidates;
 
   if (isBuy(direction)) {
-    candidates = [
+    primaryCandidates = [
       ...primary.swingHighs.map((s) => s.price),
-      ...secondary.swingHighs.map((s) => s.price),
       primary.range?.high,
+    ];
+
+    secondaryCandidates = [
+      ...secondary.swingHighs.map((s) => s.price),
       secondary.range?.high,
     ];
   } else {
-    candidates = [
+    primaryCandidates = [
       ...primary.swingLows.map((s) => s.price),
-      ...secondary.swingLows.map((s) => s.price),
       primary.range?.low,
+    ];
+
+    secondaryCandidates = [
+      ...secondary.swingLows.map((s) => s.price),
       secondary.range?.low,
     ];
   }
 
-  return uniquePrices(
-    candidates
-      .filter((price) => isCorrectTarget(direction, entry, price))
-      .map((price) => round(price))
-      .filter(Number.isFinite)
-      .sort((a, b) => isBuy(direction) ? a - b : b - a)
-  );
+  const normalize = (candidates) =>
+    uniquePrices(
+      candidates
+        .filter((price) => isCorrectTarget(direction, entry, price))
+        .map((price) => round(price))
+        .filter(Number.isFinite)
+        .sort((a, b) => isBuy(direction) ? a - b : b - a)
+    );
+
+  return {
+    primary: normalize(primaryCandidates),
+    secondary: normalize(secondaryCandidates),
+  };
 }
 
 /* =========================================================
@@ -741,14 +769,15 @@ function buildTradePlan(
     return invalidPlan("Risiko SL tidak sah atau melebihi had.");
   }
 
-  const structuralTargets = findTargets(
+  const targets = findTargets(
     direction,
     entry,
     primary,
     secondary
   );
 
-  const validTargets = structuralTargets.filter((price) => {
+  // TP1 mesti datang daripada timeframe utama sahaja.
+  const validTP1Targets = targets.primary.filter((price) => {
     const reward = Math.abs(price - entry);
 
     return (
@@ -759,18 +788,20 @@ function buildTradePlan(
     );
   });
 
-  const tp1 = validTargets[0] ?? null;
+  const tp1 = validTP1Targets[0] ?? null;
 
   if (tp1 === null) {
     return invalidPlan(
-      "Tiada TP1 struktur SNR yang sah dan memenuhi minimum risk/reward."
+      "Tiada TP1 struktur timeframe utama yang memenuhi syarat risk/reward."
     );
   }
 
   const reward1 = round(Math.abs(tp1 - entry));
   const rr1 = round(reward1 / risk);
 
-  const tp2 = validTargets.find((price) => {
+  // TP2 mesti datang daripada timeframe kedua sahaja,
+  // dan berada melepasi TP1 mengikut arah trade.
+  const validTP2Targets = targets.secondary.filter((price) => {
     const separation = Math.abs(price - tp1);
     const reward = Math.abs(price - entry);
 
@@ -781,7 +812,9 @@ function buildTradePlan(
       reward <= config.maxTargetDistance &&
       reward / risk >= config.minimumRR2
     );
-  }) ?? null;
+  });
+
+  const tp2 = validTP2Targets[0] ?? null;
 
   if (tp2 === null) {
     return {
@@ -795,7 +828,7 @@ function buildTradePlan(
       reward2: null,
       rr1,
       rr2: null,
-      reason: "TP1 sah; TP2 struktur seterusnya belum memenuhi syarat.",
+      reason: "TP1 sah; TP2 daripada timeframe kedua belum memenuhi syarat.",
     };
   }
 

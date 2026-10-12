@@ -5,27 +5,25 @@
  * Analysis only. No automated trading or order execution.
  * ZONE ACCURACY > SIGNAL TIMING > SCORE
  *
- * H1 = primary trend/setup context.
+ * H1 = primary trend/context.
  * M5 = scalping entry structure.
  * M15 = intraday entry structure.
- * Retracement may be selected when the H1 zone is far away.
+ * BUY/SELL selection considers SNR, zone location and entry structure.
  *
- * SL: M15 first, M5 fallback.
+ * Zone width: $3.50 total.
+ * SL: $3.00 outside the relevant zone edge.
+ * Risk from zone midpoint to SL: $4.75.
+ * Risk cap: $5.00.
  * TP1/TP2: structural targets only.
  *
- * Additions:
- * - Sideway/range detection.
- * - Sideway support/resistance zone mapping.
- * - Previous-candle breakout detection.
- * - Mid-range entries blocked for new sideway setups.
- * - Supabase locks cannot override invalid sideway locations.
- * - Existing dashboard fields, SL/TP/RR and scoring retained.
+ * Sideway/range detection and Supabase setup locks retained.
  */
 
 const SETTINGS = {
   symbol: "XAU/USD",
   point: 0.01,
-  zoneThickness: 2.00,
+  zoneThickness: 3.50,
+  stopBuffer: 3.00,
   priorityDistance: 3.00,
   approachDistance: 3.00,
   candleCount: 50,
@@ -43,7 +41,7 @@ const SETTINGS = {
   scalping: {
     minimumScore: 65,
     lockMinutes: 720,
-    maxRiskDistance: 4.00,
+    maxRiskDistance: 5.00,
     maxTargetDistance: 30.00,
     minimumRR1: 1.20,
     minimumRR2: 2.00,
@@ -53,7 +51,7 @@ const SETTINGS = {
   intraday: {
     minimumScore: 65,
     lockMinutes: 4320,
-    maxRiskDistance: 4.00,
+    maxRiskDistance: 5.00,
     maxTargetDistance: 80.00,
     minimumRR1: 1.20,
     minimumRR2: 1.80,
@@ -535,13 +533,6 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   let allowSignal = true;
   let reason = null;
 
-  /*
-   * Confirmed sideway:
-   * BUY maps to lower range support.
-   * SELL maps to upper range resistance.
-   * A new setup cannot become READY in the middle or at the
-   * opposite edge of the range.
-   */
   if (sideway.isSideway && sideway.range) {
     const isAtCorrectEdge = buy
       ? sideway.position === "SIDEWAY_SUPPORT"
@@ -673,8 +664,9 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 }
 
 /* =========================================================
-STRUCTURAL STOP LOSS
-Priority: M15 first, then M5 fallback.
+FIXED STOP LOSS
+BUY: zone.low - $3.00
+SELL: zone.high + $3.00
 ========================================================= */
 
 function buildStructuralStop(
@@ -684,7 +676,13 @@ function buildStructuralStop(
   maxRisk,
   fallbackCandles = null
 ) {
-  if (!zone || !Number.isFinite(zone.entry)) {
+  if (
+    !zone ||
+    !zone.valid ||
+    !Number.isFinite(zone.low) ||
+    !Number.isFinite(zone.high) ||
+    !Number.isFinite(zone.entry)
+  ) {
     return {
       value: null,
       risk: null,
@@ -695,52 +693,39 @@ function buildStructuralStop(
   }
 
   const buy = isBuy(direction);
-  const entry = zone.entry;
 
-  const sources = [
-    { candles, timeframe: "M15" },
-    ...(Array.isArray(fallbackCandles) && fallbackCandles.length
-      ? [{ candles: fallbackCandles, timeframe: "M5" }]
-      : []),
-  ];
+  const candidate = buy
+    ? round(zone.low - SETTINGS.stopBuffer)
+    : round(zone.high + SETTINGS.stopBuffer);
 
-  for (const item of sources) {
-    const swings = findSwings(item.candles.slice(-35), 2);
+  const risk = round(Math.abs(zone.entry - candidate));
 
-    const candidates = buy
-      ? swings.lows.map((s) => s.price).filter((p) => p < zone.low)
-      : swings.highs.map((s) => s.price).filter((p) => p > zone.high);
+  const correctSide = buy
+    ? candidate < zone.low
+    : candidate > zone.high;
 
-    candidates.sort((a, b) => buy ? b - a : a - b);
-
-    for (const level of candidates) {
-      const candidate = buy
-        ? round(level - 0.50)
-        : round(level + 0.50);
-
-      const risk = round(Math.abs(entry - candidate));
-      const correctSide = buy
-        ? candidate < zone.low
-        : candidate > zone.high;
-
-      if (correctSide && risk > 0 && risk <= maxRisk) {
-        return {
-          value: candidate,
-          risk,
-          valid: true,
-          source: item.timeframe,
-          reason: null,
-        };
-      }
-    }
+  if (
+    !correctSide ||
+    !Number.isFinite(risk) ||
+    risk <= 0 ||
+    risk > maxRisk
+  ) {
+    return {
+      value: null,
+      risk,
+      valid: false,
+      source: "FIXED_ZONE_EDGE",
+      reason:
+        `SL tetap tidak memenuhi had risiko $${maxRisk.toFixed(2)}.`,
+    };
   }
 
   return {
-    value: null,
-    risk: null,
-    valid: false,
-    source: null,
-    reason: `Tiada swing M15 atau M5 yang sah dalam had risiko $${maxRisk.toFixed(2)}.`,
+    value: candidate,
+    risk,
+    valid: true,
+    source: "FIXED_ZONE_EDGE",
+    reason: null,
   };
 }
 
@@ -1131,7 +1116,7 @@ function planFromLock(lock, mode, cmp) {
     !correctSL ||
     !isCorrectTarget(direction, entry, tp1) ||
     risk <= 0 ||
-    risk > 4
+    risk > 5.00
   ) {
     return null;
   }
@@ -1196,8 +1181,6 @@ function planFromLock(lock, mode, cmp) {
 
 /* =========================================================
 APPLY MODE LOCK
-Sideway guard prevents a persisted lock from forcing READY
-when the current range location does not support its direction.
 ========================================================= */
 
 async function applyModeLock(
@@ -1230,17 +1213,6 @@ async function applyModeLock(
       };
     }
 
-    /*
-     * IMPORTANT:
-     * A stored lock must not override the current sideway location.
-     *
-     * SIDEWAY_SUPPORT permits BUY only.
-     * SIDEWAY_RESISTANCE permits SELL only.
-     * SIDEWAY_MID permits neither direction.
-     *
-     * The old database lock is not deactivated here merely because
-     * it is temporarily unsuitable for the current range location.
-     */
     if (sideway?.isSideway) {
       const correctEdge =
         (sideway.position === "SIDEWAY_SUPPORT" &&
@@ -1300,12 +1272,6 @@ async function applyModeLock(
         };
       }
 
-      /*
-       * Additional guard:
-       * Even if a lock is valid in Supabase, do not restore READY
-       * if the newly calculated setup is explicitly blocked by its
-       * current sideway structure.
-       */
       if (
         setup.zone?.allowSignal === false ||
         setup.sidewayBlocked === true
@@ -1436,11 +1402,6 @@ function buildSetup({
     entryStructure
   );
 
-  /*
-   * A new setup cannot become READY from the middle of a sideway.
-   * The zone remains visible so the dashboard can show the relevant
-   * range boundary.
-   */
   const status =
     zone.valid &&
     zone.allowSignal !== false &&
@@ -1679,6 +1640,9 @@ function synchronizeSharedSetup(scalping, intraday, context) {
 
 /* =========================================================
 SETUP PRIORITY
+Select based on valid setup quality, zone proximity and
+entry-timeframe structure. H1 remains context, not an
+absolute BUY/SELL gate.
 ========================================================= */
 
 function chooseBestCandidate(buySetup, sellSetup) {
@@ -1702,19 +1666,59 @@ function chooseBestCandidate(buySetup, sellSetup) {
 
   const ready = candidates
     .filter((setup) => setup.status === "READY")
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => {
+      const statusRank = (setup) =>
+        setup.zone?.status === "IN_ZONE" ? 0
+          : setup.zone?.status === "APPROACHING" ? 1
+            : 2;
+
+      const rankDifference = statusRank(a) - statusRank(b);
+      if (rankDifference !== 0) return rankDifference;
+
+      const distanceA = Number.isFinite(a.zone?.distance)
+        ? a.zone.distance
+        : Infinity;
+
+      const distanceB = Number.isFinite(b.zone?.distance)
+        ? b.zone.distance
+        : Infinity;
+
+      if (Math.abs(distanceA - distanceB) > 0.25) {
+        return distanceA - distanceB;
+      }
+
+      const wantedA = directionFromTrend(a.trend?.entry);
+      const wantedB = directionFromTrend(b.trend?.entry);
+
+      const structureMatchA = wantedA === a.direction ? 1 : 0;
+      const structureMatchB = wantedB === b.direction ? 1 : 0;
+
+      if (structureMatchA !== structureMatchB) {
+        return structureMatchB - structureMatchA;
+      }
+
+      if (b.score !== a.score) return b.score - a.score;
+
+      const h1A = directionFromTrend(a.trend?.h1) === a.direction ? 1 : 0;
+      const h1B = directionFromTrend(b.trend?.h1) === b.direction ? 1 : 0;
+
+      return h1B - h1A;
+    });
 
   if (ready.length) return ready[0];
 
   return candidates.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
 
-    const wanted = directionFromTrend(a.trend?.h1);
+    const distanceA = Number.isFinite(a.zone?.distance)
+      ? a.zone.distance
+      : Infinity;
 
-    if (wanted === a.direction) return -1;
-    if (wanted === b.direction) return 1;
+    const distanceB = Number.isFinite(b.zone?.distance)
+      ? b.zone.distance
+      : Infinity;
 
-    return 0;
+    return distanceA - distanceB;
   })[0];
 }
 
@@ -1727,51 +1731,63 @@ function chooseTrendOrRetracement({
 }) {
   const primaryDirection = directionFromTrend(h1Trend);
 
-  if (!primaryDirection) {
-    return chooseBestCandidate(buySetup, sellSetup);
-  }
+  const selected = chooseBestCandidate(buySetup, sellSetup);
 
-  const setups = {
-    BUY: buySetup,
-    SELL: sellSetup,
-  };
+  if (!selected) return selected;
 
-  const primary = setups[primaryDirection];
-  const retracement = setups[oppositeDirection(primaryDirection)];
+  const other = selected.direction === "BUY"
+    ? sellSetup
+    : buySetup;
 
-  const primaryDistance = distanceToZone(cmp, primaryH1Zone);
-  const primaryFar = primaryDistance > SETTINGS.priorityDistance;
+  const primaryDistance = primaryH1Zone
+    ? distanceToZone(cmp, primaryH1Zone)
+    : Infinity;
 
+  const isCountertrend = primaryDirection !== null &&
+    selected.direction !== primaryDirection;
+
+  /*
+   * Do not force a countertrend setup merely because H1's zone
+   * is far away. The opposite setup must independently pass
+   * the existing zone, SL, TP and score rules to become READY.
+   */
   if (
-    primaryFar &&
-    retracement.status === "READY" &&
-    !retracement.signalLock?.reused &&
-    !retracement.blockedByActiveLock
+    selected.status === "READY" &&
+    isCountertrend &&
+    !selected.signalLock?.reused &&
+    !selected.blockedByActiveLock
   ) {
     return {
-      ...retracement,
+      ...selected,
       setupType: "RETRACEMENT",
       primaryH1Direction: primaryDirection,
       primaryH1Distance: primaryDistance,
-      reason:
-        "Setup retracement sah dipilih kerana zon utama H1 masih jauh.",
+      reason: selected.reason ||
+        "Setup retracement dipilih berdasarkan struktur entry dan zon yang sah.",
     };
   }
 
-  if (primary.signalLock?.reused) return primary;
-
-  if (primary.status === "READY") {
+  if (
+    selected.status === "READY" &&
+    primaryDirection &&
+    selected.direction === primaryDirection
+  ) {
     return {
-      ...primary,
+      ...selected,
       setupType: "FOLLOW_TREND",
       primaryH1Direction: primaryDirection,
       primaryH1Distance: primaryDistance,
     };
   }
 
-  if (retracement.signalLock?.reused) return retracement;
+  if (
+    other?.signalLock?.reused &&
+    other.status === "READY"
+  ) {
+    return other;
+  }
 
-  return chooseBestCandidate(buySetup, sellSetup);
+  return selected;
 }
 
 /* =========================================================
@@ -1952,10 +1968,6 @@ module.exports = async function handler(req, res) {
       config: SETTINGS.intraday,
     });
 
-    /*
-     * Pass the current entry timeframe's sideway state to the lock
-     * guard. Scalping uses M5; intraday uses M15.
-     */
     const scalpLockResult = await applyModeLock(
       [scalpBuy, scalpSell],
       "scalping",
@@ -2201,6 +2213,7 @@ module.exports = async function handler(req, res) {
 
       settings: {
         zoneThickness: SETTINGS.zoneThickness,
+        stopBuffer: SETTINGS.stopBuffer,
         priorityDistance: SETTINGS.priorityDistance,
         approachDistance: SETTINGS.approachDistance,
 

@@ -690,37 +690,61 @@ STRUCTURAL TARGET CANDIDATES
 ========================================================= */
 
 function findTargets(direction, entry, targetCandles, secondaryCandles) {
-  const primary = buildStructure(targetCandles.slice(-40));
-  const secondary = buildStructure(secondaryCandles.slice(-40));
+  const primaryCandles = targetCandles.slice(-40);
+  const secondaryData = secondaryCandles.slice(-40);
+
+  const primary = buildStructure(primaryCandles);
+  const secondary = buildStructure(secondaryData);
+
+  // Struktur swing utama yang disahkan menggunakan wing = 2.
+  const primarySwings = findSwings(primaryCandles, 2);
+  const secondarySwings = findSwings(secondaryData, 2);
+
+  // Swing alternatif yang lebih sensitif menggunakan wing = 1.
+  const primaryMicro = findSwings(primaryCandles, 1);
+  const secondaryMicro = findSwings(secondaryData, 1);
 
   let primaryCandidates;
   let secondaryCandidates;
+  let primaryMicroCandidates;
+  let secondaryMicroCandidates;
 
   if (isBuy(direction)) {
     primaryCandidates = [
       ...primary.swingHighs.map((s) => s.price),
+      ...primarySwings.highs.map((s) => s.price),
       primary.range?.high,
     ];
 
     secondaryCandidates = [
       ...secondary.swingHighs.map((s) => s.price),
+      ...secondarySwings.highs.map((s) => s.price),
       secondary.range?.high,
     ];
+
+    primaryMicroCandidates = primaryMicro.highs.map((s) => s.price);
+    secondaryMicroCandidates = secondaryMicro.highs.map((s) => s.price);
   } else {
     primaryCandidates = [
       ...primary.swingLows.map((s) => s.price),
+      ...primarySwings.lows.map((s) => s.price),
       primary.range?.low,
     ];
 
     secondaryCandidates = [
       ...secondary.swingLows.map((s) => s.price),
+      ...secondarySwings.lows.map((s) => s.price),
       secondary.range?.low,
     ];
+
+    primaryMicroCandidates = primaryMicro.lows.map((s) => s.price);
+    secondaryMicroCandidates = secondaryMicro.lows.map((s) => s.price);
   }
 
   const normalize = (candidates) =>
     uniquePrices(
       candidates
+        .filter((price) => Number.isFinite(price))
         .filter((price) => isCorrectTarget(direction, entry, price))
         .map((price) => round(price))
         .filter(Number.isFinite)
@@ -729,7 +753,9 @@ function findTargets(direction, entry, targetCandles, secondaryCandles) {
 
   return {
     primary: normalize(primaryCandidates),
+    primaryMicro: normalize(primaryMicroCandidates),
     secondary: normalize(secondaryCandidates),
+    secondaryMicro: normalize(secondaryMicroCandidates),
   };
 }
 
@@ -786,44 +812,102 @@ function buildTradePlan(
     secondary
   );
 
-  const validTP1Targets = targets.primary.filter((price) => {
-    const reward = Math.abs(price - entry);
+  // TP1 mesti sah dan memenuhi RR minimum.
+  const isValidTP1 = (price) => {
+    if (!isCorrectTarget(direction, entry, price)) return false;
+
+    const reward = round(Math.abs(price - entry));
 
     return (
-      isCorrectTarget(direction, entry, price) &&
-      reward >= risk * config.minimumRR1 &&
+      Number.isFinite(reward) &&
+      reward > 0 &&
       reward <= config.maxTargetDistance &&
       reward / risk >= config.minimumRR1
     );
-  });
+  };
 
-  const tp1 = validTP1Targets[0] ?? null;
+  // Utamakan struktur utama untuk TP1.
+  const primaryTP1 = targets.primary.find(isValidTP1);
+
+  // Jika perlu, cuba swing alternatif timeframe TP1.
+  const microTP1 = primaryTP1 === undefined
+    ? targets.primaryMicro.find(isValidTP1)
+    : undefined;
+
+  const tp1 = primaryTP1 ?? microTP1 ?? null;
 
   if (tp1 === null) {
     return invalidPlan(
-      "Tiada TP1 struktur timeframe utama yang memenuhi syarat risk/reward."
+      "TP1 belum ditemui pada struktur utama atau swing alternatif."
     );
   }
 
   const reward1 = round(Math.abs(tp1 - entry));
   const rr1 = round(reward1 / risk);
 
-  const validTP2Targets = targets.secondary.filter((price) => {
-    const separation = Math.abs(price - tp1);
-    const reward = Math.abs(price - entry);
+  /*
+   * TP2 menggunakan timeframe secondary yang dibekalkan:
+   * Scalping: secondary M15.
+   * Intraday: secondary H1.
+   *
+   * Utamakan sasaran yang memenuhi RR2.
+   * Jika tiada, cari struktur timeframe TP2 alternatif yang sah,
+   * berasingan daripada TP1 dan dalam had jarak sasaran.
+   */
+
+  const isValidTP2 = (price) => {
+    if (!isCorrectTarget(direction, tp1, price)) return false;
+    if (!isCorrectTarget(direction, entry, price)) return false;
+
+    const separation = round(Math.abs(price - tp1));
+    const reward = round(Math.abs(price - entry));
 
     return (
-      isCorrectTarget(direction, tp1, price) &&
-      separation >= config.minimumTPSeparation &&
-      reward >= risk * config.minimumRR2 &&
+      Number.isFinite(reward) &&
+      reward > 0 &&
       reward <= config.maxTargetDistance &&
+      separation >= config.minimumTPSeparation &&
       reward / risk >= config.minimumRR2
     );
-  });
+  };
 
-  const tp2 = validTP2Targets[0] ?? null;
+  let tp2 = targets.secondary.find(isValidTP2);
 
-  if (tp2 === null) {
+  if (tp2 === undefined) {
+    tp2 = targets.secondaryMicro.find(isValidTP2);
+  }
+
+  /*
+   * Fallback struktur:
+   * Jika RR2 minimum tidak dicapai oleh mana-mana sasaran,
+   * cuba sasaran struktur timeframe TP2 lain yang sah.
+   * Harga TP tidak direka atau ditetapkan secara rawak.
+   */
+
+  const isValidStructuralFallback = (price) => {
+    if (!isCorrectTarget(direction, tp1, price)) return false;
+    if (!isCorrectTarget(direction, entry, price)) return false;
+
+    const separation = round(Math.abs(price - tp1));
+    const reward = round(Math.abs(price - entry));
+
+    return (
+      Number.isFinite(reward) &&
+      reward > 0 &&
+      reward <= config.maxTargetDistance &&
+      separation >= config.minimumTPSeparation
+    );
+  };
+
+  if (tp2 === undefined) {
+    tp2 = targets.secondary.find(isValidStructuralFallback);
+  }
+
+  if (tp2 === undefined) {
+    tp2 = targets.secondaryMicro.find(isValidStructuralFallback);
+  }
+
+  if (tp2 === undefined) {
     return {
       valid: true,
       entry,
@@ -835,7 +919,8 @@ function buildTradePlan(
       reward2: null,
       rr1,
       rr2: null,
-      reason: "TP1 sah; TP2 daripada timeframe kedua belum memenuhi syarat.",
+      reason:
+        "TP1 sah; tiada sasaran struktur kedua yang berasingan dan sah dalam data timeframe TP2.",
     };
   }
 
@@ -1446,10 +1531,10 @@ function buildSetup({
   );
 
   /*
-   * REENTRY CHANGE:
-   * Setup baharu tidak ditolak semata-mata kerana CMP sudah
-   * bergerak melepasi TP1 yang dikira daripada struktur semasa.
-   * Lock lama tetap disemak berasingan oleh Supabase.
+   * Setup boleh READY walaupun zone masih WATCH.
+   * READY tetap memerlukan zone sah, kebenaran signal,
+   * trade plan sah, TP1 sah dan score minimum dipenuhi.
+   * Status WATCH sahaja bukan sebab untuk menyekat READY.
    */
   const status =
     zone.valid &&
@@ -1553,10 +1638,12 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
     context.m5
   );
 
+  // TP1: Scalping M5; Intraday M15.
   const targetPrimary = setup.mode === "scalping"
     ? context.m5
     : context.m15;
 
+  // TP2: Scalping M15; Intraday H1.
   const targetSecondary = setup.mode === "scalping"
     ? context.m15
     : context.h1;
@@ -1582,6 +1669,7 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
     entryStructure
   );
 
+  // Sama seperti setup biasa: WATCH tidak menyekat READY dengan sendirinya.
   const status =
     modeZone.valid &&
     modeZone.allowSignal !== false &&
@@ -1819,23 +1907,6 @@ function chooseTrendOrRetracement({
 MAIN SIGNAL SELECTION — SCALPING VS INTRADAY
 ========================================================= */
 
-/*
- * Pilih signal utama berdasarkan kualiti setup, bukan berdasarkan
- * keutamaan tetap Intraday atau Scalping.
- *
- * Susunan keutamaan:
- * 1. Status zon: IN_ZONE > APPROACHING > WATCH.
- * 2. Jarak CMP ke zon: lebih dekat diutamakan.
- * 3. Kekuatan sumber zon.
- * 4. Trend timeframe entry sepadan dengan arah setup.
- * 5. Trend H1 sepadan dengan arah setup.
- * 6. Score menjadi pemutus seri terakhir.
- *
- * Hanya setup READY dengan zone dan trade plan yang sah layak dipilih.
- * Jika hanya satu setup layak, pilih setup tersebut.
- * Jika tiada setup layak, pulangkan null supaya main signal kekal WAIT.
- */
-
 function chooseMainSetup(scalping, intraday) {
   const candidates = [scalping, intraday].filter(
     (setup) =>
@@ -1887,11 +1958,9 @@ function chooseMainSetup(scalping, intraday) {
   }
 
   candidates.sort((a, b) => {
-    // 1. Zon yang paling hampir dengan CMP dari segi status.
     const statusDifference = statusRank(a) - statusRank(b);
     if (statusDifference !== 0) return statusDifference;
 
-    // 2. Jarak CMP ke zon. Beza <= $0.25 dianggap seri.
     const distanceA = Number.isFinite(a.zone?.distance)
       ? a.zone.distance
       : Infinity;
@@ -1904,24 +1973,20 @@ function chooseMainSetup(scalping, intraday) {
       return distanceA - distanceB;
     }
 
-    // 3. Kekuatan sumber zon struktur.
     const sourceDifference =
       zoneSourceRank(b) - zoneSourceRank(a);
 
     if (sourceDifference !== 0) return sourceDifference;
 
-    // 4. Trend timeframe entry sepadan dengan arah setup.
     const structureDifference =
       structureMatch(b) - structureMatch(a);
 
     if (structureDifference !== 0) return structureDifference;
 
-    // 5. Trend H1 sepadan dengan arah setup.
     const h1Difference = h1Match(b) - h1Match(a);
 
     if (h1Difference !== 0) return h1Difference;
 
-    // 6. Score hanya menjadi pemutus seri terakhir.
     const scoreA = Number.isFinite(a.score) ? a.score : 0;
     const scoreB = Number.isFinite(b.score) ? b.score : 0;
 
@@ -2099,7 +2164,10 @@ module.exports = async function handler(req, res) {
       trendH1: h1Trend,
       entryCandles: m15,
       targetCandles: m15,
+
+      // BETUL: TP2 Intraday menggunakan struktur H1.
       secondaryCandles: h1,
+
       stopCandles: m15,
       fallbackStopCandles: m5,
       entryStructure: m15Structure,
@@ -2113,7 +2181,10 @@ module.exports = async function handler(req, res) {
       trendH1: h1Trend,
       entryCandles: m15,
       targetCandles: m15,
+
+      // BETUL: TP2 Intraday menggunakan struktur H1.
       secondaryCandles: h1,
+
       stopCandles: m15,
       fallbackStopCandles: m5,
       entryStructure: m15Structure,

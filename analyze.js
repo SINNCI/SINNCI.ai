@@ -826,38 +826,40 @@ function buildTradePlan(
     );
   };
 
-  // Utamakan struktur utama untuk TP1.
-  const primaryTP1 = targets.primary.find(isValidTP1);
+  /*
+   * Kekalkan keutamaan TP1:
+   * 1. Struktur utama timeframe TP1.
+   * 2. Swing micro timeframe TP1.
+   *
+   * Semua calon TP1 yang sah disimpan supaya sistem boleh mencuba
+   * pasangan TP1/TP2 yang lain jika calon pertama tiada TP2 sesuai.
+   */
+  const tp1Candidates = uniquePrices([
+    ...targets.primary,
+    ...targets.primaryMicro,
+  ]).filter(isValidTP1);
 
-  // Jika perlu, cuba swing alternatif timeframe TP1.
-  const microTP1 = primaryTP1 === undefined
-    ? targets.primaryMicro.find(isValidTP1)
-    : undefined;
-
-  const tp1 = primaryTP1 ?? microTP1 ?? null;
-
-  if (tp1 === null) {
+  if (!tp1Candidates.length) {
     return invalidPlan(
       "TP1 belum ditemui pada struktur utama atau swing alternatif."
     );
   }
-
-  const reward1 = round(Math.abs(tp1 - entry));
-  const rr1 = round(reward1 / risk);
 
   /*
    * TP2 menggunakan timeframe secondary yang dibekalkan:
    * Scalping: secondary M15.
    * Intraday: secondary H1.
    *
-   * Utamakan sasaran yang memenuhi RR2.
-   * Jika tiada, cari struktur timeframe TP2 alternatif yang sah,
-   * berasingan daripada TP1 dan dalam had jarak sasaran.
+   * Utamakan swing struktur utama TP2, kemudian swing micro TP2.
    */
+  const tp2Candidates = uniquePrices([
+    ...targets.secondary,
+    ...targets.secondaryMicro,
+  ]);
 
-  const isValidTP2 = (price) => {
-    if (!isCorrectTarget(direction, tp1, price)) return false;
+  const isValidTP2 = (tp1, price) => {
     if (!isCorrectTarget(direction, entry, price)) return false;
+    if (!isCorrectTarget(direction, tp1, price)) return false;
 
     const separation = round(Math.abs(price - tp1));
     const reward = round(Math.abs(price - entry));
@@ -871,22 +873,16 @@ function buildTradePlan(
     );
   };
 
-  let tp2 = targets.secondary.find(isValidTP2);
-
-  if (tp2 === undefined) {
-    tp2 = targets.secondaryMicro.find(isValidTP2);
-  }
-
   /*
    * Fallback struktur:
-   * Jika RR2 minimum tidak dicapai oleh mana-mana sasaran,
-   * cuba sasaran struktur timeframe TP2 lain yang sah.
-   * Harga TP tidak direka atau ditetapkan secara rawak.
+   * TP2 masih perlu berada pada arah sasaran yang betul,
+   * melepasi TP1, berasingan daripada TP1 dan dalam had jarak.
+   * Jika RR2 minimum tidak tercapai, sistem masih boleh memilih
+   * sasaran struktur yang sah tanpa mereka harga sasaran sendiri.
    */
-
-  const isValidStructuralFallback = (price) => {
-    if (!isCorrectTarget(direction, tp1, price)) return false;
+  const isValidStructuralFallback = (tp1, price) => {
     if (!isCorrectTarget(direction, entry, price)) return false;
+    if (!isCorrectTarget(direction, tp1, price)) return false;
 
     const separation = round(Math.abs(price - tp1));
     const reward = round(Math.abs(price - entry));
@@ -899,20 +895,68 @@ function buildTradePlan(
     );
   };
 
-  if (tp2 === undefined) {
-    tp2 = targets.secondary.find(isValidStructuralFallback);
+  let selectedTP1 = null;
+  let selectedTP2 = null;
+
+  /*
+   * PERUBAHAN:
+   * Cuba setiap TP1 yang sah sehingga pasangan TP1/TP2 memenuhi
+   * RR2 minimum. Ini mengelakkan TP1 pertama dipilih terlalu awal
+   * sedangkan TP1 lain mungkin mempunyai TP2 struktur yang sesuai.
+   */
+  for (const candidateTP1 of tp1Candidates) {
+    const candidateTP2 = tp2Candidates.find(
+      (price) => isValidTP2(candidateTP1, price)
+    );
+
+    if (candidateTP2 !== undefined) {
+      selectedTP1 = candidateTP1;
+      selectedTP2 = candidateTP2;
+      break;
+    }
   }
 
-  if (tp2 === undefined) {
-    tp2 = targets.secondaryMicro.find(isValidStructuralFallback);
+  /*
+   * Jika tiada pasangan yang mencapai RR2 minimum,
+   * cuba semua TP1 sekali lagi menggunakan fallback struktur.
+   */
+  if (selectedTP1 === null) {
+    for (const candidateTP1 of tp1Candidates) {
+      const candidateTP2 = tp2Candidates.find(
+        (price) => isValidStructuralFallback(candidateTP1, price)
+      );
+
+      if (candidateTP2 !== undefined) {
+        selectedTP1 = candidateTP1;
+        selectedTP2 = candidateTP2;
+        break;
+      }
+    }
   }
 
-  if (tp2 === undefined) {
+  /*
+   * Jika tiada TP2 struktur yang sah, kekalkan TP1 terbaik yang
+   * memenuhi syarat asal dan pulangkan TP2 sebagai null.
+   */
+  if (selectedTP1 === null) {
+    selectedTP1 = tp1Candidates[0] ?? null;
+  }
+
+  if (selectedTP1 === null) {
+    return invalidPlan(
+      "TP1 belum ditemui pada struktur utama atau swing alternatif."
+    );
+  }
+
+  const reward1 = round(Math.abs(selectedTP1 - entry));
+  const rr1 = round(reward1 / risk);
+
+  if (selectedTP2 === null) {
     return {
       valid: true,
       entry,
       sl,
-      tp1,
+      tp1: selectedTP1,
       tp2: null,
       risk,
       reward1,
@@ -924,14 +968,14 @@ function buildTradePlan(
     };
   }
 
-  const reward2 = round(Math.abs(tp2 - entry));
+  const reward2 = round(Math.abs(selectedTP2 - entry));
 
   return {
     valid: true,
     entry,
     sl,
-    tp1,
-    tp2,
+    tp1: selectedTP1,
+    tp2: selectedTP2,
     risk,
     reward1,
     reward2,

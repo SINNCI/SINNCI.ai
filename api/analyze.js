@@ -10,7 +10,7 @@
  * M15 = intraday entry structure.
  *
  * Zone width: $3.50 total.
- * SL: $2.00 outside the relevant zone edge.
+ * SL: $2.50 outside the relevant zone edge.
  * Scalping TP1: M5 structure; TP2: M15 structure.
  * Intraday TP1: M15 structure; TP2: H1 structure.
  */
@@ -19,7 +19,7 @@ const SETTINGS = {
   symbol: "XAU/USD",
   point: 0.01,
   zoneThickness: 3.50,
-  stopBuffer: 2.00,
+  stopBuffer: 2.50,
   priorityDistance: 3.00,
   approachDistance: 3.00,
   candleCount: 50,
@@ -650,8 +650,8 @@ function buildStructuralStop(
 
   const buy = isBuy(direction);
 
-  // BUY: $2.00 below the lower edge of the zone.
-  // SELL: $2.00 above the upper edge of the zone.
+  // BUY: $2.50 below the lower edge of the zone.
+  // SELL: $2.50 above the upper edge of the zone.
   const candidate = buy
     ? round(zone.low - SETTINGS.stopBuffer)
     : round(zone.high + SETTINGS.stopBuffer);
@@ -1816,6 +1816,124 @@ function chooseTrendOrRetracement({
 }
 
 /* =========================================================
+MAIN SIGNAL SELECTION — SCALPING VS INTRADAY
+========================================================= */
+
+/*
+ * Pilih signal utama berdasarkan kualiti setup, bukan berdasarkan
+ * keutamaan tetap Intraday atau Scalping.
+ *
+ * Susunan keutamaan:
+ * 1. Status zon: IN_ZONE > APPROACHING > WATCH.
+ * 2. Jarak CMP ke zon: lebih dekat diutamakan.
+ * 3. Kekuatan sumber zon.
+ * 4. Trend timeframe entry sepadan dengan arah setup.
+ * 5. Trend H1 sepadan dengan arah setup.
+ * 6. Score menjadi pemutus seri terakhir.
+ *
+ * Hanya setup READY dengan zone dan trade plan yang sah layak dipilih.
+ * Jika hanya satu setup layak, pilih setup tersebut.
+ * Jika tiada setup layak, pulangkan null supaya main signal kekal WAIT.
+ */
+
+function chooseMainSetup(scalping, intraday) {
+  const candidates = [scalping, intraday].filter(
+    (setup) =>
+      setup &&
+      setup.status === "READY" &&
+      setup.zone?.valid === true &&
+      setup.plan?.valid === true &&
+      Number.isFinite(setup.plan.tp1)
+  );
+
+  if (!candidates.length) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  function statusRank(setup) {
+    if (setup.zone?.status === "IN_ZONE") return 0;
+    if (setup.zone?.status === "APPROACHING") return 1;
+    return 2;
+  }
+
+  function structureMatch(setup) {
+    return directionFromTrend(setup.trend?.entry) === setup.direction
+      ? 1
+      : 0;
+  }
+
+  function h1Match(setup) {
+    return directionFromTrend(setup.trend?.h1) === setup.direction
+      ? 1
+      : 0;
+  }
+
+  function zoneSourceRank(setup) {
+    const source = setup.zone?.source || "";
+
+    if (source.includes("RETEST")) return 3;
+
+    if (
+      source === "SNR_SUPPORT" ||
+      source === "SNR_RESISTANCE" ||
+      source === "SIDEWAY_SUPPORT" ||
+      source === "SIDEWAY_RESISTANCE"
+    ) {
+      return 2;
+    }
+
+    if (source === "EMA20_REENTRY") return 1;
+
+    return 0;
+  }
+
+  candidates.sort((a, b) => {
+    // 1. Zon yang paling hampir dengan CMP dari segi status.
+    const statusDifference = statusRank(a) - statusRank(b);
+    if (statusDifference !== 0) return statusDifference;
+
+    // 2. Jarak CMP ke zon. Beza <= $0.25 dianggap seri.
+    const distanceA = Number.isFinite(a.zone?.distance)
+      ? a.zone.distance
+      : Infinity;
+
+    const distanceB = Number.isFinite(b.zone?.distance)
+      ? b.zone.distance
+      : Infinity;
+
+    if (Math.abs(distanceA - distanceB) > 0.25) {
+      return distanceA - distanceB;
+    }
+
+    // 3. Kekuatan sumber zon struktur.
+    const sourceDifference =
+      zoneSourceRank(b) - zoneSourceRank(a);
+
+    if (sourceDifference !== 0) return sourceDifference;
+
+    // 4. Trend timeframe entry sepadan dengan arah setup.
+    const structureDifference =
+      structureMatch(b) - structureMatch(a);
+
+    if (structureDifference !== 0) return structureDifference;
+
+    // 5. Trend H1 sepadan dengan arah setup.
+    const h1Difference = h1Match(b) - h1Match(a);
+
+    if (h1Difference !== 0) return h1Difference;
+
+    // 6. Score hanya menjadi pemutus seri terakhir.
+    const scoreA = Number.isFinite(a.score) ? a.score : 0;
+    const scoreB = Number.isFinite(b.score) ? b.score : 0;
+
+    if (scoreB !== scoreA) return scoreB - scoreA;
+
+    return 0;
+  });
+
+  return candidates[0];
+}
+
+/* =========================================================
 SAVE LOCK — DO NOT REACTIVATE TERMINAL SETUP IDS
 ========================================================= */
 
@@ -2128,12 +2246,9 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    const mainSetup =
-      intraday.status === "READY"
-        ? intraday
-        : scalping.status === "READY"
-          ? scalping
-          : null;
+    // MAIN SIGNAL: pilih setup terbaik daripada Scalping dan Intraday.
+    // Tiada lagi keutamaan automatik kepada Intraday.
+    const mainSetup = chooseMainSetup(scalping, intraday);
 
     const mainSignal = mainSetup ? mainSetup.direction : "WAIT";
 

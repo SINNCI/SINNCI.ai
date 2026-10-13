@@ -689,7 +689,25 @@ function buildStructuralStop(
 STRUCTURAL TARGET CANDIDATES
 ========================================================= */
 
-function findTargets(direction, entry, targetCandles, secondaryCandles) {
+/*
+ * Perubahan TP2 Intraday:
+ *
+ * Scalping:
+ * - TP2 menggunakan struktur M15 dan swing micro M15 seperti asal.
+ *
+ * Intraday:
+ * - TP2 menggunakan struktur H1.
+ * - Tambahkan high tertinggi / low terendah dalam data H1 yang
+ *   diperiksa supaya paras hujung data tidak terlepas.
+ * - Calon micro swing H1 tidak digunakan untuk TP2 Intraday.
+ */
+function findTargets(
+  direction,
+  entry,
+  targetCandles,
+  secondaryCandles,
+  includeSecondaryExtremes = false
+) {
   const primaryCandles = targetCandles.slice(-40);
   const secondaryData = secondaryCandles.slice(-40);
 
@@ -722,6 +740,16 @@ function findTargets(direction, entry, targetCandles, secondaryCandles) {
       secondary.range?.high,
     ];
 
+    /*
+     * Intraday BUY:
+     * Sertakan paras high tertinggi daripada data H1 yang diperiksa.
+     */
+    if (includeSecondaryExtremes && secondaryData.length) {
+      secondaryCandidates.push(
+        Math.max(...secondaryData.map((c) => c.high))
+      );
+    }
+
     primaryMicroCandidates = primaryMicro.highs.map((s) => s.price);
     secondaryMicroCandidates = secondaryMicro.highs.map((s) => s.price);
   } else {
@@ -736,6 +764,16 @@ function findTargets(direction, entry, targetCandles, secondaryCandles) {
       ...secondarySwings.lows.map((s) => s.price),
       secondary.range?.low,
     ];
+
+    /*
+     * Intraday SELL:
+     * Sertakan paras low terendah daripada data H1 yang diperiksa.
+     */
+    if (includeSecondaryExtremes && secondaryData.length) {
+      secondaryCandidates.push(
+        Math.min(...secondaryData.map((c) => c.low))
+      );
+    }
 
     primaryMicroCandidates = primaryMicro.lows.map((s) => s.price);
     secondaryMicroCandidates = secondaryMicro.lows.map((s) => s.price);
@@ -805,11 +843,14 @@ function buildTradePlan(
     return invalidPlan("Risiko SL tidak sah atau melebihi had.");
   }
 
+  const isIntraday = config === SETTINGS.intraday;
+
   const targets = findTargets(
     direction,
     entry,
     primary,
-    secondary
+    secondary,
+    isIntraday
   );
 
   // TP1 mesti sah dan memenuhi RR minimum.
@@ -846,17 +887,25 @@ function buildTradePlan(
   }
 
   /*
-   * TP2 menggunakan timeframe secondary yang dibekalkan:
-   * Scalping: secondary M15.
-   * Intraday: secondary H1.
+   * TP2:
+   * Scalping = struktur M15 + swing micro M15.
+   * Intraday = struktur H1 sahaja, termasuk H1 high/low ekstrem.
    *
-   * Utamakan swing struktur utama TP2, kemudian swing micro TP2.
+   * Ini mengelakkan TP2 Intraday bergantung pada micro swing H1
+   * yang lebih kecil daripada struktur sasaran utama.
    */
-  const tp2Candidates = uniquePrices([
-    ...targets.secondary,
-    ...targets.secondaryMicro,
-  ]);
+  const tp2Candidates = isIntraday
+    ? uniquePrices(targets.secondary)
+    : uniquePrices([
+        ...targets.secondary,
+        ...targets.secondaryMicro,
+      ]);
 
+  /*
+   * Syarat TP2 dengan RR minimum.
+   *
+   * Digunakan sebagai pilihan pertama untuk kedua-dua mode.
+   */
   const isValidTP2 = (tp1, price) => {
     if (!isCorrectTarget(direction, entry, price)) return false;
     if (!isCorrectTarget(direction, tp1, price)) return false;
@@ -875,10 +924,15 @@ function buildTradePlan(
 
   /*
    * Fallback struktur:
-   * TP2 masih perlu berada pada arah sasaran yang betul,
-   * melepasi TP1, berasingan daripada TP1 dan dalam had jarak.
-   * Jika RR2 minimum tidak tercapai, sistem masih boleh memilih
-   * sasaran struktur yang sah tanpa mereka harga sasaran sendiri.
+   *
+   * Intraday boleh memilih struktur H1 yang sah walaupun RR2 kurang
+   * daripada 1.80, selagi:
+   * - arah sasaran betul;
+   * - TP2 melepasi TP1;
+   * - jarak TP1 ke TP2 sekurang-kurangnya $5;
+   * - jarak entry ke TP2 tidak melebihi $80.
+   *
+   * Scalping mengekalkan fallback asalnya.
    */
   const isValidStructuralFallback = (tp1, price) => {
     if (!isCorrectTarget(direction, entry, price)) return false;
@@ -899,10 +953,8 @@ function buildTradePlan(
   let selectedTP2 = null;
 
   /*
-   * PERUBAHAN:
    * Cuba setiap TP1 yang sah sehingga pasangan TP1/TP2 memenuhi
-   * RR2 minimum. Ini mengelakkan TP1 pertama dipilih terlalu awal
-   * sedangkan TP1 lain mungkin mempunyai TP2 struktur yang sesuai.
+   * RR2 minimum. Ini mengekalkan keutamaan sasaran RR yang baik.
    */
   for (const candidateTP1 of tp1Candidates) {
     const candidateTP2 = tp2Candidates.find(
@@ -917,8 +969,8 @@ function buildTradePlan(
   }
 
   /*
-   * Jika tiada pasangan yang mencapai RR2 minimum,
-   * cuba semua TP1 sekali lagi menggunakan fallback struktur.
+   * Jika tiada pasangan mencapai RR2 minimum, cuba fallback
+   * struktur yang sah tanpa mewajibkan RR2 minimum.
    */
   if (selectedTP1 === null) {
     for (const candidateTP1 of tp1Candidates) {
@@ -964,7 +1016,9 @@ function buildTradePlan(
       rr1,
       rr2: null,
       reason:
-        "TP1 sah; tiada sasaran struktur kedua yang berasingan dan sah dalam data timeframe TP2.",
+        isIntraday
+          ? "TP1 sah; tiada struktur H1 kedua yang memenuhi arah, jarak minimum dan had sasaran."
+          : "TP1 sah; tiada sasaran struktur kedua yang berasingan dan sah dalam data timeframe TP2.",
     };
   }
 
@@ -1436,7 +1490,6 @@ async function applyModeLock(
     }
 
     /*
-     * Perubahan utama:
      * Jika candle entry yang sudah tutup memecahkan sempadan zone,
      * batalkan lock lama supaya setup baharu boleh dinilai.
      */
@@ -2333,7 +2386,7 @@ module.exports = async function handler(req, res) {
       entryCandles: m15,
       targetCandles: m15,
 
-      // BETUL: TP2 Intraday menggunakan struktur H1.
+      // TP2 Intraday menggunakan struktur H1.
       secondaryCandles: h1,
 
       stopCandles: m15,
@@ -2350,7 +2403,7 @@ module.exports = async function handler(req, res) {
       entryCandles: m15,
       targetCandles: m15,
 
-      // BETUL: TP2 Intraday menggunakan struktur H1.
+      // TP2 Intraday menggunakan struktur H1.
       secondaryCandles: h1,
 
       stopCandles: m15,

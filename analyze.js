@@ -1070,7 +1070,7 @@ async function getRecentTerminalLocks(mode) {
     select: "setup_id,symbol,mode,direction,zone_low,zone_high,entry,stop_loss,tp1,tp2,source,status,updated_at",
     symbol: `eq.${SETTINGS.symbol}`,
     mode: `eq.${mode}`,
-    status: "in.(FAILED_SL_HIT,TP_HIT)",
+    status: "in.(FAILED_SL_HIT,TP_HIT,STRUCTURE_INVALIDATED)",
     order: "updated_at.desc",
     limit: "10",
   });
@@ -1103,6 +1103,7 @@ async function deactivateLock(lock, status = "INACTIVE") {
     "INACTIVE",
     "FAILED_SL_HIT",
     "TP_HIT",
+    "STRUCTURE_INVALIDATED",
   ];
 
   const finalStatus = allowedStatuses.includes(status)
@@ -1143,6 +1144,50 @@ function getLockTerminalStatus(lock, cmp) {
   } else if (direction === "SELL") {
     if (cmp >= sl) return "FAILED_SL_HIT";
     if (cmp <= tp1) return "TP_HIT";
+  }
+
+  return null;
+}
+
+/*
+ * STRUCTURE INVALIDATION
+ *
+ * Gunakan candle yang sudah tutup:
+ * - BUY: close M5/M15 di bawah zone_low.
+ * - SELL: close M5/M15 di atas zone_high.
+ *
+ * Candle terakhir tidak digunakan kerana mungkin masih terbentuk.
+ * Ini ialah pemeriksaan asas pecahan zone, bukan pengesahan semua
+ * jenis perubahan market structure.
+ */
+function getStructureInvalidationStatus(lock, entryCandles) {
+  if (!Array.isArray(entryCandles) || entryCandles.length < 2) {
+    return null;
+  }
+
+  const low = Number(lock.zone_low);
+  const high = Number(lock.zone_high);
+  const direction = lock.direction;
+
+  if (
+    !Number.isFinite(low) ||
+    !Number.isFinite(high) ||
+    high <= low
+  ) {
+    return "STRUCTURE_INVALIDATED";
+  }
+
+  const lastClosed = entryCandles[entryCandles.length - 2];
+  const close = Number(lastClosed?.close);
+
+  if (!Number.isFinite(close)) return null;
+
+  if (direction === "BUY" && close < low) {
+    return "STRUCTURE_INVALIDATED";
+  }
+
+  if (direction === "SELL" && close > high) {
+    return "STRUCTURE_INVALIDATED";
   }
 
   return null;
@@ -1310,7 +1355,14 @@ function planFromLock(lock, mode, cmp) {
 APPLY MODE LOCK
 ========================================================= */
 
-async function applyModeLock(setups, mode, config, cmp, sideway) {
+async function applyModeLock(
+  setups,
+  mode,
+  config,
+  cmp,
+  sideway,
+  entryCandles
+) {
   if (!supabaseConfig()) {
     return {
       setups,
@@ -1335,6 +1387,74 @@ async function applyModeLock(setups, mode, config, cmp, sideway) {
         setups,
         activeLock: null,
         terminalStatuses,
+        error: null,
+      };
+    }
+
+    /*
+     * Perubahan utama:
+     * Jika candle entry yang sudah tutup memecahkan sempadan zone,
+     * batalkan lock lama supaya setup baharu boleh dinilai.
+     */
+    const structureStatus = getStructureInvalidationStatus(
+      active,
+      entryCandles
+    );
+
+    if (structureStatus) {
+      await deactivateLock(active, structureStatus);
+
+      const invalidatedSetup = {
+        setupId: active.setup_id,
+        mode: active.mode,
+        direction: active.direction,
+        status: structureStatus,
+        entry: Number(active.entry),
+        sl: Number(active.stop_loss),
+        tp1: Number(active.tp1),
+        tp2: active.tp2 == null ? null : Number(active.tp2),
+        zone: {
+          low: Number(active.zone_low),
+          high: Number(active.zone_high),
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      /*
+       * Elakkan setup dengan ID/zone yang sama terus muncul READY
+       * selepas lock itu dibatalkan. Zone baharu masih boleh dinilai.
+       */
+      const updatedSetups = setups.map((setup) => {
+        if (
+          setup.direction === active.direction &&
+          setup.zone?.valid &&
+          makeSetupId(mode, setup.direction, setup.zone) === active.setup_id
+        ) {
+          return {
+            ...setup,
+            status: "WAIT",
+            reason:
+              "Setup lama dibatalkan kerana candle entry telah memecahkan zone. Tunggu setup struktur baharu.",
+            signalLock: {
+              enabled: true,
+              persisted: false,
+              reused: false,
+              setupId: active.setup_id,
+              reason: structureStatus,
+            },
+          };
+        }
+
+        return setup;
+      });
+
+      return {
+        setups: updatedSetups,
+        activeLock: null,
+        terminalStatuses: [
+          ...terminalStatuses,
+          invalidatedSetup,
+        ],
         error: null,
       };
     }
@@ -2032,7 +2152,11 @@ async function saveLock(setup, mode) {
 
     if (
       existing &&
-      ["FAILED_SL_HIT", "TP_HIT"].includes(existing.status)
+      [
+        "FAILED_SL_HIT",
+        "TP_HIT",
+        "STRUCTURE_INVALIDATED",
+      ].includes(existing.status)
     ) {
       return notSaved(
         `Setup ini telah tamat dengan status ${existing.status}; ID sama tidak diaktifkan semula.`,
@@ -2196,7 +2320,8 @@ module.exports = async function handler(req, res) {
       "scalping",
       SETTINGS.scalping,
       cmp,
-      m5Structure.sideway
+      m5Structure.sideway,
+      m5
     );
 
     [scalpBuy, scalpSell] = scalpLockResult.setups;
@@ -2206,7 +2331,8 @@ module.exports = async function handler(req, res) {
       "intraday",
       SETTINGS.intraday,
       cmp,
-      m15Structure.sideway
+      m15Structure.sideway,
+      m15
     );
 
     [intraBuy, intraSell] = intraLockResult.setups;

@@ -483,9 +483,129 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   let reason = null;
 
   /*
-   * BREAKOUT RETEST:
-   * Gunakan sempadan julat yang ditembusi sebagai zon retest.
-   * Harga tidak perlu kembali ke CMP untuk menghasilkan zon.
+   * HISTORICAL BREAKOUT RETEST
+   *
+   * Cari breakout pada candle terdahulu, bukan candle terakhir
+   * sahaja. Paras rujukan diambil daripada julat 20 candle
+   * sebelum candle breakout.
+   *
+   * SELL:
+   * - Candle breakout tutup di bawah support sebelumnya.
+   * - CMP masih di bawah support tersebut.
+   * - Tiada candle selepas breakout yang tutup semula di atas
+   *   paras support yang ditembusi.
+   *
+   * BUY:
+   * - Candle breakout tutup di atas resistance sebelumnya.
+   * - CMP masih di atas resistance tersebut.
+   * - Tiada candle selepas breakout yang tutup semula di bawah
+   *   paras resistance yang ditembusi.
+   *
+   * Candle selepas breakout dibenarkan menguji paras melalui
+   * wick selagi candle tersebut tidak menutup semula melintasi
+   * paras breakout.
+   */
+  function findHistoricalBreakout() {
+    const lookback = SETTINGS.sideway.lookback;
+    const buffer = SETTINGS.sideway.breakoutBuffer;
+
+    if (recent.length <= lookback) return null;
+
+    /*
+     * Semak dari candle terbaru ke candle lebih lama supaya
+     * breakout sah yang paling terkini mendapat keutamaan.
+     */
+    for (let i = recent.length - 1; i >= lookback; i--) {
+      const breakoutCandle = recent[i];
+      const previousCandle = recent[i - 1];
+
+      const priorCandles = recent.slice(i - lookback, i);
+
+      if (priorCandles.length !== lookback) continue;
+
+      const rangeHigh = Math.max(
+        ...priorCandles.map((c) => c.high)
+      );
+
+      const rangeLow = Math.min(
+        ...priorCandles.map((c) => c.low)
+      );
+
+      if (buy) {
+        const brokeResistance =
+          breakoutCandle.close > rangeHigh + buffer &&
+          breakoutCandle.close > previousCandle.high;
+
+        if (!brokeResistance) continue;
+
+        const pivotPrice = round(rangeHigh);
+
+        /*
+         * Pastikan CMP masih di atas resistance yang ditembusi.
+         * Jika harga sudah kembali di bawahnya, breakout ini
+         * tidak digunakan sebagai reentry BUY.
+         */
+        if (!Number.isFinite(cmp) || cmp <= pivotPrice) {
+          continue;
+        }
+
+        /*
+         * Abaikan breakout jika mana-mana candle selepas candle
+         * breakout telah tutup semula di bawah paras resistance.
+         */
+        const invalidated = recent
+          .slice(i + 1)
+          .some((c) => c.close < pivotPrice);
+
+        if (invalidated) continue;
+
+        return {
+          pivot: pivotPrice,
+          source: "BREAKOUT_RETEST_BUY",
+          breakoutTime: breakoutCandle.time,
+        };
+      }
+
+      const brokeSupport =
+        breakoutCandle.close < rangeLow - buffer &&
+        breakoutCandle.close < previousCandle.low;
+
+      if (!brokeSupport) continue;
+
+      const pivotPrice = round(rangeLow);
+
+      /*
+       * Pastikan CMP masih di bawah support yang ditembusi.
+       * Jika harga sudah kembali di atasnya, breakout ini
+       * tidak digunakan sebagai reentry SELL.
+       */
+      if (!Number.isFinite(cmp) || cmp >= pivotPrice) {
+        continue;
+      }
+
+      /*
+       * Abaikan breakout jika mana-mana candle selepas candle
+       * breakout telah tutup semula di atas paras support.
+       */
+      const invalidated = recent
+        .slice(i + 1)
+        .some((c) => c.close > pivotPrice);
+
+      if (invalidated) continue;
+
+      return {
+        pivot: pivotPrice,
+        source: "BREAKOUT_RETEST_SELL",
+        breakoutTime: breakoutCandle.time,
+      };
+    }
+
+    return null;
+  }
+
+  /*
+   * KEUTAMAAN 1:
+   * Kekalkan pengesanan breakout candle terkini seperti asal.
    */
   const breakoutRetestSell =
     sideway.range &&
@@ -503,7 +623,27 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   } else if (breakoutRetestBuy) {
     pivot = sideway.range.high;
     source = "BREAKOUT_RETEST_BUY";
-  } else if (sideway.isSideway && sideway.range) {
+  }
+
+  /*
+   * KEUTAMAAN 2:
+   * Jika candle terakhir bukan breakout, cari breakout sejarah
+   * yang masih sah dan gunakan paras asal sebagai pivot reentry.
+   */
+  if (pivot === null) {
+    const historicalBreakout = findHistoricalBreakout();
+
+    if (historicalBreakout) {
+      pivot = historicalBreakout.pivot;
+      source = historicalBreakout.source;
+    }
+  }
+
+  /*
+   * KEUTAMAAN 3:
+   * Jika tiada breakout yang sesuai, kekalkan logik sideway asal.
+   */
+  if (pivot === null && sideway.isSideway && sideway.range) {
     const isAtCorrectEdge = buy
       ? sideway.position === "SIDEWAY_SUPPORT"
       : sideway.position === "SIDEWAY_RESISTANCE";
@@ -519,7 +659,14 @@ function buildEarlyZone(candles, direction, cmp, mode) {
           ? "Sideway: tunggu harga menghampiri support untuk BUY."
           : "Sideway: tunggu harga menghampiri resistance untuk SELL.";
     }
-  } else {
+  }
+
+  /*
+   * KEUTAMAAN 4:
+   * Kekalkan pemilihan swing / EMA20 / range edge asal jika
+   * tiada breakout sejarah atau setup sideway yang boleh dipakai.
+   */
+  if (pivot === null && !sideway.isSideway) {
     const relevantSwings = buy ? swings.lows : swings.highs;
 
     const candidates = relevantSwings
@@ -576,6 +723,11 @@ function buildEarlyZone(candles, direction, cmp, mode) {
     };
   }
 
+  /*
+   * PENTING:
+   * Lebar zone tidak diubah.
+   * SETTINGS.zoneThickness = $3.50 jumlah keseluruhan.
+   */
   const half = SETTINGS.zoneThickness / 2;
   const low = round(pivot - half);
   const high = round(pivot + half);

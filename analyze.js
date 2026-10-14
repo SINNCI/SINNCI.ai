@@ -10,6 +10,7 @@
  * M15 = intraday entry structure.
  *
  * Zone width: $3.50 total.
+ * Zone offset: $1.00 beyond support/resistance.
  * SL: $2.50 outside the relevant zone edge.
  * Scalping TP1: M5 structure; TP2: M15 structure.
  * Intraday TP1: M15 structure; TP2: H1 structure.
@@ -19,6 +20,7 @@ const SETTINGS = {
   symbol: "XAU/USD",
   point: 0.01,
   zoneThickness: 3.50,
+  zoneOffset: 1.00,
   stopBuffer: 2.50,
   priorityDistance: 3.00,
   approachDistance: 3.00,
@@ -481,6 +483,105 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   let source = "SNR_RANGE_EDGE";
   let allowSignal = true;
   let reason = null;
+  let rejectionFound = false;
+
+  /*
+   * SHADOW REJECTION — KEUTAMAAN UTAMA
+   *
+   * BUY:
+   * - Cari rejection shadow bawah.
+   * - Low shadow menjadi rujukan support.
+   *
+   * SELL:
+   * - Cari rejection shadow atas.
+   * - High shadow menjadi rujukan resistance.
+   *
+   * Offset $1.00 dan lebar zone $3.50 akan digunakan
+   * selepas sumber pivot dipilih, sama ada shadow rejection
+   * atau sumber struktur alternatif.
+   */
+  function findShadowRejection() {
+    const candidates = [];
+
+    for (let i = 0; i < recent.length; i++) {
+      const candle = recent[i];
+
+      const body = Math.abs(candle.close - candle.open);
+      const upperWick =
+        candle.high - Math.max(candle.open, candle.close);
+      const lowerWick =
+        Math.min(candle.open, candle.close) - candle.low;
+
+      if (
+        !Number.isFinite(body) ||
+        !Number.isFinite(upperWick) ||
+        !Number.isFinite(lowerWick)
+      ) {
+        continue;
+      }
+
+      const minimumWick = Math.max(0.10, body * 0.50);
+
+      if (buy) {
+        const validLowerWick =
+          lowerWick >= minimumWick &&
+          lowerWick > upperWick;
+
+        if (!validLowerWick) continue;
+        if (candle.low >= cmp) continue;
+
+        candidates.push({
+          pivot: round(candle.low),
+          index: i,
+          wick: lowerWick,
+          body,
+          source: "SHADOW_REJECTION_BUY",
+        });
+      } else {
+        const validUpperWick =
+          upperWick >= minimumWick &&
+          upperWick > lowerWick;
+
+        if (!validUpperWick) continue;
+        if (candle.high <= cmp) continue;
+
+        candidates.push({
+          pivot: round(candle.high),
+          index: i,
+          wick: upperWick,
+          body,
+          source: "SHADOW_REJECTION_SELL",
+        });
+      }
+    }
+
+    if (!candidates.length) return null;
+
+    candidates.sort((a, b) => {
+      const distanceA = Math.abs(cmp - a.pivot);
+      const distanceB = Math.abs(cmp - b.pivot);
+
+      if (Math.abs(distanceA - distanceB) > 0.01) {
+        return distanceA - distanceB;
+      }
+
+      if (Math.abs(a.wick - b.wick) > 0.01) {
+        return b.wick - a.wick;
+      }
+
+      return b.index - a.index;
+    });
+
+    return candidates[0];
+  }
+
+  const shadowRejection = findShadowRejection();
+
+  if (shadowRejection) {
+    pivot = shadowRejection.pivot;
+    source = shadowRejection.source;
+    rejectionFound = true;
+  }
 
   /*
    * HISTORICAL BREAKOUT RETEST
@@ -488,22 +589,6 @@ function buildEarlyZone(candles, direction, cmp, mode) {
    * Cari breakout pada candle terdahulu, bukan candle terakhir
    * sahaja. Paras rujukan diambil daripada julat 20 candle
    * sebelum candle breakout.
-   *
-   * SELL:
-   * - Candle breakout tutup di bawah support sebelumnya.
-   * - CMP masih di bawah support tersebut.
-   * - Tiada candle selepas breakout yang tutup semula di atas
-   *   paras support yang ditembusi.
-   *
-   * BUY:
-   * - Candle breakout tutup di atas resistance sebelumnya.
-   * - CMP masih di atas resistance tersebut.
-   * - Tiada candle selepas breakout yang tutup semula di bawah
-   *   paras resistance yang ditembusi.
-   *
-   * Candle selepas breakout dibenarkan menguji paras melalui
-   * wick selagi candle tersebut tidak menutup semula melintasi
-   * paras breakout.
    */
   function findHistoricalBreakout() {
     const lookback = SETTINGS.sideway.lookback;
@@ -511,10 +596,6 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
     if (recent.length <= lookback) return null;
 
-    /*
-     * Semak dari candle terbaru ke candle lebih lama supaya
-     * breakout sah yang paling terkini mendapat keutamaan.
-     */
     for (let i = recent.length - 1; i >= lookback; i--) {
       const breakoutCandle = recent[i];
       const previousCandle = recent[i - 1];
@@ -540,19 +621,10 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
         const pivotPrice = round(rangeHigh);
 
-        /*
-         * Pastikan CMP masih di atas resistance yang ditembusi.
-         * Jika harga sudah kembali di bawahnya, breakout ini
-         * tidak digunakan sebagai reentry BUY.
-         */
         if (!Number.isFinite(cmp) || cmp <= pivotPrice) {
           continue;
         }
 
-        /*
-         * Abaikan breakout jika mana-mana candle selepas candle
-         * breakout telah tutup semula di bawah paras resistance.
-         */
         const invalidated = recent
           .slice(i + 1)
           .some((c) => c.close < pivotPrice);
@@ -574,19 +646,10 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
       const pivotPrice = round(rangeLow);
 
-      /*
-       * Pastikan CMP masih di bawah support yang ditembusi.
-       * Jika harga sudah kembali di atasnya, breakout ini
-       * tidak digunakan sebagai reentry SELL.
-       */
       if (!Number.isFinite(cmp) || cmp >= pivotPrice) {
         continue;
       }
 
-      /*
-       * Abaikan breakout jika mana-mana candle selepas candle
-       * breakout telah tutup semula di atas paras support.
-       */
       const invalidated = recent
         .slice(i + 1)
         .some((c) => c.close > pivotPrice);
@@ -605,30 +668,32 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
   /*
    * KEUTAMAAN 1:
-   * Kekalkan pengesanan breakout candle terkini seperti asal.
+   * Shadow rejection yang sah telah dipilih di atas.
+   * Jika tiada, periksa breakout candle terkini.
    */
-  const breakoutRetestSell =
-    sideway.range &&
-    sideway.position === "BREAKOUT_DOWN" &&
-    !buy;
+  if (pivot === null) {
+    const breakoutRetestSell =
+      sideway.range &&
+      sideway.position === "BREAKOUT_DOWN" &&
+      !buy;
 
-  const breakoutRetestBuy =
-    sideway.range &&
-    sideway.position === "BREAKOUT_UP" &&
-    buy;
+    const breakoutRetestBuy =
+      sideway.range &&
+      sideway.position === "BREAKOUT_UP" &&
+      buy;
 
-  if (breakoutRetestSell) {
-    pivot = sideway.range.low;
-    source = "BREAKOUT_RETEST_SELL";
-  } else if (breakoutRetestBuy) {
-    pivot = sideway.range.high;
-    source = "BREAKOUT_RETEST_BUY";
+    if (breakoutRetestSell) {
+      pivot = sideway.range.low;
+      source = "BREAKOUT_RETEST_SELL";
+    } else if (breakoutRetestBuy) {
+      pivot = sideway.range.high;
+      source = "BREAKOUT_RETEST_BUY";
+    }
   }
 
   /*
    * KEUTAMAAN 2:
-   * Jika candle terakhir bukan breakout, cari breakout sejarah
-   * yang masih sah dan gunakan paras asal sebagai pivot reentry.
+   * Jika tiada breakout terkini, cari breakout sejarah yang sah.
    */
   if (pivot === null) {
     const historicalBreakout = findHistoricalBreakout();
@@ -641,7 +706,8 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
   /*
    * KEUTAMAAN 3:
-   * Jika tiada breakout yang sesuai, kekalkan logik sideway asal.
+   * Jika tiada rejection atau breakout sesuai, kekalkan logik
+   * sideway asal.
    */
   if (pivot === null && sideway.isSideway && sideway.range) {
     const isAtCorrectEdge = buy
@@ -663,8 +729,7 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
   /*
    * KEUTAMAAN 4:
-   * Kekalkan pemilihan swing / EMA20 / range edge asal jika
-   * tiada breakout sejarah atau setup sideway yang boleh dipakai.
+   * Kekalkan pemilihan swing / EMA20 / range edge asal.
    */
   if (pivot === null && !sideway.isSideway) {
     const relevantSwings = buy ? swings.lows : swings.highs;
@@ -724,13 +789,39 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   }
 
   /*
-   * PENTING:
-   * Lebar zone tidak diubah.
-   * SETTINGS.zoneThickness = $3.50 jumlah keseluruhan.
+   * ZONE GEOMETRY — OFFSET $1.00
+   *
+   * Lebar zone kekal $3.50 keseluruhan.
+   *
+   * BUY:
+   * - Pivot ialah rujukan support atau low shadow.
+   * - Hujung atas zone = pivot - $1.00.
+   * - Hujung bawah zone = hujung atas - $3.50.
+   *
+   * SELL:
+   * - Pivot ialah rujukan resistance atau high shadow.
+   * - Hujung bawah zone = pivot + $1.00.
+   * - Hujung atas zone = hujung bawah + $3.50.
+   *
+   * Offset ini digunakan untuk semua sumber zone.
+   * Entry kekal di tengah zone.
    */
-  const half = SETTINGS.zoneThickness / 2;
-  const low = round(pivot - half);
-  const high = round(pivot + half);
+  const offset = SETTINGS.zoneOffset;
+  const thickness = SETTINGS.zoneThickness;
+
+  let low;
+  let high;
+
+  if (buy) {
+    high = round(pivot - offset);
+    low = round(high - thickness);
+  } else {
+    low = round(pivot + offset);
+    high = round(low + thickness);
+  }
+
+  const entry = round((low + high) / 2);
+
   let status = "WATCH";
 
   if (cmp >= low && cmp <= high) {
@@ -757,7 +848,7 @@ function buildEarlyZone(candles, direction, cmp, mode) {
       high > low,
     low,
     high,
-    entry: round(pivot),
+    entry,
     pivot: round(pivot),
     source,
     status,
@@ -866,11 +957,9 @@ function findTargets(
   const primary = buildStructure(primaryCandles);
   const secondary = buildStructure(secondaryData);
 
-  // Struktur swing utama yang disahkan menggunakan wing = 2.
   const primarySwings = findSwings(primaryCandles, 2);
   const secondarySwings = findSwings(secondaryData, 2);
 
-  // Swing alternatif yang lebih sensitif menggunakan wing = 1.
   const primaryMicro = findSwings(primaryCandles, 1);
   const secondaryMicro = findSwings(secondaryData, 1);
 
@@ -892,10 +981,6 @@ function findTargets(
       secondary.range?.high,
     ];
 
-    /*
-     * Intraday BUY:
-     * Sertakan paras high tertinggi daripada data H1 yang diperiksa.
-     */
     if (includeSecondaryExtremes && secondaryData.length) {
       secondaryCandidates.push(
         Math.max(...secondaryData.map((c) => c.high))
@@ -917,10 +1002,6 @@ function findTargets(
       secondary.range?.low,
     ];
 
-    /*
-     * Intraday SELL:
-     * Sertakan paras low terendah daripada data H1 yang diperiksa.
-     */
     if (includeSecondaryExtremes && secondaryData.length) {
       secondaryCandidates.push(
         Math.min(...secondaryData.map((c) => c.low))
@@ -1005,7 +1086,6 @@ function buildTradePlan(
     isIntraday
   );
 
-  // TP1 mesti sah dan memenuhi RR minimum.
   const isValidTP1 = (price) => {
     if (!isCorrectTarget(direction, entry, price)) return false;
 
@@ -1019,14 +1099,6 @@ function buildTradePlan(
     );
   };
 
-  /*
-   * Kekalkan keutamaan TP1:
-   * 1. Struktur utama timeframe TP1.
-   * 2. Swing micro timeframe TP1.
-   *
-   * Semua calon TP1 yang sah disimpan supaya sistem boleh mencuba
-   * pasangan TP1/TP2 yang lain jika calon pertama tiada TP2 sesuai.
-   */
   const tp1Candidates = uniquePrices([
     ...targets.primary,
     ...targets.primaryMicro,
@@ -1038,14 +1110,6 @@ function buildTradePlan(
     );
   }
 
-  /*
-   * TP2:
-   * Scalping = struktur M15 + swing micro M15.
-   * Intraday = struktur H1 sahaja, termasuk H1 high/low ekstrem.
-   *
-   * Ini mengelakkan TP2 Intraday bergantung pada micro swing H1
-   * yang lebih kecil daripada struktur sasaran utama.
-   */
   const tp2Candidates = isIntraday
     ? uniquePrices(targets.secondary)
     : uniquePrices([
@@ -1053,11 +1117,6 @@ function buildTradePlan(
         ...targets.secondaryMicro,
       ]);
 
-  /*
-   * Syarat TP2 dengan RR minimum.
-   *
-   * Digunakan sebagai pilihan pertama untuk kedua-dua mode.
-   */
   const isValidTP2 = (tp1, price) => {
     if (!isCorrectTarget(direction, entry, price)) return false;
     if (!isCorrectTarget(direction, tp1, price)) return false;
@@ -1074,18 +1133,6 @@ function buildTradePlan(
     );
   };
 
-  /*
-   * Fallback struktur:
-   *
-   * Intraday boleh memilih struktur H1 yang sah walaupun RR2 kurang
-   * daripada 1.80, selagi:
-   * - arah sasaran betul;
-   * - TP2 melepasi TP1;
-   * - jarak TP1 ke TP2 sekurang-kurangnya $5;
-   * - jarak entry ke TP2 tidak melebihi $80.
-   *
-   * Scalping mengekalkan fallback asalnya.
-   */
   const isValidStructuralFallback = (tp1, price) => {
     if (!isCorrectTarget(direction, entry, price)) return false;
     if (!isCorrectTarget(direction, tp1, price)) return false;
@@ -1104,10 +1151,6 @@ function buildTradePlan(
   let selectedTP1 = null;
   let selectedTP2 = null;
 
-  /*
-   * Cuba setiap TP1 yang sah sehingga pasangan TP1/TP2 memenuhi
-   * RR2 minimum. Ini mengekalkan keutamaan sasaran RR yang baik.
-   */
   for (const candidateTP1 of tp1Candidates) {
     const candidateTP2 = tp2Candidates.find(
       (price) => isValidTP2(candidateTP1, price)
@@ -1120,10 +1163,6 @@ function buildTradePlan(
     }
   }
 
-  /*
-   * Jika tiada pasangan mencapai RR2 minimum, cuba fallback
-   * struktur yang sah tanpa mewajibkan RR2 minimum.
-   */
   if (selectedTP1 === null) {
     for (const candidateTP1 of tp1Candidates) {
       const candidateTP2 = tp2Candidates.find(
@@ -1138,10 +1177,6 @@ function buildTradePlan(
     }
   }
 
-  /*
-   * Jika tiada TP2 struktur yang sah, kekalkan TP1 terbaik yang
-   * memenuhi syarat asal dan pulangkan TP2 sebagai null.
-   */
   if (selectedTP1 === null) {
     selectedTP1 = tp1Candidates[0] ?? null;
   }
@@ -1399,17 +1434,6 @@ function getLockTerminalStatus(lock, cmp) {
   return null;
 }
 
-/*
- * STRUCTURE INVALIDATION
- *
- * Gunakan candle yang sudah tutup:
- * - BUY: close M5/M15 di bawah zone_low.
- * - SELL: close M5/M15 di atas zone_high.
- *
- * Candle terakhir tidak digunakan kerana mungkin masih terbentuk.
- * Ini ialah pemeriksaan asas pecahan zone, bukan pengesahan semua
- * jenis perubahan market structure.
- */
 function getStructureInvalidationStatus(lock, entryCandles) {
   if (!Array.isArray(entryCandles) || entryCandles.length < 2) {
     return null;
@@ -1641,11 +1665,6 @@ async function applyModeLock(
       };
     }
 
-    /*
-     * Kekalkan pemeriksaan struktur asal.
-     * Lock hanya dibatalkan jika candle entry yang sudah tutup
-     * memecahkan sempadan zone asal.
-     */
     const structureStatus = getStructureInvalidationStatus(
       active,
       entryCandles
@@ -1707,17 +1726,6 @@ async function applyModeLock(
         error: null,
       };
     }
-
-    /*
-     * PEMBAIKAN LOCK LAMA:
-     *
-     * Jangan sekat lock aktif hanya kerana kedudukan sideway semasa
-     * atau setup baharu tidak lagi memenuhi allowSignal.
-     *
-     * Selagi lock lama masih aktif, belum tamat tempoh, belum
-     * mencapai SL/TP1 dan belum diinvalidasi oleh candle tertutup,
-     * gunakan zone serta pelan harga yang telah disimpan.
-     */
 
     const locked = planFromLock(active, mode, cmp);
 
@@ -1861,12 +1869,6 @@ function buildSetup({
     entryStructure
   );
 
-  /*
-   * Setup boleh READY walaupun zone masih WATCH.
-   * READY tetap memerlukan zone sah, kebenaran signal,
-   * trade plan sah, TP1 sah dan score minimum dipenuhi.
-   * Status WATCH sahaja bukan sebab untuk menyekat READY.
-   */
   const status =
     zone.valid &&
     zone.allowSignal !== false &&
@@ -1916,11 +1918,6 @@ function sameUnderlyingSetup(scalping, intraday) {
   const scalpZone = scalping.zone;
   const intraZone = intraday.zone;
 
-  /*
-   * Jangan mensyaratkan source sama.
-   * M5 dan M15 boleh mengenal pasti zon yang sama dengan label
-   * struktur berlainan, asalkan zon bertindih dan pivot dekat.
-   */
   const overlaps =
     scalpZone.low <= intraZone.high &&
     intraZone.low <= scalpZone.high;
@@ -1969,12 +1966,10 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
     context.m5
   );
 
-  // TP1: Scalping M5; Intraday M15.
   const targetPrimary = setup.mode === "scalping"
     ? context.m5
     : context.m15;
 
-  // TP2: Scalping M15; Intraday H1.
   const targetSecondary = setup.mode === "scalping"
     ? context.m15
     : context.h1;
@@ -2000,7 +1995,6 @@ function rebuildPlanForSharedZone(setup, sharedZone, context) {
     entryStructure
   );
 
-  // Sama seperti setup biasa: WATCH tidak menyekat READY dengan sendirinya.
   const status =
     modeZone.valid &&
     modeZone.allowSignal !== false &&
@@ -2072,11 +2066,6 @@ function synchronizeSharedSetup(scalping, intraday, context) {
     context
   );
 
-  /*
-   * Zone boleh dikongsi walaupun salah satu mode belum mempunyai
-   * pelan TP yang sah. Status READY setiap mode tetap bergantung
-   * pada pelan SL/TP masing-masing.
-   */
   return {
     scalping: nextScalping,
     intraday: nextIntraday,
@@ -2499,10 +2488,7 @@ module.exports = async function handler(req, res) {
       trendH1: h1Trend,
       entryCandles: m15,
       targetCandles: m15,
-
-      // TP2 Intraday menggunakan struktur H1.
       secondaryCandles: h1,
-
       stopCandles: m15,
       fallbackStopCandles: m5,
       entryStructure: m15Structure,
@@ -2516,10 +2502,7 @@ module.exports = async function handler(req, res) {
       trendH1: h1Trend,
       entryCandles: m15,
       targetCandles: m15,
-
-      // TP2 Intraday menggunakan struktur H1.
       secondaryCandles: h1,
-
       stopCandles: m15,
       fallbackStopCandles: m5,
       entryStructure: m15Structure,
@@ -2654,8 +2637,6 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // MAIN SIGNAL: pilih setup terbaik daripada Scalping dan Intraday.
-    // Tiada lagi keutamaan automatik kepada Intraday.
     const mainSetup = chooseMainSetup(scalping, intraday);
 
     const mainSignal = mainSetup ? mainSetup.direction : "WAIT";
@@ -2808,6 +2789,7 @@ module.exports = async function handler(req, res) {
 
       settings: {
         zoneThickness: SETTINGS.zoneThickness,
+        zoneOffset: SETTINGS.zoneOffset,
         stopBuffer: SETTINGS.stopBuffer,
         priorityDistance: SETTINGS.priorityDistance,
         approachDistance: SETTINGS.approachDistance,

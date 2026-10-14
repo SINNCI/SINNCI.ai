@@ -10,7 +10,7 @@
  * M15 = intraday entry structure.
  *
  * Zone width: $3.50 total.
- * Zone offset: $1.00 beyond support/resistance.
+ * Zone offset: $0.80 beyond support/resistance.
  * SL: $2.50 outside the relevant zone edge.
  * Scalping TP1: M5 structure; TP2: M15 structure.
  * Intraday TP1: M15 structure; TP2: H1 structure.
@@ -20,7 +20,7 @@ const SETTINGS = {
   symbol: "XAU/USD",
   point: 0.01,
   zoneThickness: 3.50,
-  zoneOffset: 1.00,
+  zoneOffset: 0.80,
   stopBuffer: 2.50,
   priorityDistance: 3.00,
   approachDistance: 3.00,
@@ -496,7 +496,7 @@ function buildEarlyZone(candles, direction, cmp, mode) {
    * - Cari rejection shadow atas.
    * - High shadow menjadi rujukan resistance.
    *
-   * Offset $1.00 dan lebar zone $3.50 akan digunakan
+   * Offset $0.80 dan lebar zone $3.50 akan digunakan
    * selepas sumber pivot dipilih, sama ada shadow rejection
    * atau sumber struktur alternatif.
    */
@@ -789,18 +789,18 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   }
 
   /*
-   * ZONE GEOMETRY — OFFSET $1.00
+   * ZONE GEOMETRY — OFFSET $0.80
    *
    * Lebar zone kekal $3.50 keseluruhan.
    *
    * BUY:
    * - Pivot ialah rujukan support atau low shadow.
-   * - Hujung atas zone = pivot - $1.00.
+   * - Hujung atas zone = pivot - $0.80.
    * - Hujung bawah zone = hujung atas - $3.50.
    *
    * SELL:
    * - Pivot ialah rujukan resistance atau high shadow.
-   * - Hujung bawah zone = pivot + $1.00.
+   * - Hujung bawah zone = pivot + $0.80.
    * - Hujung atas zone = hujung bawah + $3.50.
    *
    * Offset ini digunakan untuk semua sumber zone.

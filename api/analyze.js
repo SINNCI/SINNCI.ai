@@ -1490,8 +1490,9 @@ async function applyModeLock(
     }
 
     /*
-     * Jika candle entry yang sudah tutup memecahkan sempadan zone,
-     * batalkan lock lama supaya setup baharu boleh dinilai.
+     * Kekalkan pemeriksaan struktur asal.
+     * Lock hanya dibatalkan jika candle entry yang sudah tutup
+     * memecahkan sempadan zone asal.
      */
     const structureStatus = getStructureInvalidationStatus(
       active,
@@ -1509,7 +1510,9 @@ async function applyModeLock(
         entry: Number(active.entry),
         sl: Number(active.stop_loss),
         tp1: Number(active.tp1),
-        tp2: active.tp2 == null ? null : Number(active.tp2),
+        tp2: active.tp2 == null
+          ? null
+          : Number(active.tp2),
         zone: {
           low: Number(active.zone_low),
           high: Number(active.zone_high),
@@ -1517,21 +1520,18 @@ async function applyModeLock(
         timestamp: new Date().toISOString(),
       };
 
-      /*
-       * Elakkan setup dengan ID/zone yang sama terus muncul READY
-       * selepas lock itu dibatalkan. Zone baharu masih boleh dinilai.
-       */
       const updatedSetups = setups.map((setup) => {
         if (
           setup.direction === active.direction &&
           setup.zone?.valid &&
-          makeSetupId(mode, setup.direction, setup.zone) === active.setup_id
+          makeSetupId(mode, setup.direction, setup.zone) ===
+            active.setup_id
         ) {
           return {
             ...setup,
             status: "WAIT",
             reason:
-              "Setup lama dibatalkan kerana candle entry telah memecahkan zone. Tunggu setup struktur baharu.",
+              "Setup lama dibatalkan kerana candle entry yang sudah tutup memecahkan zone. Tunggu setup struktur baharu.",
             signalLock: {
               enabled: true,
               persisted: false,
@@ -1556,41 +1556,16 @@ async function applyModeLock(
       };
     }
 
-    if (sideway?.isSideway) {
-      const correctEdge =
-        (sideway.position === "SIDEWAY_SUPPORT" &&
-          active.direction === "BUY") ||
-        (sideway.position === "SIDEWAY_RESISTANCE" &&
-          active.direction === "SELL");
-
-      if (!correctEdge) {
-        const blockedReason =
-          sideway.position === "SIDEWAY_MID"
-            ? "Sideway: setup lock tidak boleh mengaktifkan signal di tengah range."
-            : sideway.position === "SIDEWAY_SUPPORT"
-              ? "Sideway: BUY sahaja dibenarkan di kawasan support."
-              : "Sideway: SELL sahaja dibenarkan di kawasan resistance.";
-
-        return {
-          setups: setups.map((setup) => ({
-            ...setup,
-            status: "WAIT",
-            sidewayBlocked: true,
-            reason: blockedReason,
-            signalLock: {
-              ...setup.signalLock,
-              enabled: true,
-              persisted: false,
-              reused: false,
-              reason: blockedReason,
-            },
-          })),
-          activeLock: null,
-          terminalStatuses,
-          error: null,
-        };
-      }
-    }
+    /*
+     * PEMBAIKAN LOCK LAMA:
+     *
+     * Jangan sekat lock aktif hanya kerana kedudukan sideway semasa
+     * atau setup baharu tidak lagi memenuhi allowSignal.
+     *
+     * Selagi lock lama masih aktif, belum tamat tempoh, belum
+     * mencapai SL/TP1 dan belum diinvalidasi oleh candle tertutup,
+     * gunakan zone serta pelan harga yang telah disimpan.
+     */
 
     const locked = planFromLock(active, mode, cmp);
 
@@ -1615,29 +1590,16 @@ async function applyModeLock(
         };
       }
 
-      if (
-        setup.zone?.allowSignal === false ||
-        setup.sidewayBlocked === true
-      ) {
-        return {
-          ...setup,
-          status: "WAIT",
-          sidewayBlocked: true,
-          reason: setup.zone?.reason ||
-            "Setup lock tidak boleh mengatasi sekatan struktur semasa.",
-        };
-      }
-
       return {
         ...setup,
         status: "READY",
         zone: locked.zone,
         plan: locked.plan,
         reason: locked.zone.status === "WATCH"
-          ? "Setup dikunci; tunggu harga menghampiri zon."
+          ? "LOCK lama dikekalkan; tunggu harga menghampiri zone asal."
           : locked.zone.status === "APPROACHING"
-            ? "Setup dikunci; harga menghampiri zon."
-            : "Setup dikunci; harga berada dalam zon.",
+            ? "LOCK lama dikekalkan; harga menghampiri zone asal."
+            : "LOCK lama dikekalkan; harga berada dalam zone asal.",
         signalLock: {
           enabled: true,
           persisted: true,

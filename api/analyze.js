@@ -20,7 +20,7 @@ const SETTINGS = {
   symbol: "XAU/USD",
   point: 0.01,
   zoneThickness: 3.50,
-  zoneOffset: 0.80,
+  zoneOffset: 1.10,
   stopBuffer: 2.50,
   priorityDistance: 3.00,
   approachDistance: 3.00,

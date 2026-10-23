@@ -485,118 +485,301 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   let reason = null;
   let rejectionFound = false;
 
+  const offset = SETTINGS.zoneOffset;
+  const thickness = SETTINGS.zoneThickness;
+  const buffer = SETTINGS.sideway.breakoutBuffer;
+
   /*
-   * SHADOW REJECTION — KEUTAMAAN UTAMA
+   * PEMILIHAN ZONE BERDASARKAN KUALITI STRUKTUR
+   *
+   * Turutan penilaian:
+   * 1. SNR swing yang mempunyai bukti reaksi berulang.
+   * 2. Liquidity sweep bersama rejection yang sah.
+   * 3. Breakout retest pada paras struktur yang ditembusi.
+   * 4. Support/resistance sideway.
+   * 5. Swing struktur terdekat.
+   * 6. EMA20 reentry / range edge sebagai fallback.
+   *
+   * Jarak kepada CMP tidak menjadi faktor tunggal untuk
+   * memilih zone. Zone yang dekat tetapi tidak mempunyai
+   * bukti struktur yang baik tidak automatik mengatasi
+   * support/resistance yang lebih berkualiti.
+   */
+
+  const last = recent[recent.length - 1];
+
+  if (!last || !Number.isFinite(cmp)) {
+    return {
+      valid: false,
+      reason: "Data harga tidak sah untuk membina zone.",
+      low: null,
+      high: null,
+      entry: null,
+      pivot: null,
+      source,
+      status: "WATCH",
+      distance: null,
+      timeframe: mode === "scalping" ? "M5" : "M15",
+      allowSignal: false,
+      sideway,
+    };
+  }
+
+  /*
+   * Helper: semak sama ada paras struktur berada di sisi
+   * harga yang betul untuk BUY atau SELL.
+   */
+  function isRelevantPivot(price) {
+    if (!Number.isFinite(price)) return false;
+    return buy ? price < cmp : price > cmp;
+  }
+
+  /*
+   * Helper: kira bilangan reaksi berhampiran paras pivot.
+   * Ini membantu membezakan SNR yang pernah dihormati harga
+   * daripada satu wick terpencil.
+   */
+  function countTouches(price, tolerance = 0.65) {
+    let touches = 0;
+
+    for (const candle of recent) {
+      const testedPrice = buy ? candle.low : candle.high;
+
+      if (Math.abs(testedPrice - price) <= tolerance) {
+        touches++;
+      }
+    }
+
+    return touches;
+  }
+
+  /*
+   * Helper: nilai rejection candle berdasarkan arah wick,
+   * saiz wick relatif kepada body dan penutupan candle.
+   */
+  function getRejectionStrength(candle) {
+    const body = Math.abs(candle.close - candle.open);
+    const upperWick =
+      candle.high - Math.max(candle.open, candle.close);
+    const lowerWick =
+      Math.min(candle.open, candle.close) - candle.low;
+
+    if (
+      !Number.isFinite(body) ||
+      !Number.isFinite(upperWick) ||
+      !Number.isFinite(lowerWick)
+    ) {
+      return null;
+    }
+
+    const wantedWick = buy ? lowerWick : upperWick;
+    const oppositeWick = buy ? upperWick : lowerWick;
+    const minimumWick = Math.max(0.10, body * 0.50);
+
+    if (wantedWick < minimumWick) return null;
+    if (wantedWick <= oppositeWick) return null;
+
+    const candleRange = candle.high - candle.low;
+
+    if (!Number.isFinite(candleRange) || candleRange <= 0) {
+      return null;
+    }
+
+    const closePosition =
+      (candle.close - candle.low) / candleRange;
+
+    /*
+     * BUY rejection lebih kukuh jika candle tutup di bahagian
+     * atas julat. SELL rejection lebih kukuh jika tutup di
+     * bahagian bawah julat.
+     */
+    const closeQuality = buy
+      ? closePosition
+      : 1 - closePosition;
+
+    return {
+      wantedWick,
+      oppositeWick,
+      body,
+      closeQuality,
+      score:
+        wantedWick +
+        Math.max(0, closeQuality) * 0.75 +
+        Math.min(wantedWick / Math.max(body, 0.10), 3) * 0.25,
+    };
+  }
+
+  /*
+   * KUMPUL CALON SNR
+   *
+   * Swing yang mempunyai beberapa reaksi berhampiran parasnya
+   * diberi keutamaan. Swing masih mesti berada di sisi CMP
+   * yang betul untuk arah setup.
+   */
+  const swingCandidates = [];
+  const relevantSwings = buy ? swings.lows : swings.highs;
+
+  for (const swing of relevantSwings) {
+    if (!isRelevantPivot(swing.price)) continue;
+
+    const distance = Math.abs(cmp - swing.price);
+    const touches = countTouches(swing.price);
+    const recency = swing.index / Math.max(1, recent.length - 1);
+
+    /*
+     * Reaksi berulang menaikkan kualiti calon.
+     * Swing terbaru mendapat bonus kecil, tetapi jarak sahaja
+     * tidak menentukan pemenang.
+     */
+    const structureScore =
+      Math.min(touches, 5) * 3 +
+      recency * 2 +
+      (distance <= 8 ? 1 : 0);
+
+    swingCandidates.push({
+      pivot: round(swing.price),
+      source: buy ? "SNR_SUPPORT" : "SNR_RESISTANCE",
+      index: swing.index,
+      touches,
+      distance,
+      structureScore,
+    });
+  }
+
+  swingCandidates.sort((a, b) => {
+    if (b.structureScore !== a.structureScore) {
+      return b.structureScore - a.structureScore;
+    }
+
+    if (Math.abs(a.distance - b.distance) > 0.25) {
+      return a.distance - b.distance;
+    }
+
+    return b.index - a.index;
+  });
+
+  /*
+   * KUMPUL CALON LIQUIDITY SWEEP + REJECTION
    *
    * BUY:
-   * - Cari rejection shadow bawah.
-   * - Low shadow menjadi rujukan support.
+   * - Candle menyapu low struktur yang relevan.
+   * - Candle ditutup semula di atas paras yang disapu.
    *
    * SELL:
-   * - Cari rejection shadow atas.
-   * - High shadow menjadi rujukan resistance.
+   * - Candle menyapu high struktur yang relevan.
+   * - Candle ditutup semula di bawah paras yang disapu.
    *
-   * Offset $0.80 dan lebar zone $3.50 akan digunakan
-   * selepas sumber pivot dipilih, sama ada shadow rejection
-   * atau sumber struktur alternatif.
+   * Wick panjang sahaja tidak cukup untuk mengatasi struktur
+   * SNR yang lebih kukuh.
    */
-  function findShadowRejection() {
+  function findLiquiditySweep() {
     const candidates = [];
+    const startIndex = Math.max(2, recent.length - 12);
 
-    for (let i = 0; i < recent.length; i++) {
+    for (let i = startIndex; i < recent.length; i++) {
       const candle = recent[i];
+      const previousCandles = recent.slice(
+        Math.max(0, i - SETTINGS.sideway.lookback),
+        i
+      );
 
-      const body = Math.abs(candle.close - candle.open);
-      const upperWick =
-        candle.high - Math.max(candle.open, candle.close);
-      const lowerWick =
-        Math.min(candle.open, candle.close) - candle.low;
+      if (previousCandles.length < 2) continue;
 
-      if (
-        !Number.isFinite(body) ||
-        !Number.isFinite(upperWick) ||
-        !Number.isFinite(lowerWick)
-      ) {
-        continue;
-      }
-
-      const minimumWick = Math.max(0.10, body * 0.50);
+      const rejection = getRejectionStrength(candle);
+      if (!rejection) continue;
 
       if (buy) {
-        const validLowerWick =
-          lowerWick >= minimumWick &&
-          lowerWick > upperWick;
+        const priorLow = Math.min(
+          ...previousCandles.map((c) => c.low)
+        );
 
-        if (!validLowerWick) continue;
+        const swept = candle.low < priorLow;
+        const reclaimed = candle.close > priorLow;
+
+        if (!swept || !reclaimed) continue;
         if (candle.low >= cmp) continue;
+
+        const touches = countTouches(priorLow);
+        const recency = i / Math.max(1, recent.length - 1);
 
         candidates.push({
           pivot: round(candle.low),
+          source: "LIQUIDITY_SWEEP_REJECTION_BUY",
           index: i,
-          wick: lowerWick,
-          body,
-          source: "SHADOW_REJECTION_BUY",
+          structureScore:
+            8 +
+            Math.min(touches, 5) * 2 +
+            rejection.score +
+            recency,
+          distance: Math.abs(cmp - candle.low),
         });
       } else {
-        const validUpperWick =
-          upperWick >= minimumWick &&
-          upperWick > lowerWick;
+        const priorHigh = Math.max(
+          ...previousCandles.map((c) => c.high)
+        );
 
-        if (!validUpperWick) continue;
+        const swept = candle.high > priorHigh;
+        const reclaimed = candle.close < priorHigh;
+
+        if (!swept || !reclaimed) continue;
         if (candle.high <= cmp) continue;
+
+        const touches = countTouches(priorHigh);
+        const recency = i / Math.max(1, recent.length - 1);
 
         candidates.push({
           pivot: round(candle.high),
+          source: "LIQUIDITY_SWEEP_REJECTION_SELL",
           index: i,
-          wick: upperWick,
-          body,
-          source: "SHADOW_REJECTION_SELL",
+          structureScore:
+            8 +
+            Math.min(touches, 5) * 2 +
+            rejection.score +
+            recency,
+          distance: Math.abs(cmp - candle.high),
         });
       }
     }
 
-    if (!candidates.length) return null;
-
     candidates.sort((a, b) => {
-      const distanceA = Math.abs(cmp - a.pivot);
-      const distanceB = Math.abs(cmp - b.pivot);
-
-      if (Math.abs(distanceA - distanceB) > 0.01) {
-        return distanceA - distanceB;
+      if (b.structureScore !== a.structureScore) {
+        return b.structureScore - a.structureScore;
       }
 
-      if (Math.abs(a.wick - b.wick) > 0.01) {
-        return b.wick - a.wick;
+      if (Math.abs(a.distance - b.distance) > 0.25) {
+        return a.distance - b.distance;
       }
 
       return b.index - a.index;
     });
 
-    return candidates[0];
-  }
-
-  const shadowRejection = findShadowRejection();
-
-  if (shadowRejection) {
-    pivot = shadowRejection.pivot;
-    source = shadowRejection.source;
-    rejectionFound = true;
+    return candidates[0] || null;
   }
 
   /*
-   * HISTORICAL BREAKOUT RETEST
+   * CARI BREAKOUT RETEST SEBENAR
    *
-   * Cari breakout pada candle terdahulu, bukan candle terakhir
-   * sahaja. Paras rujukan diambil daripada julat 20 candle
-   * sebelum candle breakout.
+   * Paras perlu ditembusi oleh candle yang telah tutup.
+   * Selepas breakout, harga perlu kembali menguji paras itu
+   * dan menutup semula di sisi breakout.
+   *
+   * BUY:
+   * - Resistance ditembusi ke atas.
+   * - Retest menyentuh atau menghampiri resistance lama.
+   * - Candle retest ditutup semula di atas paras.
+   *
+   * SELL:
+   * - Support ditembusi ke bawah.
+   * - Retest menyentuh atau menghampiri support lama.
+   * - Candle retest ditutup semula di bawah paras.
    */
-  function findHistoricalBreakout() {
+  function findHistoricalBreakoutRetest() {
     const lookback = SETTINGS.sideway.lookback;
-    const buffer = SETTINGS.sideway.breakoutBuffer;
+    const candidates = [];
 
-    if (recent.length <= lookback) return null;
+    if (recent.length <= lookback + 2) return null;
 
-    for (let i = recent.length - 1; i >= lookback; i--) {
+    for (let i = lookback; i < recent.length - 1; i++) {
       const breakoutCandle = recent[i];
       const previousCandle = recent[i - 1];
 
@@ -619,95 +802,151 @@ function buildEarlyZone(candles, direction, cmp, mode) {
 
         if (!brokeResistance) continue;
 
-        const pivotPrice = round(rangeHigh);
+        const level = round(rangeHigh);
+        const afterBreakout = recent.slice(i + 1);
 
-        if (!Number.isFinite(cmp) || cmp <= pivotPrice) {
-          continue;
-        }
-
-        const invalidated = recent
-          .slice(i + 1)
-          .some((c) => c.close < pivotPrice);
+        const invalidated = afterBreakout.some(
+          (c) => c.close < level - buffer
+        );
 
         if (invalidated) continue;
 
-        return {
-          pivot: pivotPrice,
+        const retestIndex = afterBreakout.findIndex((c) =>
+          c.low <= level + offset &&
+          c.low >= level - thickness &&
+          c.close > level
+        );
+
+        if (retestIndex < 0) continue;
+        if (cmp <= level) continue;
+
+        const retestCandle = afterBreakout[retestIndex];
+        const rejection = getRejectionStrength(retestCandle);
+        const touches = countTouches(level);
+        const distance = Math.abs(cmp - level);
+
+        candidates.push({
+          pivot: level,
           source: "BREAKOUT_RETEST_BUY",
-          breakoutTime: breakoutCandle.time,
-        };
+          index: i + 1 + retestIndex,
+          distance,
+          structureScore:
+            12 +
+            Math.min(touches, 5) * 2 +
+            (rejection ? rejection.score : 0),
+        });
+      } else {
+        const brokeSupport =
+          breakoutCandle.close < rangeLow - buffer &&
+          breakoutCandle.close < previousCandle.low;
+
+        if (!brokeSupport) continue;
+
+        const level = round(rangeLow);
+        const afterBreakout = recent.slice(i + 1);
+
+        const invalidated = afterBreakout.some(
+          (c) => c.close > level + buffer
+        );
+
+        if (invalidated) continue;
+
+        const retestIndex = afterBreakout.findIndex((c) =>
+          c.high >= level - offset &&
+          c.high <= level + thickness &&
+          c.close < level
+        );
+
+        if (retestIndex < 0) continue;
+        if (cmp >= level) continue;
+
+        const retestCandle = afterBreakout[retestIndex];
+        const rejection = getRejectionStrength(retestCandle);
+        const touches = countTouches(level);
+        const distance = Math.abs(cmp - level);
+
+        candidates.push({
+          pivot: level,
+          source: "BREAKOUT_RETEST_SELL",
+          index: i + 1 + retestIndex,
+          distance,
+          structureScore:
+            12 +
+            Math.min(touches, 5) * 2 +
+            (rejection ? rejection.score : 0),
+        });
+      }
+    }
+
+    candidates.sort((a, b) => {
+      if (b.structureScore !== a.structureScore) {
+        return b.structureScore - a.structureScore;
       }
 
-      const brokeSupport =
-        breakoutCandle.close < rangeLow - buffer &&
-        breakoutCandle.close < previousCandle.low;
-
-      if (!brokeSupport) continue;
-
-      const pivotPrice = round(rangeLow);
-
-      if (!Number.isFinite(cmp) || cmp >= pivotPrice) {
-        continue;
+      if (Math.abs(a.distance - b.distance) > 0.25) {
+        return a.distance - b.distance;
       }
 
-      const invalidated = recent
-        .slice(i + 1)
-        .some((c) => c.close > pivotPrice);
+      return b.index - a.index;
+    });
 
-      if (invalidated) continue;
-
-      return {
-        pivot: pivotPrice,
-        source: "BREAKOUT_RETEST_SELL",
-        breakoutTime: breakoutCandle.time,
-      };
-    }
-
-    return null;
+    return candidates[0] || null;
   }
 
   /*
-   * KEUTAMAAN 1:
-   * Shadow rejection yang sah telah dipilih di atas.
-   * Jika tiada, periksa breakout candle terkini.
+   * CALON SNR UTAMA
    */
-  if (pivot === null) {
-    const breakoutRetestSell =
-      sideway.range &&
-      sideway.position === "BREAKOUT_DOWN" &&
-      !buy;
-
-    const breakoutRetestBuy =
-      sideway.range &&
-      sideway.position === "BREAKOUT_UP" &&
-      buy;
-
-    if (breakoutRetestSell) {
-      pivot = sideway.range.low;
-      source = "BREAKOUT_RETEST_SELL";
-    } else if (breakoutRetestBuy) {
-      pivot = sideway.range.high;
-      source = "BREAKOUT_RETEST_BUY";
-    }
-  }
+  const bestSNR = swingCandidates[0] || null;
 
   /*
-   * KEUTAMAAN 2:
-   * Jika tiada breakout terkini, cari breakout sejarah yang sah.
+   * CALON LIQUIDITY SWEEP + REJECTION
    */
-  if (pivot === null) {
-    const historicalBreakout = findHistoricalBreakout();
+  const bestSweep = findLiquiditySweep();
 
-    if (historicalBreakout) {
-      pivot = historicalBreakout.pivot;
-      source = historicalBreakout.source;
+  /*
+   * CALON BREAKOUT RETEST
+   */
+  const bestRetest = findHistoricalBreakoutRetest();
+
+  /*
+   * PILIH CALON BERDASARKAN KUALITI STRUKTUR
+   *
+   * Calon sweep/rejection dan breakout retest mendapat bonus
+   * struktur apabila syaratnya benar-benar dipenuhi.
+   * Jika tiada setup tersebut, SNR dengan reaksi berulang
+   * menjadi pilihan utama.
+   */
+  const structuralCandidates = [
+    bestSNR,
+    bestSweep,
+    bestRetest,
+  ].filter(Boolean);
+
+  structuralCandidates.sort((a, b) => {
+    if (b.structureScore !== a.structureScore) {
+      return b.structureScore - a.structureScore;
     }
+
+    if (Math.abs(a.distance - b.distance) > 0.25) {
+      return a.distance - b.distance;
+    }
+
+    return b.index - a.index;
+  });
+
+  const bestStructure = structuralCandidates[0] || null;
+
+  if (bestStructure) {
+    pivot = bestStructure.pivot;
+    source = bestStructure.source;
+    rejectionFound = source.includes("REJECTION");
   }
 
   /*
-   * KEUTAMAAN 3:
-   * Jika tiada rejection atau breakout sesuai, kekalkan logik
-   * sideway asal.
+   * SIDEWAY FALLBACK
+   *
+   * Digunakan jika tiada calon struktur yang lebih baik.
+   * Zone masih dibina pada edge julat, bukannya CMP.
    */
   if (pivot === null && sideway.isSideway && sideway.range) {
     const isAtCorrectEdge = buy
@@ -728,30 +967,38 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   }
 
   /*
-   * KEUTAMAAN 4:
-   * Kekalkan pemilihan swing / EMA20 / range edge asal.
+   * FALLBACK STRUKTUR ASAL
+   *
+   * Jika tiada calon struktur dan pasaran bukan sideway,
+   * gunakan swing relevan yang paling hampir. EMA20 dan range
+   * edge dikekalkan sebagai fallback terakhir.
    */
   if (pivot === null && !sideway.isSideway) {
     const relevantSwings = buy ? swings.lows : swings.highs;
 
     const candidates = relevantSwings
-      .filter((s) => buy ? s.price < cmp : s.price > cmp)
+      .filter((s) => isRelevantPivot(s.price))
       .map((s) => ({
         price: s.price,
         time: s.time,
+        index: s.index,
         source: buy ? "SNR_SUPPORT" : "SNR_RESISTANCE",
       }));
 
-    let bestDistance = Infinity;
+    candidates.sort((a, b) => {
+      const distanceA = Math.abs(cmp - a.price);
+      const distanceB = Math.abs(cmp - b.price);
 
-    for (const candidate of candidates) {
-      const distance = Math.abs(cmp - candidate.price);
-
-      if (distance < bestDistance) {
-        pivot = candidate.price;
-        source = candidate.source;
-        bestDistance = distance;
+      if (Math.abs(distanceA - distanceB) > 0.01) {
+        return distanceA - distanceB;
       }
+
+      return b.index - a.index;
+    });
+
+    if (candidates.length) {
+      pivot = candidates[0].price;
+      source = candidates[0].source;
     }
 
     const ema20 = ema(recent.map((c) => c.close), 20);
@@ -789,26 +1036,22 @@ function buildEarlyZone(candles, direction, cmp, mode) {
   }
 
   /*
-   * ZONE GEOMETRY — OFFSET $0.80
+   * ZONE GEOMETRY
    *
    * Lebar zone kekal $3.50 keseluruhan.
    *
    * BUY:
-   * - Pivot ialah rujukan support atau low shadow.
-   * - Hujung atas zone = pivot - $0.80.
-   * - Hujung bawah zone = hujung atas - $3.50.
+   * - Pivot ialah rujukan support atau low rejection.
+   * - Hujung atas zone = pivot - offset.
+   * - Hujung bawah zone = hujung atas - thickness.
    *
    * SELL:
-   * - Pivot ialah rujukan resistance atau high shadow.
-   * - Hujung bawah zone = pivot + $0.80.
-   * - Hujung atas zone = hujung bawah + $3.50.
+   * - Pivot ialah rujukan resistance atau high rejection.
+   * - Hujung bawah zone = pivot + offset.
+   * - Hujung atas zone = hujung bawah + thickness.
    *
-   * Offset ini digunakan untuk semua sumber zone.
    * Entry kekal di tengah zone.
    */
-  const offset = SETTINGS.zoneOffset;
-  const thickness = SETTINGS.zoneThickness;
-
   let low;
   let high;
 
